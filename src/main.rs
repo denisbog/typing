@@ -23,7 +23,7 @@ impl CharState {
     fn typed(&mut self, typed_char: char) {
         self.typed_char = Some(typed_char);
     }
-    fn unset(&mut self) {
+    fn backspace(&mut self) {
         self.typed_char = None
     }
 }
@@ -50,7 +50,7 @@ fn App() -> impl IntoView {
     let (store, set_store) = create_signal(TypeState::from_str("Mit seinem Nein zu Koalitionen."));
     view! {
         <div
-            class="board"
+            class="board auto flex"
             tabindex=1
             on:keydown=move |event| {
                 let key = event.key_code();
@@ -59,7 +59,7 @@ fn App() -> impl IntoView {
                 if key == 8 && local_store.index > 0 {
                     local_store.index -= 1;
                     let temp = local_store.data.get_mut(local_store.index).unwrap();
-                    temp.unset();
+                    temp.backspace();
                     set_store(local_store);
                 } else if key == 32 && local_store.index < local_store.data.len() {
                     let temp = local_store.data.get_mut(local_store.index).unwrap();
@@ -78,12 +78,6 @@ fn App() -> impl IntoView {
                             logging::log!("current index {}", local_store.index);
                             let temp = local_store.data.get_mut(local_store.index).unwrap();
                             temp.typed(char::from_u32(key).unwrap());
-                            let current_key = temp.reference_char as u32;
-                            if current_key == key {
-                                logging::log!("match");
-                            } else {
-                                logging::log!("not match {}, provided {}", current_key, key);
-                            }
                             local_store.index += 1;
                             set_store(local_store);
                         }
@@ -103,15 +97,27 @@ fn App() -> impl IntoView {
                         }
 
                         children=move |(_index, c)| {
-                            logging::log!("iterate");
                             if let Some(typed_char) = c.typed_char {
                                 if typed_char == c.reference_char {
                                     return view! {
-                                        <div color="green">{c.reference_char} {c.typed_char}</div>
+                                        <div class="p-2 m-1 shadow-lg">{c.reference_char}</div>
+                                    };
+                                } else {
+                                    return view! {
+                                        <div class="p-2 m-1 shadow-lg relative text-gray-400">
+                                            {c.reference_char}
+                                            <div class="absolute -top-2 -right-1 text-red-600">
+                                                <p>{c.typed_char}</p>
+                                            </div>
+                                        </div>
                                     };
                                 }
                             }
-                            view! { <div>{c.reference_char} {c.typed_char}</div> }
+                            view! {
+                                <div class="p-2 m-1 shadow-lg text-amber-600">
+                                    {c.reference_char} {c.typed_char}
+                                </div>
+                            }
                         }
                     />
                 }
