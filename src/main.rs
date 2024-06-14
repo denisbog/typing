@@ -110,7 +110,7 @@ fn App() -> impl IntoView {
                                     return view! {
                                         <div class="relative text-gray-400 min-w-4">
                                             {c.reference_char}
-                                            <div class="absolute -top-0 -right-0 text-red-600 italic text-sm">
+                                            <div class="absolute -top-0 -right-0 text-red-600 italic text-base">
                                                 <p>{c.typed_char}</p>
                                             </div>
                                         </div>
@@ -132,7 +132,9 @@ fn App() -> impl IntoView {
 }
 
 fn compare(t: char, r: char) -> bool {
-    if t == r {
+    if t == r.to_lowercase().next().unwrap() {
+        true
+    } else if t == r {
         true
     } else if t == 'S' && r == 'ß' {
         true
@@ -149,6 +151,14 @@ fn compare(t: char, r: char) -> bool {
     } else if t == 'a' && r == 'ä' {
         true
     } else if t == 'o' && r == 'ö' {
+        true
+    } else if t == 's' && r == 'ß' {
+        true
+    } else if t == 'u' && r == 'Ü' {
+        true
+    } else if t == 'a' && r == 'Ä' {
+        true
+    } else if t == 'o' && r == 'Ö' {
         true
     } else {
         false
