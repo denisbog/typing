@@ -29,6 +29,7 @@ pub struct WordState {
 pub struct TypeState {
     pub word_index: usize,
     pub data: Vec<WordState>,
+    pub focus: bool,
 }
 
 impl TypeState {
@@ -46,6 +47,7 @@ impl TypeState {
                         .collect(),
                 })
                 .collect(),
+            focus: false,
         }
     }
 }

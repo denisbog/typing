@@ -2,7 +2,6 @@ use leptos::*;
 
 use crate::types::TypeState;
 use crate::utils::compare;
-
 #[component]
 pub fn Sentance(text: &'static str) -> impl IntoView {
     let (store, set_store) = create_signal(TypeState::from_str(text));
@@ -25,9 +24,20 @@ pub fn Sentance(text: &'static str) -> impl IntoView {
                     }
                     set_store(local_store);
                 } else if (key == 32) && local_store.word_index < local_store.data.len() {
+                    event.prevent_default();
                     local_store.word_index += 1;
                     set_store(local_store);
                 }
+            }
+
+            on:focus=move |_event| {
+                logging::log!("focus gained");
+                set_store.update(|store| store.focus = true)
+            }
+
+            on:focusout=move |_event| {
+                logging::log!("focus lost");
+                set_store.update(|store| store.focus = false)
             }
 
             on:keypress=move |event| {
@@ -42,13 +52,15 @@ pub fn Sentance(text: &'static str) -> impl IntoView {
                                 .word_index).unwrap().char_index
                             );
                             let word = local_store.data.get_mut(local_store.word_index).unwrap();
-                            logging::log!("inserting {}", char::from_u32(key).unwrap());
-                            word.data
-                                .get_mut(word.char_index)
-                                .unwrap()
-                                .typed(char::from_u32(key).unwrap());
-                            word.char_index += 1;
-                            set_store(local_store);
+                            if word.char_index < word.data.len() {
+                                logging::log!("inserting {}", char::from_u32(key).unwrap());
+                                word.data
+                                    .get_mut(word.char_index)
+                                    .unwrap()
+                                    .typed(char::from_u32(key).unwrap());
+                                word.char_index += 1;
+                                set_store(local_store);
+                            }
                         }
                     }
                     _ => {}
@@ -58,29 +70,37 @@ pub fn Sentance(text: &'static str) -> impl IntoView {
         >
 
             {
+                let current_word = move |index| index == store.get_untracked().word_index;
+                let focus = move || store.get_untracked().focus;
                 view! {
                     <For
                         each=move || store.get().data.into_iter().enumerate()
-                        key=|(index, c)| { format!("{}-{}", index, c.char_index) }
+                        key=move |(index, c)| {
+                            let marker = if current_word(*index) { "selected" } else { "" };
+                            format!("{}-{}-{}-{}", index, c.char_index, marker, focus())
+                        }
 
-                        children=move |(_index, c)| {
+                        children=move |(word_index, c)| {
                             view! {
                                 <div class="flex px-2 py-1">
                                     <For
                                         each=move || c.clone().data.into_iter().enumerate()
                                         key=|(index, c)| {
-                                            format!("{}-{}", index.clone(), c.typed_char.unwrap_or('~'))
+                                            format!("{}-{}", index, c.typed_char.unwrap_or('~'))
                                         }
 
                                         children=move |(_index, c)| {
                                             if let Some(typed_char) = c.typed_char {
                                                 if compare(typed_char, c.reference_char) {
-                                                    return view! {
-                                                        <div class="min-w-4 text-gray-900">{c.reference_char}</div>
+                                                    let class = if current_word(word_index) {
+                                                        "min-w-4 text-gray-900 underline"
+                                                    } else {
+                                                        "min-w-4 text-gray-900"
                                                     };
+                                                    return view! { <div class=class>{c.reference_char}</div> };
                                                 } else {
                                                     return view! {
-                                                        <div class="relative text-gray-400 min-w-4">
+                                                        <div class="relative text-gray-400 min-w-4 underline">
                                                             {c.reference_char}
                                                             <div class="absolute -top-0 -right-0 text-red-600 italic text-base">
                                                                 <p>{c.typed_char}</p>
@@ -89,9 +109,12 @@ pub fn Sentance(text: &'static str) -> impl IntoView {
                                                     };
                                                 }
                                             }
-                                            view! {
-                                                <div class="min-w-4">{c.reference_char} {c.typed_char}</div>
-                                            }
+                                            let class = if current_word(word_index) && focus() {
+                                                "min-w-4 underline"
+                                            } else {
+                                                "min-w-4"
+                                            };
+                                            view! { <div class=class>{c.reference_char}</div> }
                                         }
                                     />
 
