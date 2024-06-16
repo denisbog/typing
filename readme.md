@@ -1,6 +1,16 @@
 ### run
-```trunk serve --open```
+```bash
+trunk serve --open
+```
 ### update styles
-```npx tailwindcss -i ./input.css -o ./output.css --watch```
+```bash
+npx tailwindcss -i ./input.css -o ./output.css --watch
+```
 ### format letptos code
-```leptosfmt .```
+```bash
+leptosfmt .
+```
+### run translation server
+```python
+python translate_server.py
+```
