@@ -11,6 +11,9 @@ npx tailwindcss -i ./input.css -o ./output.css --watch
 leptosfmt .
 ```
 ### run translation server
+
+using https://huggingface.co/docs/transformers/model_doc/marian
+
 ```python
 python translate_server.py
 ```
