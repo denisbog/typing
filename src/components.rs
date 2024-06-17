@@ -7,7 +7,7 @@ pub fn Sentance(text: &'static str, translation: &'static str) -> impl IntoView 
     let (store, set_store) = create_signal(TypeState::from_str(text));
     view! {
         <div
-            class="w-screen p-3 flex flex-wrap text-2xl text-gray-500 focus:bg-gray-300 font-mono"
+            class="w-screen p-3 flex flex-wrap text-2xl md:text-4xl text-gray-500 focus:bg-gray-300 font-mono"
             tabindex=1
             on:keydown=move |event| {
                 let key = event.key_code();
@@ -102,7 +102,7 @@ pub fn Sentance(text: &'static str, translation: &'static str) -> impl IntoView 
                                                     return view! {
                                                         <div class="relative text-gray-400 min-w-4 underline">
                                                             {c.reference_char}
-                                                            <div class="absolute -top-0 -right-0 text-red-600 italic text-base">
+                                                            <div class="absolute -top-0 -right-0 text-red-600 italic text-base md:text-3xl">
                                                                 <p>{c.typed_char}</p>
                                                             </div>
                                                         </div>
@@ -126,7 +126,7 @@ pub fn Sentance(text: &'static str, translation: &'static str) -> impl IntoView 
             }
 
         </div>
-        <div class="w-screen px-8 p-5 flex flex-wrap text-2xl text-gray-500 italic">
+        <div class="w-screen px-8 p-5 flex flex-wrap text-2xl md:text-4xl text-gray-500 italic">
             {translation}
         </div>
     }
