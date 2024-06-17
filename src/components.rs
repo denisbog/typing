@@ -7,7 +7,7 @@ pub fn Sentance(text: &'static str, translation: &'static str) -> impl IntoView 
     let (store, set_store) = create_signal(TypeState::from_str(text));
     view! {
         <div
-            class="w-screen p-3 flex flex-wrap text-2xl md:text-4xl text-gray-500 focus:bg-gray-300 font-mono"
+            class="w-screen lg:w-3/4 p-3 flex flex-wrap text-4xl lg:text-3xl text-gray-500 focus:bg-gray-300 font-mono"
             tabindex=1
             on:keydown=move |event| {
                 let key = event.key_code();
@@ -31,12 +31,10 @@ pub fn Sentance(text: &'static str, translation: &'static str) -> impl IntoView 
             }
 
             on:focus=move |_event| {
-                logging::log!("focus gained");
                 set_store.update(|store| store.focus = true)
             }
 
             on:focusout=move |_event| {
-                logging::log!("focus lost");
                 set_store.update(|store| store.focus = false)
             }
 
@@ -126,7 +124,7 @@ pub fn Sentance(text: &'static str, translation: &'static str) -> impl IntoView 
             }
 
         </div>
-        <div class="w-screen px-8 p-5 flex flex-wrap text-2xl md:text-4xl text-gray-500 italic">
+        <div class="w-screen lg:w-3/4 px-8 p-5 flex flex-wrap text-4xl lg:text-3xl text-gray-500 italic">
             {translation}
         </div>
     }

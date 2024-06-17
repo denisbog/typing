@@ -21,9 +21,13 @@ fn App() -> impl IntoView {
 		"But with the gradual introduction of smart electricity meters into households, this is now changing: they give citizens the opportunity to participate in the electricity market and thus save – and even earn – money."
 
     ];
-    sentances
+    let views = sentances
         .iter()
         .zip(translations)
         .map(|(item, translation)| view! { <Sentance text=item translation=translation/> })
-        .collect_view()
+        .collect_view();
+
+    view! {
+        <div class="flex flex-col items-center">{views}</div>
+    }
 }
