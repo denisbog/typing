@@ -3,11 +3,20 @@ use leptos::*;
 use crate::types::TypeState;
 use crate::utils::compare;
 #[component]
-pub fn Sentance(text: &'static str, translation: &'static str) -> impl IntoView {
+pub fn Sentance(
+    text: &'static str,
+    translation: &'static str,
+    display: Option<WriteSignal<Option<(&'static str, &'static str)>>>,
+) -> impl IntoView {
     let (store, set_store) = create_signal(TypeState::from_str(text));
     view! {
         <div
-            class="w-screen lg:w-3/4 p-3 flex flex-wrap text-4xl lg:text-3xl text-gray-500 focus:bg-gray-300 font-mono"
+            on:click=move |_| {
+                if let Some(action) = display {
+                    action(Some((text, translation)))
+                }
+            }
+            class="p-3 flex flex-wrap text-4xl lg:text-3xl text-gray-500 focus:bg-gray-300 font-mono"
             tabindex=1
             on:keydown=move |event| {
                 let key = event.key_code();
@@ -30,13 +39,9 @@ pub fn Sentance(text: &'static str, translation: &'static str) -> impl IntoView 
                 }
             }
 
-            on:focus=move |_event| {
-                set_store.update(|store| store.focus = true)
-            }
+            on:focus=move |_event| { set_store.update(|store| store.focus = true) }
 
-            on:focusout=move |_event| {
-                set_store.update(|store| store.focus = false)
-            }
+            on:focusout=move |_event| { set_store.update(|store| store.focus = false) }
 
             on:keypress=move |event| {
                 let key = event.key_code();
@@ -124,7 +129,7 @@ pub fn Sentance(text: &'static str, translation: &'static str) -> impl IntoView 
             }
 
         </div>
-        <div class="w-screen lg:w-3/4 px-8 p-5 flex flex-wrap text-4xl lg:text-3xl text-gray-500 italic">
+        <div class="px-8 p-5 flex flex-wrap text-4xl lg:text-3xl text-gray-500 italic">
             {translation}
         </div>
     }

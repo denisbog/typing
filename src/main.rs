@@ -21,13 +21,46 @@ fn App() -> impl IntoView {
 		"But with the gradual introduction of smart electricity meters into households, this is now changing: they give citizens the opportunity to participate in the electricity market and thus save – and even earn – money."
 
     ];
+
+    let (popup, set_popup) = create_signal(None);
+
+    let popup_component = move || {
+        if let Some((t, tr)) = popup() {
+            view! {
+                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity">
+                    <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+                        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0 lg:p-5">
+                            <div class="relative transform overflow-hidden bg-gray-100 shadow-xl transition-all w-full h-full">
+                                <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                                    <Sentance text=t translation=tr display=None/>
+                                    <input
+                                        type="button"
+                                        value="close"
+                                        on:click=move |_| set_popup.set(None)
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        } else {
+            view! { <div></div> }
+        }
+    };
+
     let views = sentances
         .iter()
         .zip(translations)
-        .map(|(item, translation)| view! { <Sentance text=item translation=translation/> })
+        .map(|(item, translation)| {
+            view! { <Sentance text=item translation=translation display=Some(set_popup)/> }
+        })
         .collect_view();
 
     view! {
-        <div class="flex flex-col items-center">{views}</div>
+        <div class="w-screen flex flex-col items-center">
+            <div>{move || popup_component}</div>
+            <div class="w-screen lg:w-3/4 flex flex-col">{views}</div>
+        </div>
     }
 }
