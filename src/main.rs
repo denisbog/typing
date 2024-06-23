@@ -1,5 +1,5 @@
 use leptos::*;
-use typing::components::Sentance;
+use typing::{components::Sentance, popup::Popup};
 fn main() {
     console_error_panic_hook::set_once();
     mount_to_body(|| view! { <App/> })
@@ -32,10 +32,10 @@ fn App() -> impl IntoView {
                         <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0 lg:p-5">
                             <div class="relative transform overflow-hidden bg-gray-100 shadow-xl transition-all w-full h-full">
                                 <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
-                                    <Sentance text=t translation=tr display=None/>
+                                    <Popup text=t translation=tr display=None/>
                                     <input
                                         type="button"
-                                        value="close"
+                                        value="Close"
                                         on:click=move |_| set_popup.set(None)
                                     />
                                 </div>

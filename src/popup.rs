@@ -1,15 +1,54 @@
+use std::collections::HashSet;
+
 use leptos::*;
 
 use crate::types::TypeState;
 use crate::utils::compare;
 #[component]
-pub fn Sentance(
+pub fn Popup(
     text: &'static str,
     translation: &'static str,
     display: Option<WriteSignal<Option<(&'static str, &'static str)>>>,
 ) -> impl IntoView {
     let (store, set_store) = create_signal(TypeState::from_str(text));
+    let (pair, set_pair) = create_signal(true);
+    let (translation_selected, set_translation_selected) = create_signal(HashSet::<usize>::new());
+    let (original_selected, set_original_selected) = create_signal(HashSet::<usize>::new());
+
+    let (pairs, set_pairs) = create_signal(HashSet::<(HashSet<usize>, HashSet<usize>)>::new());
+    let insertPairf = move |a: HashSet<usize>, b: HashSet<usize>| {
+        logging::log!("inserting new pari");
+    };
+
+    let pair_button = move || {
+        if pair() {
+            view! {
+                <input
+                    type="button"
+                    value="pair"
+                    on:click={
+                        logging::log!("pairing {:?}", original_selected.get_untracked());
+                        logging::log!("pairing {:?}", translation_selected.get_untracked());
+                        set_original_selected
+                            .update(|p| {
+                                p.clear();
+                            });
+                        set_translation_selected
+                            .update(|p| {
+                                p.clear();
+                            });
+                        move |_| set_pair.set(false)
+                    }
+                />
+            }
+        } else {
+            view! { <input type="button" value="done" on:click=move |_| set_pair.set(true)/> }
+        }
+    };
+
+    let translation_words: Vec<&str> = translation.split(" ").collect();
     view! {
+        {pair_button}
         <div
             on:click=move |_| {
                 if let Some(action) = display {
@@ -74,19 +113,40 @@ pub fn Sentance(
         >
 
             {
-                let current_word = move |index| index == store.get_untracked().word_index;
-                let focus = move || store.get_untracked().focus;
                 view! {
                     <For
                         each=move || store.get().data.into_iter().enumerate()
                         key=move |(index, c)| {
-                            let marker = if current_word(*index) { "selected" } else { "" };
-                            format!("{}-{}-{}-{}", index, c.char_index, marker, focus())
+                            format!("{}-{}", index, c.char_index)
                         }
 
                         children=move |(word_index, c)| {
+                            let class = move || {
+                                if original_selected.get().contains(&word_index) {
+                                    "flex px-2 py-1 underline"
+                                } else {
+                                    "flex px-2 py-1"
+                                }
+                            };
                             view! {
-                                <div class="flex px-2 py-1">
+                                <div
+                                    class=class
+                                    on:click=move |_| {
+                                        logging::log!("selected");
+                                        if original_selected.get_untracked().contains(&word_index) {
+                                            set_original_selected
+                                                .update(|data| {
+                                                    data.remove(&word_index);
+                                                });
+                                        } else {
+                                            set_original_selected
+                                                .update(|data| {
+                                                    data.insert(word_index);
+                                                });
+                                        }
+                                    }
+                                >
+
                                     <For
                                         each=move || c.clone().data.into_iter().enumerate()
                                         key=|(index, c)| {
@@ -96,7 +156,7 @@ pub fn Sentance(
                                         children=move |(_index, c)| {
                                             if let Some(typed_char) = c.typed_char {
                                                 if compare(typed_char, c.reference_char) {
-                                                    let class = if current_word(word_index) {
+                                                    let class = move || if store.get().word_index ==word_index {
                                                         "min-w-4 text-gray-900 underline"
                                                     } else {
                                                         "min-w-4 text-gray-900"
@@ -113,10 +173,12 @@ pub fn Sentance(
                                                     };
                                                 }
                                             }
-                                            let class = if current_word(word_index) && focus() {
-                                                "min-w-4 underline"
-                                            } else {
-                                                "min-w-4"
+                                            let class = move || {
+                                                if store.get().word_index == word_index && store.get().focus {
+                                                    "min-w-4 underline"
+                                                } else {
+                                                    "min-w-4"
+                                                }
                                             };
                                             view! { <div class=class>{c.reference_char}</div> }
                                         }
@@ -131,7 +193,41 @@ pub fn Sentance(
 
         </div>
         <div class="px-8 p-5 flex flex-wrap text-4xl lg:text-3xl text-gray-500 italic">
-            {translation}
+            <For
+                each=move || translation_words.clone().into_iter().enumerate()
+                key=move |&(index, _item)| index
+                children=move |(index, item)| {
+                    let class = move || {
+                        if translation_selected.get().contains(&index) {
+                            "p-1 underline"
+                        } else {
+                            "p-1"
+                        }
+                    };
+                    view! {
+                        <div
+                            class=class
+                            on:click=move |_| {
+                                if translation_selected.get_untracked().contains(&index) {
+                                    set_translation_selected
+                                        .update(|data| {
+                                            data.remove(&index);
+                                        });
+                                } else {
+                                    set_translation_selected
+                                        .update(|data| {
+                                            data.insert(index);
+                                        });
+                                }
+                            }
+                        >
+
+                            {item}
+                        </div>
+                    }
+                }
+            />
+
         </div>
     }
 }
