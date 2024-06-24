@@ -1,9 +1,33 @@
 use std::collections::HashSet;
+use std::hash::Hash;
 
 use leptos::*;
 
 use crate::types::TypeState;
 use crate::utils::compare;
+use core::hash::Hasher;
+
+#[derive(Eq, PartialEq, Clone, Debug)]
+struct Association {
+    original: HashSet<usize>,
+    translation: HashSet<usize>,
+}
+
+impl Association {
+    fn new(original: HashSet<usize>, translation: HashSet<usize>) -> Self {
+        Association {
+            original,
+            translation,
+        }
+    }
+}
+
+impl Hash for Association {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.original.iter().for_each(|item| item.hash(state));
+        self.translation.iter().for_each(|item| item.hash(state));
+    }
+}
 #[component]
 pub fn Popup(
     text: &'static str,
@@ -15,10 +39,7 @@ pub fn Popup(
     let (translation_selected, set_translation_selected) = create_signal(HashSet::<usize>::new());
     let (original_selected, set_original_selected) = create_signal(HashSet::<usize>::new());
 
-    let (pairs, set_pairs) = create_signal(HashSet::<(HashSet<usize>, HashSet<usize>)>::new());
-    let insertPairf = move |a: HashSet<usize>, b: HashSet<usize>| {
-        logging::log!("inserting new pari");
-    };
+    let (pairs, set_pairs) = create_signal(HashSet::<Association>::new());
 
     let pair_button = move || {
         if pair() {
@@ -26,9 +47,21 @@ pub fn Popup(
                 <input
                     type="button"
                     value="pair"
-                    on:click={
-                        logging::log!("pairing {:?}", original_selected.get_untracked());
-                        logging::log!("pairing {:?}", translation_selected.get_untracked());
+                    on:click=move |_event| {
+                        logging::log!("current pairs {:?}", pairs.get_untracked());
+                        set_pairs
+                            .update(|item| {
+                                if original_selected.get_untracked().len() > 0
+                                    && translation_selected.get_untracked().len() > 0
+                                {
+                                    item.insert(
+                                        Association::new(
+                                            original_selected.get_untracked(),
+                                            translation_selected.get_untracked(),
+                                        ),
+                                    );
+                                }
+                            });
                         set_original_selected
                             .update(|p| {
                                 p.clear();
@@ -37,7 +70,7 @@ pub fn Popup(
                             .update(|p| {
                                 p.clear();
                             });
-                        move |_| set_pair.set(false)
+                        set_pair.set(false);
                     }
                 />
             }
@@ -46,6 +79,20 @@ pub fn Popup(
         }
     };
 
+    let highlight_original = move |index: usize| -> bool {
+        pairs
+            .get()
+            .iter()
+            .flat_map(|item| item.original.iter())
+            .any(|item| *item == index)
+    };
+    let highlight_translation = move |index: usize| -> bool {
+        pairs
+            .get()
+            .iter()
+            .flat_map(|item| item.translation.iter())
+            .any(|item| *item == index)
+    };
     let translation_words: Vec<&str> = translation.split(" ").collect();
     view! {
         {pair_button}
@@ -116,9 +163,7 @@ pub fn Popup(
                 view! {
                     <For
                         each=move || store.get().data.into_iter().enumerate()
-                        key=move |(index, c)| {
-                            format!("{}-{}", index, c.char_index)
-                        }
+                        key=move |(index, c)| { format!("{}-{}", index, c.char_index) }
 
                         children=move |(word_index, c)| {
                             let class = move || {
@@ -128,11 +173,14 @@ pub fn Popup(
                                     "flex px-2 py-1"
                                 }
                             };
+                            let highlight = move || {
+                                if highlight_original(word_index) { "bg-green-100" } else { "" }
+                            };
+                            let class = move || format!("{} {}", class(), highlight());
                             view! {
                                 <div
                                     class=class
                                     on:click=move |_| {
-                                        logging::log!("selected");
                                         if original_selected.get_untracked().contains(&word_index) {
                                             set_original_selected
                                                 .update(|data| {
@@ -156,10 +204,12 @@ pub fn Popup(
                                         children=move |(_index, c)| {
                                             if let Some(typed_char) = c.typed_char {
                                                 if compare(typed_char, c.reference_char) {
-                                                    let class = move || if store.get().word_index ==word_index {
-                                                        "min-w-4 text-gray-900 underline"
-                                                    } else {
-                                                        "min-w-4 text-gray-900"
+                                                    let class = move || {
+                                                        if store.get().word_index == word_index {
+                                                            "min-w-4 text-gray-900 underline"
+                                                        } else {
+                                                            "min-w-4 text-gray-900"
+                                                        }
                                                     };
                                                     return view! { <div class=class>{c.reference_char}</div> };
                                                 } else {
@@ -174,7 +224,8 @@ pub fn Popup(
                                                 }
                                             }
                                             let class = move || {
-                                                if store.get().word_index == word_index && store.get().focus {
+                                                if store.get().word_index == word_index && store.get().focus
+                                                {
                                                     "min-w-4 underline"
                                                 } else {
                                                     "min-w-4"
@@ -204,6 +255,10 @@ pub fn Popup(
                             "p-1"
                         }
                     };
+                    let highlight = move || {
+                        if highlight_translation(index) { "bg-green-100" } else { "" }
+                    };
+                    let class = move || format!("{} {}", class(), highlight());
                     view! {
                         <div
                             class=class
