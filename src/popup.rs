@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::collections::HashSet;
 use std::hash::Hash;
 
@@ -9,19 +10,30 @@ use core::hash::Hasher;
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 struct Association {
-    original: HashSet<usize>,
+    start_position: usize,
+    original: BTreeSet<usize>,
     translation: HashSet<usize>,
 }
 
 impl Association {
-    fn new(original: HashSet<usize>, translation: HashSet<usize>) -> Self {
+    fn new(original: BTreeSet<usize>, translation: HashSet<usize>) -> Self {
         Association {
+            start_position: *original.iter().next().unwrap(),
             original,
             translation,
         }
     }
 }
-
+impl PartialOrd for Association {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.start_position.partial_cmp(&other.start_position)
+    }
+}
+impl Ord for Association {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.start_position.cmp(&other.start_position)
+    }
+}
 impl Hash for Association {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.original.iter().for_each(|item| item.hash(state));
@@ -35,50 +47,63 @@ pub fn Popup(
     display: Option<WriteSignal<Option<(&'static str, &'static str)>>>,
 ) -> impl IntoView {
     let (store, set_store) = create_signal(TypeState::from_str(text));
-    let (pair, set_pair) = create_signal(true);
+    let (pair, set_pair) = create_signal(false);
+    let (original_selected, set_original_selected) = create_signal(BTreeSet::<usize>::new());
     let (translation_selected, set_translation_selected) = create_signal(HashSet::<usize>::new());
-    let (original_selected, set_original_selected) = create_signal(HashSet::<usize>::new());
 
-    let (pairs, set_pairs) = create_signal(HashSet::<Association>::new());
+    let (pairs, set_pairs) = create_signal(BTreeSet::<Association>::new());
 
     let pair_button = move || {
         if pair() {
             view! {
-                <input
-                    type="button"
-                    value="pair"
-                    on:click=move |_event| {
-                        logging::log!("current pairs {:?}", pairs.get_untracked());
-                        set_pairs
-                            .update(|item| {
-                                if original_selected.get_untracked().len() > 0
-                                    && translation_selected.get_untracked().len() > 0
-                                {
-                                    item.insert(
-                                        Association::new(
-                                            original_selected.get_untracked(),
-                                            translation_selected.get_untracked(),
-                                        ),
-                                    );
-                                }
-                            });
-                        set_original_selected
-                            .update(|p| {
-                                p.clear();
-                            });
-                        set_translation_selected
-                            .update(|p| {
-                                p.clear();
-                            });
-                        set_pair.set(false);
-                    }
-                />
+                <div>
+                    <input
+                        class="absolute -top-0"
+                        type="button"
+                        value="pair"
+                        on:click=move |_event| {
+                            logging::log!("current pairs {:?}", pairs.get_untracked());
+                            set_pairs
+                                .update(|item| {
+                                    if original_selected.get_untracked().len() > 0
+                                        && translation_selected.get_untracked().len() > 0
+                                    {
+                                        item.insert(
+                                            Association::new(
+                                                original_selected.get_untracked(),
+                                                translation_selected.get_untracked(),
+                                            ),
+                                        );
+                                    }
+                                });
+                            set_original_selected
+                                .update(|p| {
+                                    p.clear();
+                                });
+                            set_translation_selected
+                                .update(|p| {
+                                    p.clear();
+                                });
+                            set_pair.set(false);
+                        }
+                    />
+
+                </div>
             }
         } else {
-            view! { <input type="button" value="done" on:click=move |_| set_pair.set(true)/> }
+            view! { <div></div> }
         }
     };
 
+    let update_pair = move || {
+        if original_selected.get_untracked().len() > 0
+            && translation_selected.get_untracked().len() > 0
+        {
+            set_pair.set(true);
+        } else {
+            set_pair.set(false);
+        }
+    };
     let highlight_original = move |index: usize| -> bool {
         pairs
             .get()
@@ -92,6 +117,22 @@ pub fn Popup(
             .iter()
             .flat_map(|item| item.translation.iter())
             .any(|item| *item == index)
+    };
+    let highlight_original_index = move |index: usize| -> Option<usize> {
+        pairs
+            .get()
+            .iter()
+            .enumerate()
+            .find(|(_pair_index, item)| item.original.iter().any(|item| *item == index))
+            .map_or_else(|| None, |(pair_index, _item)| Some(pair_index))
+    };
+    let highlight_translation_index = move |index: usize| -> Option<usize> {
+        pairs
+            .get()
+            .iter()
+            .enumerate()
+            .find(|(_pair_index, item)| item.translation.iter().any(|item| *item == index))
+            .map_or_else(|| None, |(pair_index, _item)| Some(pair_index))
     };
     let translation_words: Vec<&str> = translation.split(" ").collect();
     view! {
@@ -167,14 +208,27 @@ pub fn Popup(
 
                         children=move |(word_index, c)| {
                             let class = move || {
-                                if original_selected.get().contains(&word_index) {
-                                    "flex px-2 py-1 underline"
+                                if !highlight_original(word_index)
+                                    && original_selected.get().contains(&word_index)
+                                {
+                                    "relative flex px-2 py-1 underline"
                                 } else {
-                                    "flex px-2 py-1"
+                                    "relative flex px-2 py-1"
                                 }
                             };
                             let highlight = move || {
                                 if highlight_original(word_index) { "bg-green-100" } else { "" }
+                            };
+                            let hightlight_index = move || {
+                                if let Some(index) = highlight_original_index(word_index) {
+                                    view! {
+                                        <div class="absolute -top-0 -right-0 text-red-600 italic text-base md:text-xl">
+                                            {index}
+                                        </div>
+                                    }
+                                } else {
+                                    view! { <div class="absolute"></div> }
+                                }
                             };
                             let class = move || format!("{} {}", class(), highlight());
                             view! {
@@ -191,7 +245,8 @@ pub fn Popup(
                                                 .update(|data| {
                                                     data.insert(word_index);
                                                 });
-                                        }
+                                        };
+                                        update_pair();
                                     }
                                 >
 
@@ -235,6 +290,7 @@ pub fn Popup(
                                         }
                                     />
 
+                                    {hightlight_index}
                                 </div>
                             }
                         }
@@ -249,16 +305,29 @@ pub fn Popup(
                 key=move |&(index, _item)| index
                 children=move |(index, item)| {
                     let class = move || {
-                        if translation_selected.get().contains(&index) {
-                            "p-1 underline"
+                        if !highlight_translation(index)
+                            && translation_selected.get().contains(&index)
+                        {
+                            "relative p-1 underline"
                         } else {
-                            "p-1"
+                            "relative p-1"
                         }
                     };
                     let highlight = move || {
                         if highlight_translation(index) { "bg-green-100" } else { "" }
                     };
                     let class = move || format!("{} {}", class(), highlight());
+                    let hightlight_index = move || {
+                        if let Some(index) = highlight_translation_index(index) {
+                            view! {
+                                <div class="absolute -top-0 -right-0 text-red-600 italic text-base md:text-xl">
+                                    {index}
+                                </div>
+                            }
+                        } else {
+                            view! { <div class="absolute"></div> }
+                        }
+                    };
                     view! {
                         <div
                             class=class
@@ -273,11 +342,13 @@ pub fn Popup(
                                         .update(|data| {
                                             data.insert(index);
                                         });
-                                }
+                                };
+                                update_pair();
                             }
                         >
 
                             {item}
+                            {hightlight_index}
                         </div>
                     }
                 }
