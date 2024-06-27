@@ -40,6 +40,17 @@ impl Hash for Association {
         self.translation.iter().for_each(|item| item.hash(state));
     }
 }
+#[derive(Clone)]
+enum Clicked {
+    Original(usize),
+    Translation(usize),
+    None,
+}
+#[derive(Clone)]
+enum ClickedHeighlight {
+    Translation(usize),
+    None,
+}
 #[component]
 pub fn Popup(
     text: &'static str,
@@ -53,14 +64,15 @@ pub fn Popup(
 
     let (pairs, set_pairs) = create_signal(BTreeSet::<Association>::new());
 
+    let (clicked, set_clicked) = create_signal(Clicked::None);
+    let (clicked_highlight, set_clicked_highlight) = create_signal(ClickedHeighlight::None);
+
     let pair_button = move || {
         if pair() {
             view! {
                 <div>
-                    <input
-                        class="absolute -top-0"
-                        type="button"
-                        value="pair"
+                    <div
+                        class="absolute -top-2 -right-2 italic text-base underline md:text-xl cursor-pointer"
                         on:click=move |_event| {
                             logging::log!("current pairs {:?}", pairs.get_untracked());
                             set_pairs
@@ -86,12 +98,16 @@ pub fn Popup(
                                 });
                             set_pair.set(false);
                         }
-                    />
+                    >
+
+                        pair
+                    </div>
 
                 </div>
             }
+            .into_view()
         } else {
-            view! { <div></div> }
+            view! {}.into_view()
         }
     };
 
@@ -136,7 +152,6 @@ pub fn Popup(
     };
     let translation_words: Vec<&str> = translation.split(" ").collect();
     view! {
-        {pair_button}
         <div
             on:click=move |_| {
                 if let Some(action) = display {
@@ -217,6 +232,20 @@ pub fn Popup(
                                 }
                             };
                             let highlight = move || {
+                                if let ClickedHeighlight::Translation(clicked_highlight) = clicked_highlight
+                                    .get()
+                                {
+                                    if pairs
+                                        .get()
+                                        .iter()
+                                        .nth(clicked_highlight)
+                                        .unwrap()
+                                        .original
+                                        .contains(&word_index)
+                                    {
+                                        return "bg-green-300";
+                                    }
+                                }
                                 if highlight_original(word_index) { "bg-green-100" } else { "" }
                             };
                             let hightlight_index = move || {
@@ -235,18 +264,29 @@ pub fn Popup(
                                 <div
                                     class=class
                                     on:click=move |_| {
+                                        if let Some(selected_index) = highlight_original_index(
+                                            word_index,
+                                        ) {
+                                            logging::log!("click on selection  {}", word_index);
+                                            set_clicked_highlight(
+                                                ClickedHeighlight::Translation(selected_index),
+                                            );
+                                        }
                                         if original_selected.get_untracked().contains(&word_index) {
                                             set_original_selected
                                                 .update(|data| {
                                                     data.remove(&word_index);
                                                 });
                                         } else {
-                                            set_original_selected
-                                                .update(|data| {
-                                                    data.insert(word_index);
-                                                });
-                                        };
-                                        update_pair();
+                                            if highlight_original_index(word_index).is_none() {
+                                                set_original_selected
+                                                    .update(|data| {
+                                                        data.insert(word_index);
+                                                    });
+                                            }
+                                            update_pair();
+                                            set_clicked.set(Clicked::Original(word_index));
+                                        }
                                     }
                                 >
 
@@ -291,6 +331,19 @@ pub fn Popup(
                                     />
 
                                     {hightlight_index}
+                                    {move || {
+                                        match clicked.get() {
+                                            Clicked::Original(clicked_index) => {
+                                                if pair() && clicked_index == word_index {
+                                                    pair_button.into_view()
+                                                } else {
+                                                    view! {}.into_view()
+                                                }
+                                            }
+                                            _ => view! {}.into_view(),
+                                        }
+                                    }}
+
                                 </div>
                             }
                         }
@@ -314,6 +367,20 @@ pub fn Popup(
                         }
                     };
                     let highlight = move || {
+                        if let ClickedHeighlight::Translation(clicked_highlight) = clicked_highlight
+                            .get()
+                        {
+                            if pairs
+                                .get()
+                                .iter()
+                                .nth(clicked_highlight)
+                                .unwrap()
+                                .translation
+                                .contains(&index)
+                            {
+                                return "bg-green-300";
+                            }
+                        }
                         if highlight_translation(index) { "bg-green-100" } else { "" }
                     };
                     let class = move || format!("{} {}", class(), highlight());
@@ -332,23 +399,46 @@ pub fn Popup(
                         <div
                             class=class
                             on:click=move |_| {
+                                if let Some(selected_index) = highlight_translation_index(index) {
+                                    logging::log!("click on selection  {}", index);
+                                    set_clicked_highlight(
+                                        ClickedHeighlight::Translation(selected_index),
+                                    );
+                                }
                                 if translation_selected.get_untracked().contains(&index) {
                                     set_translation_selected
                                         .update(|data| {
                                             data.remove(&index);
                                         });
                                 } else {
-                                    set_translation_selected
-                                        .update(|data| {
-                                            data.insert(index);
-                                        });
+                                    if highlight_translation_index(index).is_none() {
+                                        set_translation_selected
+                                            .update(|data| {
+                                                data.insert(index);
+                                            });
+                                    }
                                 };
                                 update_pair();
+                                set_clicked.set(Clicked::Translation(index));
                             }
                         >
 
                             {item}
                             {hightlight_index}
+
+                            {move || {
+                                match clicked.get() {
+                                    Clicked::Translation(clicked_index) => {
+                                        if pair() && clicked_index == index {
+                                            pair_button.into_view()
+                                        } else {
+                                            view! {}.into_view()
+                                        }
+                                    }
+                                    _ => view! {}.into_view(),
+                                }
+                            }}
+
                         </div>
                     }
                 }
