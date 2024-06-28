@@ -48,7 +48,8 @@ enum Clicked {
 }
 #[derive(Clone)]
 enum ClickedHeighlight {
-    Translation(usize),
+    SelectedOriginal(usize, usize),
+    SelectedTranslation(usize, usize),
     None,
 }
 #[component]
@@ -72,7 +73,7 @@ pub fn Popup(
             view! {
                 <div>
                     <div
-                        class="absolute -top-2 -right-2 italic text-base underline md:text-xl cursor-pointer"
+                        class="absolute -top-2 -right-2 italic text-base underline md:text-xl cursor-pointer z-10"
                         on:click=move |_event| {
                             logging::log!("current pairs {:?}", pairs.get_untracked());
                             set_pairs
@@ -97,6 +98,7 @@ pub fn Popup(
                                     p.clear();
                                 });
                             set_pair.set(false);
+                            set_clicked_highlight.set(ClickedHeighlight::None);
                         }
                     >
 
@@ -111,6 +113,28 @@ pub fn Popup(
         }
     };
 
+    let delete_button = move |pair_to_remove: usize| {
+        view! {
+            <div>
+                <div
+                    class="absolute -top-2 -right-2 italic text-base underline md:text-xl cursor-pointer z-10"
+                    on:click=move |_event| {
+                        set_clicked_highlight.set(ClickedHeighlight::None);
+                        set_pairs
+                            .update(|item| {
+                                let selected = item.iter().nth(pair_to_remove).unwrap().clone();
+                                item.remove(&selected);
+                            });
+                    }
+                >
+
+                    remove
+                </div>
+
+            </div>
+        }
+            .into_view()
+    };
     let update_pair = move || {
         if original_selected.get_untracked().len() > 0
             && translation_selected.get_untracked().len() > 0
@@ -232,8 +256,10 @@ pub fn Popup(
                                 }
                             };
                             let highlight = move || {
-                                if let ClickedHeighlight::Translation(clicked_highlight) = clicked_highlight
-                                    .get()
+                                if let ClickedHeighlight::SelectedOriginal(
+                                    clicked_highlight,
+                                    _clicked_highligth_word_index,
+                                ) = clicked_highlight.get()
                                 {
                                     if pairs
                                         .get()
@@ -243,7 +269,23 @@ pub fn Popup(
                                         .original
                                         .contains(&word_index)
                                     {
-                                        return "bg-green-300";
+                                        return "bg-green-200";
+                                    }
+                                }
+                                if let ClickedHeighlight::SelectedTranslation(
+                                    clicked_highlight,
+                                    _clicked_highligth_word_index,
+                                ) = clicked_highlight.get()
+                                {
+                                    if pairs
+                                        .get()
+                                        .iter()
+                                        .nth(clicked_highlight)
+                                        .unwrap()
+                                        .original
+                                        .contains(&word_index)
+                                    {
+                                        return "bg-green-200";
                                     }
                                 }
                                 if highlight_original(word_index) { "bg-green-100" } else { "" }
@@ -269,7 +311,10 @@ pub fn Popup(
                                         ) {
                                             logging::log!("click on selection  {}", word_index);
                                             set_clicked_highlight(
-                                                ClickedHeighlight::Translation(selected_index),
+                                                ClickedHeighlight::SelectedOriginal(
+                                                    selected_index,
+                                                    word_index,
+                                                ),
                                             );
                                         }
                                         if original_selected.get_untracked().contains(&word_index) {
@@ -283,9 +328,9 @@ pub fn Popup(
                                                     .update(|data| {
                                                         data.insert(word_index);
                                                     });
+                                                set_clicked.set(Clicked::Original(word_index));
                                             }
                                             update_pair();
-                                            set_clicked.set(Clicked::Original(word_index));
                                         }
                                     }
                                 >
@@ -335,13 +380,26 @@ pub fn Popup(
                                         match clicked.get() {
                                             Clicked::Original(clicked_index) => {
                                                 if pair() && clicked_index == word_index {
-                                                    pair_button.into_view()
+                                                    return pair_button.into_view()
                                                 } else {
                                                     view! {}.into_view()
                                                 }
                                             }
                                             _ => view! {}.into_view(),
                                         }
+                                    }}
+
+                                    {move || {
+                                        if let ClickedHeighlight::SelectedOriginal(
+                                            clicked_highlight,
+                                            clicked_highligth_word_index,
+                                        ) = clicked_highlight.get()
+                                        {
+                                            if clicked_highligth_word_index == word_index {
+                                                return delete_button(clicked_highlight);
+                                            }
+                                        }
+                                        view! {}.into_view()
                                     }}
 
                                 </div>
@@ -367,8 +425,10 @@ pub fn Popup(
                         }
                     };
                     let highlight = move || {
-                        if let ClickedHeighlight::Translation(clicked_highlight) = clicked_highlight
-                            .get()
+                        if let ClickedHeighlight::SelectedOriginal(
+                            clicked_highlight,
+                            _clicked_highlight_word_index,
+                        ) = clicked_highlight.get()
                         {
                             if pairs
                                 .get()
@@ -378,7 +438,23 @@ pub fn Popup(
                                 .translation
                                 .contains(&index)
                             {
-                                return "bg-green-300";
+                                return "bg-green-200";
+                            }
+                        }
+                        if let ClickedHeighlight::SelectedTranslation(
+                            clicked_highlight,
+                            _clicked_highlight_word_index,
+                        ) = clicked_highlight.get()
+                        {
+                            if pairs
+                                .get()
+                                .iter()
+                                .nth(clicked_highlight)
+                                .unwrap()
+                                .translation
+                                .contains(&index)
+                            {
+                                return "bg-green-200";
                             }
                         }
                         if highlight_translation(index) { "bg-green-100" } else { "" }
@@ -402,7 +478,10 @@ pub fn Popup(
                                 if let Some(selected_index) = highlight_translation_index(index) {
                                     logging::log!("click on selection  {}", index);
                                     set_clicked_highlight(
-                                        ClickedHeighlight::Translation(selected_index),
+                                        ClickedHeighlight::SelectedTranslation(
+                                            selected_index,
+                                            index,
+                                        ),
                                     );
                                 }
                                 if translation_selected.get_untracked().contains(&index) {
@@ -416,10 +495,10 @@ pub fn Popup(
                                             .update(|data| {
                                                 data.insert(index);
                                             });
+                                        set_clicked.set(Clicked::Translation(index));
                                     }
                                 };
                                 update_pair();
-                                set_clicked.set(Clicked::Translation(index));
                             }
                         >
 
@@ -437,6 +516,19 @@ pub fn Popup(
                                     }
                                     _ => view! {}.into_view(),
                                 }
+                            }}
+
+                            {move || {
+                                if let ClickedHeighlight::SelectedTranslation(
+                                    clicked_highlight,
+                                    clicked_highligth_word_index,
+                                ) = clicked_highlight.get()
+                                {
+                                    if clicked_highligth_word_index == index {
+                                        return delete_button(clicked_highlight);
+                                    }
+                                }
+                                view! {}.into_view()
                             }}
 
                         </div>
