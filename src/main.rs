@@ -60,7 +60,7 @@ fn App() -> impl IntoView {
     view! {
         <div class="w-screen flex flex-col items-center">
             <div>{move || popup_component}</div>
-            <div class="w-screen lg:w-3/4 flex flex-col snap-y snap-mandatory h-lvh overflow-y-auto">
+            <div class="w-screen lg:w-3/4 flex flex-col">
                 {views}
             </div>
         </div>

@@ -10,7 +10,7 @@ pub fn Sentance(
 ) -> impl IntoView {
     let (store, set_store) = create_signal(TypeState::from_str(text));
     view! {
-        <div class="flex items-center snap-start">
+        <div class="flex items-center min-h-lvh lg:h-min snap-start">
             <div
                 on:click=move |_| {
                     if let Some(action) = display {
