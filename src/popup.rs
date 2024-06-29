@@ -71,7 +71,7 @@ pub fn Popup(
     let pair_button = move || {
         if pair() {
             view! {
-                <div>
+                <div class="snap-start">
                     <div
                         class="absolute -top-2 -right-2 italic text-base underline md:text-xl cursor-pointer z-10"
                         on:click=move |_event| {
