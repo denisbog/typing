@@ -3,13 +3,14 @@ name = "typing"
 version = "0.1.0"
 edition = "2021"
 
-#[lib]
-#crate-type = ["cdylib", "rlib"]
+[lib]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 axum = { version = "0.7", optional = true }
 console_error_panic_hook = "0.1"
-leptos = { version = "0.6", features = ["csr", "nightly"] }
+# leptos = { version = "0.6", features = ["csr", "nightly"] }
+leptos = { version = "0.6", features = ["nightly"] }
 leptos_axum = { version = "0.6", optional = true }
 leptos_meta = { version = "0.6" }
 leptos_router = { version = "0.6" }
@@ -55,7 +56,8 @@ site-root = "target/site"
 site-pkg-dir = "pkg"
 
 # [Optional] The source CSS file. If it ends with .sass or .scss then it will be compiled by dart-sass into CSS. The CSS is optimized by Lightning CSS before being written to <site-root>/<site-pkg>/app.css
-style-file = "style/main.scss"
+#style-file = "style/main.scss"
+
 # Assets source dir. All files found here will be copied and synchronized to site-root.
 # The assets-dir cannot have a sub directory with the same name/path as site-pkg-dir.
 #

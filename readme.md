@@ -4,7 +4,7 @@ trunk serve --open
 ```
 ### update styles
 ```bash
-npx tailwindcss -i ./input.css -o ./output.css --watch
+npx tailwindcss -i ./input.css -o ./public/typing.css --watch
 ```
 ### format letptos code
 ```bash
