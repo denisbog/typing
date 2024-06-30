@@ -19,7 +19,7 @@ pub fn Sentance(
                     }
                 }
 
-                class="p-3 flex flex-wrap text-5xl lg:text-3xl text-gray-500 focus:bg-gray-300 font-mono"
+                class="p-3 flex flex-wrap text-5xl lg:text-3xl text-gray-500 focus:bg-gray-300 font-mono focus:outline-none focus:ring-2"
                 tabindex=1
                 on:keydown=move |event| {
                     let key = event.key_code();
@@ -43,7 +43,7 @@ pub fn Sentance(
                     }
                 }
 
-                on:focus=move |_event| { set_store.update(|store| store.focus = true) }
+                on:focus=move |_event| { set_store.update(|store| store.focus = true); }
 
                 on:focusout=move |_event| { set_store.update(|store| store.focus = false) }
 
