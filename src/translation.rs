@@ -1,8 +1,8 @@
-use leptos::{logging, server, ServerFnError};
+use leptos::{server, ServerFnError};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize)]
-struct TranslationRequest {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TranslationRequest {
     pub src: Vec<String>,
 }
 
@@ -11,12 +11,9 @@ pub struct TranslationResponse {
     pub translated: Vec<String>,
 }
 #[server(Api, "/api")]
-pub async fn get_translations(original: String) -> Result<TranslationResponse, ServerFnError> {
-    logging::log!("translations {}", original);
-
-    let request = TranslationRequest {
-        src: original.split("\n").map(str::to_string).collect(),
-    };
+pub async fn get_translations(
+    request: TranslationRequest,
+) -> Result<TranslationResponse, ServerFnError> {
     let client = reqwest::Client::new();
     let res: TranslationResponse = client
         .post("http://localhost:5000/translate")

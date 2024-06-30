@@ -2,7 +2,7 @@ use crate::{
     components::Sentance,
     error_template::{AppError, ErrorTemplate},
     popup::Popup,
-    translation::get_translations,
+    translation::{get_translations, TranslationRequest},
 };
 use leptos::*;
 use leptos_meta::*;
@@ -118,20 +118,17 @@ fn TranslationPage() -> impl IntoView {
                                             logging::log!("passing argument: {}", temp);
                                             set_input_popup.set(false);
                                             spawn_local(async move {
-                                                let response = get_translations(temp.clone())
-                                                    .await
-                                                    .unwrap();
+                                                let temp = temp
+                                                    .split("\n")
+                                                    .map(str::to_string)
+                                                    .collect::<Vec<String>>();
+                                                let request = TranslationRequest {
+                                                    src: temp.clone(),
+                                                };
+                                                let response = get_translations(request).await.unwrap();
                                                 logging::log!("client: {:?}", response);
                                                 set_translation_post
-                                                    .set(
-                                                        temp
-                                                            .split("\n")
-                                                            .map(str::to_string)
-                                                            .collect::<Vec<String>>()
-                                                            .into_iter()
-                                                            .zip(response.translated)
-                                                            .collect(),
-                                                    );
+                                                    .set(temp.into_iter().zip(response.translated).collect());
                                             });
                                         }
                                     />
