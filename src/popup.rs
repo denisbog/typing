@@ -78,8 +78,8 @@ pub fn Popup(
                             logging::log!("current pairs {:?}", pairs.get_untracked());
                             set_pairs
                                 .update(|item| {
-                                    if original_selected.get_untracked().len() > 0
-                                        && translation_selected.get_untracked().len() > 0
+                                    if !original_selected.get_untracked().is_empty()
+                                        && !translation_selected.get_untracked().is_empty()
                                     {
                                         item.insert(
                                             Association::new(
@@ -136,8 +136,8 @@ pub fn Popup(
             .into_view()
     };
     let update_pair = move || {
-        if original_selected.get_untracked().len() > 0
-            && translation_selected.get_untracked().len() > 0
+        if !original_selected.get_untracked().is_empty()
+            && !translation_selected.get_untracked().is_empty()
         {
             set_pair.set(true);
         } else {
@@ -380,7 +380,7 @@ pub fn Popup(
                                         match clicked.get() {
                                             Clicked::Original(clicked_index) => {
                                                 if pair() && clicked_index == word_index {
-                                                    return pair_button.into_view()
+                                                    pair_button.into_view()
                                                 } else {
                                                     view! {}.into_view()
                                                 }

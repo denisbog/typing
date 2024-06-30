@@ -2,6 +2,7 @@ use crate::{
     components::Sentance,
     error_template::{AppError, ErrorTemplate},
     popup::Popup,
+    translation::get_translations,
 };
 use leptos::*;
 use leptos_meta::*;
@@ -35,12 +36,6 @@ pub fn App() -> impl IntoView {
             </main>
         </Router>
     }
-}
-
-#[server(Api, "/api")]
-pub async fn get_translations(original: String) -> Result<String, ServerFnError> {
-    logging::log!("translations {}", original);
-    Ok(format!("server-translation: {}", original))
 }
 
 #[component]
@@ -117,7 +112,7 @@ fn TranslationPage() -> impl IntoView {
                                             set_input_popup.set(false);
                                             spawn_local(async {
                                                 let response = get_translations(temp).await.unwrap();
-                                                logging::log!("client: {}", response);
+                                                logging::log!("client: {:?}", response);
                                             });
                                         }
                                     />
