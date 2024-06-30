@@ -4,17 +4,18 @@ use crate::types::TypeState;
 use crate::utils::compare;
 #[component]
 pub fn Sentance(
-    text: &'static str,
-    translation: &'static str,
-    display: Option<WriteSignal<Option<(&'static str, &'static str)>>>,
+    text: String,
+    translation: String,
+    display: Option<WriteSignal<Option<(String, String)>>>,
 ) -> impl IntoView {
-    let (store, set_store) = create_signal(TypeState::from_str(text));
+    let (store, set_store) = create_signal(TypeState::from_str(&text));
+    let local_translation = translation.clone();
     view! {
         <div class="flex items-center min-h-lvh lg:h-min snap-start">
             <div
                 on:click=move |_| {
                     if let Some(action) = display {
-                        action(Some((text, translation)))
+                        action(Some((text.clone(), local_translation.clone())))
                     }
                 }
 
@@ -24,20 +25,21 @@ pub fn Sentance(
                     let key = event.key_code();
                     let mut local_store = store.get();
                     logging::log!("key down {}", key);
-                    let word = local_store.data.get_mut(local_store.word_index).unwrap();
-                    if key == 8 {
-                        if word.char_index > 0 {
-                            word.char_index -= 1;
-                            let temp = word.data.get_mut(word.char_index).unwrap();
-                            temp.backspace();
-                        } else if local_store.word_index > 0 {
-                            local_store.word_index -= 1;
+                    if let Some(word) = local_store.data.get_mut(local_store.word_index) {
+                        if key == 8 {
+                            if word.char_index > 0 {
+                                word.char_index -= 1;
+                                let temp = word.data.get_mut(word.char_index).unwrap();
+                                temp.backspace();
+                            } else if local_store.word_index > 0 {
+                                local_store.word_index -= 1;
+                            }
+                            set_store(local_store);
+                        } else if (key == 32) && local_store.word_index < local_store.data.len() {
+                            event.prevent_default();
+                            local_store.word_index += 1;
+                            set_store(local_store);
                         }
-                        set_store(local_store);
-                    } else if (key == 32) && local_store.word_index < local_store.data.len() {
-                        event.prevent_default();
-                        local_store.word_index += 1;
-                        set_store(local_store);
                     }
                 }
 

@@ -56,6 +56,13 @@ fn TranslationPage() -> impl IntoView {
 
     ];
 
+    let initial_translations: Vec<(String, String)> = sentances
+        .iter()
+        .cloned()
+        .map(str::to_string)
+        .zip(translations.iter().cloned().map(str::to_string))
+        .collect();
+    let (translation_post, set_translation_post) = create_signal(initial_translations);
     let (popup, set_popup) = create_signal(None);
 
     let popup_component = move || {
@@ -110,12 +117,25 @@ fn TranslationPage() -> impl IntoView {
                                             let temp = translation_input.get();
                                             logging::log!("passing argument: {}", temp);
                                             set_input_popup.set(false);
-                                            spawn_local(async {
-                                                let response = get_translations(temp).await.unwrap();
+                                            spawn_local(async move {
+                                                let response = get_translations(temp.clone())
+                                                    .await
+                                                    .unwrap();
                                                 logging::log!("client: {:?}", response);
+                                                set_translation_post
+                                                    .set(
+                                                        temp
+                                                            .split("\n")
+                                                            .map(str::to_string)
+                                                            .collect::<Vec<String>>()
+                                                            .into_iter()
+                                                            .zip(response.translated)
+                                                            .collect(),
+                                                    );
                                             });
                                         }
                                     />
+
                                 </div>
                             </div>
                         </div>
@@ -127,13 +147,15 @@ fn TranslationPage() -> impl IntoView {
         }
     };
 
-    let views = sentances
-        .iter()
-        .zip(translations)
-        .map(|(item, translation)| {
-            view! { <Sentance text=item translation=translation display=Some(set_popup)/> }
-        })
-        .collect_view();
+    let views = move || {
+        translation_post
+            .get()
+            .into_iter()
+            .map(|(item, translation)| {
+                view! { <Sentance text=item translation=translation display=Some(set_popup)/> }
+            })
+            .collect_view()
+    };
 
     view! {
         <div class="p-3 pt-7 lg:text-3xl text-5xl font-bold text-gray-100 font-mono w-screen items-center flex flex-col snap-start">

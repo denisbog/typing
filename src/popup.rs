@@ -54,11 +54,11 @@ enum ClickedHeighlight {
 }
 #[component]
 pub fn Popup(
-    text: &'static str,
-    translation: &'static str,
-    display: Option<WriteSignal<Option<(&'static str, &'static str)>>>,
+    text: String,
+    translation: String,
+    display: Option<WriteSignal<Option<(String, String)>>>,
 ) -> impl IntoView {
-    let (store, set_store) = create_signal(TypeState::from_str(text));
+    let (store, set_store) = create_signal(TypeState::from_str(&text));
     let (pair, set_pair) = create_signal(false);
     let (original_selected, set_original_selected) = create_signal(BTreeSet::<usize>::new());
     let (translation_selected, set_translation_selected) = create_signal(HashSet::<usize>::new());
@@ -174,12 +174,14 @@ pub fn Popup(
             .find(|(_pair_index, item)| item.translation.iter().any(|item| *item == index))
             .map_or_else(|| None, |(pair_index, _item)| Some(pair_index))
     };
-    let translation_words: Vec<&str> = translation.split(" ").collect();
+    let local_translation = translation.clone();
+    let translation_words: Vec<String> =
+        translation.clone().split(" ").map(str::to_string).collect();
     view! {
         <div
             on:click=move |_| {
                 if let Some(action) = display {
-                    action(Some((text, translation)))
+                    action(Some((text.clone(), local_translation.clone())))
                 }
             }
 
@@ -189,20 +191,21 @@ pub fn Popup(
                 let key = event.key_code();
                 let mut local_store = store.get();
                 logging::log!("key down {}", key);
-                let word = local_store.data.get_mut(local_store.word_index).unwrap();
-                if key == 8 {
-                    if word.char_index > 0 {
-                        word.char_index -= 1;
-                        let temp = word.data.get_mut(word.char_index).unwrap();
-                        temp.backspace();
-                    } else if local_store.word_index > 0 {
-                        local_store.word_index -= 1;
+                if let Some(word) = local_store.data.get_mut(local_store.word_index) {
+                    if key == 8 {
+                        if word.char_index > 0 {
+                            word.char_index -= 1;
+                            let temp = word.data.get_mut(word.char_index).unwrap();
+                            temp.backspace();
+                        } else if local_store.word_index > 0 {
+                            local_store.word_index -= 1;
+                        }
+                        set_store(local_store);
+                    } else if (key == 32) && local_store.word_index < local_store.data.len() {
+                        event.prevent_default();
+                        local_store.word_index += 1;
+                        set_store(local_store);
                     }
-                    set_store(local_store);
-                } else if (key == 32) && local_store.word_index < local_store.data.len() {
-                    event.prevent_default();
-                    local_store.word_index += 1;
-                    set_store(local_store);
                 }
             }
 
@@ -413,7 +416,7 @@ pub fn Popup(
         <div class="px-8 p-5 flex flex-wrap text-4xl lg:text-3xl text-gray-500 italic">
             <For
                 each=move || translation_words.clone().into_iter().enumerate()
-                key=move |&(index, _item)| index
+                key=move |(index, _item)| index.clone()
                 children=move |(index, item)| {
                     let class = move || {
                         if !highlight_translation(index)
