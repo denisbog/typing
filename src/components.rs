@@ -181,24 +181,23 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                     tabindex=1
                     on:keydown=move |event| {
                         let key = event.key_code();
-                        let mut local_store = store.get();
+                        let mut local_store = store.get_untracked();
                         logging::log!("key down {}", key);
-                        if let Some(word) = local_store.data.get_mut(local_store.word_index) {
-                            if key == 8 {
+                        if key == 8 {
+                            if let Some(word) = local_store.data.get_mut(local_store.word_index) {
                                 if word.char_index > 0 {
                                     word.char_index -= 1;
                                     let temp = word.data.get_mut(word.char_index).unwrap();
                                     temp.backspace();
-                                } else if local_store.word_index > 0 {
-                                    local_store.word_index -= 1;
                                 }
-                                set_store(local_store);
-                            } else if (key == 32) && local_store.word_index < local_store.data.len()
-                            {
-                                event.prevent_default();
-                                local_store.word_index += 1;
-                                set_store(local_store);
+                            } else if local_store.word_index > 0 {
+                                local_store.word_index -= 1;
                             }
+                            set_store(local_store);
+                        } else if (key == 32) && local_store.word_index < local_store.data.len() {
+                            event.prevent_default();
+                            local_store.word_index += 1;
+                            set_store(local_store);
                         }
                     }
 
@@ -209,7 +208,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                     on:keypress=move |event| {
                         let key = event.key_code();
                         match key {
-                            (64..=93) | (97..=122) | 44 | 45 | 46 | 58 | 59 => {
+                            (64..=93) | (97..=122) | 34 | 39 | 44 | 45 | 46 | 58 | 59 => {
                                 let mut local_store = store.get();
                                 if local_store.word_index < local_store.data.len() {
                                     logging::log!("current index {}", local_store.word_index);

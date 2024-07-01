@@ -27,6 +27,12 @@ pub fn compare(t: char, r: char) -> bool {
         true
     } else if t == 'o' && r == 'Ö' {
         true
+    } else if t == '"' && r == '«' {
+        return true;
+    } else if t == '"' && r == '»' {
+        return true;
+    } else if t == '-' && r == '–' {
+        return true;
     } else {
         false
     }

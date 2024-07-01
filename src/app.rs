@@ -108,6 +108,7 @@ fn TranslationPage() -> impl IntoView {
                                                 });
                                             }
                                         />
+
                                         <input
                                             class="p-2"
                                             type="button"
@@ -116,6 +117,7 @@ fn TranslationPage() -> impl IntoView {
                                                 set_input_popup.set(false);
                                             }
                                         />
+
                                     </div>
                                 </div>
                             </div>
@@ -142,13 +144,12 @@ fn TranslationPage() -> impl IntoView {
         <div class="p-3 pt-7 lg:text-3xl text-5xl font-bold text-gray-100 font-mono w-screen items-center flex flex-col snap-start">
             <div>Learn German by typing!</div>
         </div>
-        ;
         <div class="p-3 pt-7 lg:text-3xl text-5xl font-bold text-gray-100 font-mono w-screen items-center flex flex-col snap-start">
             <div on:click=move |_event| set_input_popup(true)>Update text!</div>
         </div>
         <div class="w-screen flex flex-col items-center">
-            <div>{move || input_popup_component}</div>
             <div class="w-screen lg:w-3/4 flex flex-col">{views}</div>
+            <div>{move || input_popup_component}</div>
         </div>
     }
 }
