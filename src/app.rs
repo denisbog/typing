@@ -1,7 +1,6 @@
 use crate::{
     components::Sentance,
     error_template::{AppError, ErrorTemplate},
-    popup::Popup,
     translation::{get_translations, TranslationRequest},
 };
 use leptos::*;
@@ -63,32 +62,6 @@ fn TranslationPage() -> impl IntoView {
         .zip(translations.iter().cloned().map(str::to_string))
         .collect();
     let (translation_post, set_translation_post) = create_signal(initial_translations);
-    let (popup, set_popup) = create_signal(None);
-
-    let popup_component = move || {
-        if let Some((t, tr)) = popup() {
-            view! {
-                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity">
-                    <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
-                        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0 lg:p-5">
-                            <div class="flex relative transform overflow-hidden bg-gray-100 shadow-xl transition-all w-full h-full">
-                                <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
-                                    <Popup text=t translation=tr display=None/>
-                                    <input
-                                        type="button"
-                                        value="Close"
-                                        on:click=move |_| set_popup.set(None)
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            }.into_view()
-        } else {
-            view! {}.into_view()
-        }
-    };
 
     let (input_popup, set_input_popup) = create_signal(false);
 
@@ -149,7 +122,7 @@ fn TranslationPage() -> impl IntoView {
             .get()
             .into_iter()
             .map(|(item, translation)| {
-                view! { <Sentance text=item translation=translation display=Some(set_popup)/> }
+                view! { <Sentance text=item translation=translation/> }
             })
             .collect_view()
     };
@@ -164,7 +137,6 @@ fn TranslationPage() -> impl IntoView {
         </div>
         <div class="w-screen flex flex-col items-center">
             <div>{move || input_popup_component}</div>
-            <div>{move || popup_component}</div>
             <div class="w-screen lg:w-3/4 flex flex-col">{views}</div>
         </div>
     }
