@@ -52,7 +52,10 @@ enum ClickedHeighlight {
     SelectedTranslation(usize, usize),
     None,
 }
-
+enum EvaluationFor {
+    Original,
+    Translation,
+}
 #[component]
 pub fn Sentance(text: String, translation: String) -> impl IntoView {
     let (pair, set_pair) = create_signal(false);
@@ -140,35 +143,106 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
             set_pair.set(false);
         }
     };
-    let highlight_original = move |index: usize| -> bool {
-        pairs
+    let highlight_index = move |index: usize, evaluation_for: EvaluationFor| -> Option<usize> {
+        match evaluation_for {
+            EvaluationFor::Original => pairs
+                .get()
+                .iter()
+                .enumerate()
+                .find(|(_pair_index, item)| item.original.iter().any(|item| *item == index))
+                .map_or_else(|| None, |(pair_index, _item)| Some(pair_index)),
+            EvaluationFor::Translation => pairs
+                .get()
+                .iter()
+                .enumerate()
+                .find(|(_pair_index, item)| item.translation.iter().any(|item| *item == index))
+                .map_or_else(|| None, |(pair_index, _item)| Some(pair_index)),
+        }
+    };
+
+    let highlight_pair = move |index: usize, evaluation_for: EvaluationFor| match evaluation_for {
+        EvaluationFor::Original => {
+            if let ClickedHeighlight::SelectedOriginal(
+                clicked_highlight,
+                _clicked_highligth_word_index,
+            ) = clicked_highlight.get()
+            {
+                if pairs
+                    .get()
+                    .iter()
+                    .nth(clicked_highlight)
+                    .unwrap()
+                    .original
+                    .contains(&index)
+                {
+                    return true;
+                }
+            }
+            if let ClickedHeighlight::SelectedTranslation(
+                clicked_highlight,
+                _clicked_highligth_word_index,
+            ) = clicked_highlight.get()
+            {
+                if pairs
+                    .get()
+                    .iter()
+                    .nth(clicked_highlight)
+                    .unwrap()
+                    .original
+                    .contains(&index)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        EvaluationFor::Translation => {
+            if let ClickedHeighlight::SelectedOriginal(
+                clicked_highlight,
+                _clicked_highligth_word_index,
+            ) = clicked_highlight.get()
+            {
+                if pairs
+                    .get()
+                    .iter()
+                    .nth(clicked_highlight)
+                    .unwrap()
+                    .translation
+                    .contains(&index)
+                {
+                    return true;
+                }
+            }
+            if let ClickedHeighlight::SelectedTranslation(
+                clicked_highlight,
+                _clicked_highligth_word_index,
+            ) = clicked_highlight.get()
+            {
+                if pairs
+                    .get()
+                    .iter()
+                    .nth(clicked_highlight)
+                    .unwrap()
+                    .translation
+                    .contains(&index)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+    };
+    let highlight_word = move |index: usize, evaluation_for: EvaluationFor| match evaluation_for {
+        EvaluationFor::Original => pairs
             .get()
             .iter()
             .flat_map(|item| item.original.iter())
-            .any(|item| *item == index)
-    };
-    let highlight_translation = move |index: usize| -> bool {
-        pairs
+            .any(|item| *item == index),
+        EvaluationFor::Translation => pairs
             .get()
             .iter()
             .flat_map(|item| item.translation.iter())
-            .any(|item| *item == index)
-    };
-    let highlight_original_index = move |index: usize| -> Option<usize> {
-        pairs
-            .get()
-            .iter()
-            .enumerate()
-            .find(|(_pair_index, item)| item.original.iter().any(|item| *item == index))
-            .map_or_else(|| None, |(pair_index, _item)| Some(pair_index))
-    };
-    let highlight_translation_index = move |index: usize| -> Option<usize> {
-        pairs
-            .get()
-            .iter()
-            .enumerate()
-            .find(|(_pair_index, item)| item.translation.iter().any(|item| *item == index))
-            .map_or_else(|| None, |(pair_index, _item)| Some(pair_index))
+            .any(|item| *item == index),
     };
     let translation_words: Vec<String> =
         translation.clone().split(" ").map(str::to_string).collect();
@@ -245,7 +319,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
 
                                 children=move |(word_index, c)| {
                                     let class = move || {
-                                        if !highlight_original(word_index)
+                                        if !highlight_word(word_index, EvaluationFor::Original)
                                             && original_selected.get().contains(&word_index)
                                         {
                                             "relative flex px-2 py-1 underline"
@@ -254,46 +328,20 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                         }
                                     };
                                     let highlight = move || {
-                                        if let ClickedHeighlight::SelectedOriginal(
-                                            clicked_highlight,
-                                            _clicked_highligth_word_index,
-                                        ) = clicked_highlight.get()
-                                        {
-                                            if pairs
-                                                .get()
-                                                .iter()
-                                                .nth(clicked_highlight)
-                                                .unwrap()
-                                                .original
-                                                .contains(&word_index)
-                                            {
-                                                return "outline";
-                                            }
+                                        if highlight_pair(word_index, EvaluationFor::Original) {
+                                            return "outline";
                                         }
-                                        if let ClickedHeighlight::SelectedTranslation(
-                                            clicked_highlight,
-                                            _clicked_highligth_word_index,
-                                        ) = clicked_highlight.get()
-                                        {
-                                            if pairs
-                                                .get()
-                                                .iter()
-                                                .nth(clicked_highlight)
-                                                .unwrap()
-                                                .original
-                                                .contains(&word_index)
-                                            {
-                                                return "outline";
-                                            }
-                                        }
-                                        if highlight_original(word_index) {
+                                        if highlight_word(word_index, EvaluationFor::Original) {
                                             "outline-dashed"
                                         } else {
                                             ""
                                         }
                                     };
                                     let hightlight_index = move || {
-                                        if let Some(index) = highlight_original_index(word_index) {
+                                        if let Some(index) = highlight_index(
+                                            word_index,
+                                            EvaluationFor::Original,
+                                        ) {
                                             view! {
                                                 <div class="absolute -top-0 -right-0 text-red-600 italic text-base md:text-xl">
                                                     {index}
@@ -308,8 +356,9 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                         <div
                                             class=class
                                             on:click=move |_| {
-                                                if let Some(selected_index) = highlight_original_index(
+                                                if let Some(selected_index) = highlight_index(
                                                     word_index,
+                                                    EvaluationFor::Original,
                                                 ) {
                                                     logging::log!("click on selection  {}", word_index);
                                                     set_clicked_highlight(
@@ -325,7 +374,9 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                                             data.remove(&word_index);
                                                         });
                                                 } else {
-                                                    if highlight_original_index(word_index).is_none() {
+                                                    if highlight_index(word_index, EvaluationFor::Original)
+                                                        .is_none()
+                                                    {
                                                         set_original_selected
                                                             .update(|data| {
                                                                 data.insert(word_index);
@@ -416,54 +467,32 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                     <For
                         each=move || translation_words.clone().into_iter().enumerate()
                         key=move |(index, _item)| index.clone()
-                        children=move |(index, item)| {
+                        children=move |(word_index, item)| {
                             let class = move || {
-                                if !highlight_translation(index)
-                                    && translation_selected.get().contains(&index)
+                                if !highlight_word(word_index, EvaluationFor::Translation)
+                                    && translation_selected.get().contains(&word_index)
                                 {
-                                    "relative p-1 underline"
+                                    "relative flex px-2 py-1 underline"
                                 } else {
-                                    "relative p-1"
+                                    "relative flex px-2 py-1"
                                 }
                             };
                             let highlight = move || {
-                                if let ClickedHeighlight::SelectedOriginal(
-                                    clicked_highlight,
-                                    _clicked_highlight_word_index,
-                                ) = clicked_highlight.get()
-                                {
-                                    if pairs
-                                        .get()
-                                        .iter()
-                                        .nth(clicked_highlight)
-                                        .unwrap()
-                                        .translation
-                                        .contains(&index)
-                                    {
-                                        return "outline";
-                                    }
+                                if highlight_pair(word_index, EvaluationFor::Translation) {
+                                    return "outline";
                                 }
-                                if let ClickedHeighlight::SelectedTranslation(
-                                    clicked_highlight,
-                                    _clicked_highlight_word_index,
-                                ) = clicked_highlight.get()
-                                {
-                                    if pairs
-                                        .get()
-                                        .iter()
-                                        .nth(clicked_highlight)
-                                        .unwrap()
-                                        .translation
-                                        .contains(&index)
-                                    {
-                                        return "outline";
-                                    }
+                                if highlight_word(word_index, EvaluationFor::Translation) {
+                                    "outline-dashed"
+                                } else {
+                                    ""
                                 }
-                                if highlight_translation(index) { "outline-dashed" } else { "" }
                             };
                             let class = move || format!("{} {}", class(), highlight());
                             let hightlight_index = move || {
-                                if let Some(index) = highlight_translation_index(index) {
+                                if let Some(index) = highlight_index(
+                                    word_index,
+                                    EvaluationFor::Translation,
+                                ) {
                                     view! {
                                         <div class="absolute -top-0 -right-0 text-red-600 italic text-base md:text-xl">
                                             {index}
@@ -477,29 +506,35 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                 <div
                                     class=class
                                     on:click=move |_| {
-                                        if let Some(selected_index) = highlight_translation_index(
-                                            index,
+                                        if let Some(selected_index) = highlight_index(
+                                            word_index,
+                                            EvaluationFor::Translation,
                                         ) {
-                                            logging::log!("click on selection  {}", index);
+                                            logging::log!("click on selection  {}", word_index);
                                             set_clicked_highlight(
                                                 ClickedHeighlight::SelectedTranslation(
                                                     selected_index,
-                                                    index,
+                                                    word_index,
                                                 ),
                                             );
                                         }
-                                        if translation_selected.get_untracked().contains(&index) {
+                                        if translation_selected
+                                            .get_untracked()
+                                            .contains(&word_index)
+                                        {
                                             set_translation_selected
                                                 .update(|data| {
-                                                    data.remove(&index);
+                                                    data.remove(&word_index);
                                                 });
                                         } else {
-                                            if highlight_translation_index(index).is_none() {
+                                            if highlight_index(word_index, EvaluationFor::Translation)
+                                                .is_none()
+                                            {
                                                 set_translation_selected
                                                     .update(|data| {
-                                                        data.insert(index);
+                                                        data.insert(word_index);
                                                     });
-                                                set_clicked.set(Clicked::Translation(index));
+                                                set_clicked.set(Clicked::Translation(word_index));
                                             }
                                         };
                                         update_pair();
@@ -512,7 +547,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                     {move || {
                                         match clicked.get() {
                                             Clicked::Translation(clicked_index) => {
-                                                if pair() && clicked_index == index {
+                                                if pair() && clicked_index == word_index {
                                                     pair_button.into_view()
                                                 } else {
                                                     view! {}.into_view()
@@ -528,7 +563,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                             clicked_highligth_word_index,
                                         ) = clicked_highlight.get()
                                         {
-                                            if clicked_highligth_word_index == index {
+                                            if clicked_highligth_word_index == word_index {
                                                 return delete_button(clicked_highlight);
                                             }
                                         }
