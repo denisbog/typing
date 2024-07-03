@@ -1,6 +1,9 @@
 use std::collections::BTreeSet;
 use std::collections::HashSet;
 use std::hash::Hash;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::usize;
 
 use leptos::*;
 
@@ -56,8 +59,114 @@ enum EvaluationFor {
     Original,
     Translation,
 }
+enum WordState {
+    Selected(usize),
+    Highlighted(usize),
+    SelectedPair(usize),
+    HighlightedPair(usize),
+    Clicked,
+    None,
+}
+struct TypingState {
+    original_selected: BTreeSet<usize>,
+    translated_selected: HashSet<usize>,
+    pairs: BTreeSet<Association>,
+    clicked: Clicked,
+    clicked_hightlight: ClickedHeighlight,
+}
+
+impl TypingState {
+    fn default() -> Self {
+        Self {
+            original_selected: BTreeSet::new(),
+            translated_selected: HashSet::new(),
+            pairs: BTreeSet::new(),
+            clicked: Clicked::None,
+            clicked_hightlight: ClickedHeighlight::None,
+        }
+    }
+
+    fn get_action_for_word(
+        index: usize,
+        _evaluation_for: EvaluationFor,
+    ) -> Option<(String, impl Fn())> {
+        Some(("delete".to_string(), move || {
+            logging::log!("delete {}", index);
+        }))
+    }
+    fn get_pair_index_for_word_if_any(
+        &self,
+        index: usize,
+        evaluation_for: EvaluationFor,
+    ) -> Option<usize> {
+        match evaluation_for {
+            EvaluationFor::Original => self
+                .pairs
+                .iter()
+                .enumerate()
+                .find(|(_pair_index, item)| item.original.iter().any(|item| *item == index))
+                .map_or_else(|| None, |(pair_index, _item)| Some(pair_index)),
+            EvaluationFor::Translation => self
+                .pairs
+                .iter()
+                .enumerate()
+                .find(|(_pair_index, item)| item.translation.iter().any(|item| *item == index))
+                .map_or_else(|| None, |(pair_index, _item)| Some(pair_index)),
+        }
+    }
+
+    /// check if clicked or if activate hightligh
+    ///
+    fn set_selection_click(&mut self, index: usize, evaluation_for: EvaluationFor) {
+        logging::log!("click in new state {}", index);
+        match evaluation_for {
+            EvaluationFor::Original => {
+                if !self.original_selected.contains(&index) {
+                    self.original_selected.insert(index);
+                    if let Some(selected_index) =
+                        self.get_pair_index_for_word_if_any(index, EvaluationFor::Original)
+                    {
+                        logging::log!("click on selection  {}", index);
+                        self.clicked_hightlight =
+                            ClickedHeighlight::SelectedOriginal(selected_index, index);
+                    } else {
+                        self.clicked = Clicked::Original(index);
+                    }
+                } else if self.original_selected.contains(&index) {
+                    self.original_selected.remove(&index);
+                };
+            }
+            EvaluationFor::Translation => {
+                self.translated_selected.insert(index);
+            }
+        };
+    }
+
+    fn get_state_for_word(&self, index: usize, evaluation_for: EvaluationFor) -> WordState {
+        if self.original_selected.contains(&index) {
+            if let ClickedHeighlight::SelectedOriginal(clicked_selected_index, clicked_index) =
+                self.clicked_hightlight
+            {
+                if clicked_index == index {
+                    return WordState::Highlighted(clicked_selected_index);
+                } else if let Some(selected_index) =
+                    self.get_pair_index_for_word_if_any(index, EvaluationFor::Original)
+                {
+                    if clicked_selected_index == selected_index {
+                        return WordState::HighlightedPair(selected_index);
+                    }
+                }
+            }else if  let Clicked::Original(clicked_index) = self.clicked {
+            return WordState::
+
+            }
+        }
+        WordState::None
+    }
+}
 #[component]
 pub fn Sentance(text: String, translation: String) -> impl IntoView {
+    let (state, set_state) = create_signal(Arc::new(Mutex::new(TypingState::default())));
     let (pair, set_pair) = create_signal(false);
     let (original_selected, set_original_selected) = create_signal(BTreeSet::<usize>::new());
     let (translation_selected, set_translation_selected) = create_signal(HashSet::<usize>::new());
@@ -537,6 +646,16 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                                 set_clicked.set(Clicked::Translation(word_index));
                                             }
                                         };
+                                        set_state
+                                            .update(|state| {
+                                                state
+                                                    .lock()
+                                                    .unwrap()
+                                                    .set_selection_click(
+                                                        word_index,
+                                                        EvaluationFor::Translation,
+                                                    );
+                                            });
                                         update_pair();
                                     }
                                 >
