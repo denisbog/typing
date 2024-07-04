@@ -365,13 +365,15 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                     on:keydown=move |event| {
                         let key = event.key_code();
                         let mut local_store = store.get_untracked();
-                        logging::log!("key down {}", key);
+                        logging::log!("key down {} {}", key, local_store.word_index);
                         if key == 8 {
                             if let Some(word) = local_store.data.get_mut(local_store.word_index) {
                                 if word.char_index > 0 {
                                     word.char_index -= 1;
                                     let temp = word.data.get_mut(word.char_index).unwrap();
                                     temp.backspace();
+                                } else if local_store.word_index > 0 {
+                                    local_store.word_index -= 1;
                                 }
                             } else if local_store.word_index > 0 {
                                 local_store.word_index -= 1;
