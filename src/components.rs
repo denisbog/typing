@@ -70,7 +70,8 @@ enum WordState {
     HighlightedPair(usize),
     /// new selection
     Clicked,
-    /// normal word renderr
+    ClickedSelected,
+    /// normal word render
     None,
 }
 
@@ -134,8 +135,13 @@ impl TypingState {
                         self.clicked = Clicked::Original(index);
                     }
                 } else if self.original_selected.contains(&index) {
-                    logging::log!("remove from selection {}", index);
-                    self.original_selected.remove(&index);
+                    if let Clicked::Original(clicked_index) = self.clicked {
+                        if clicked_index == index {
+                            logging::log!("remove from selection {}", index);
+                            self.original_selected.remove(&index);
+                        }
+                    }
+                    self.clicked = Clicked::Original(index);
                 };
             }
             EvaluationFor::Translation => {
@@ -145,15 +151,10 @@ impl TypingState {
     }
 
     fn get_state_for_word(&self, index: usize, evaluation_for: EvaluationFor) -> WordState {
-        logging::log!("class evaluation {}", index);
         match evaluation_for {
             EvaluationFor::Original => {
+                logging::log!("class evaluation {}", index);
                 if self.original_selected.contains(&index) {
-                    logging::log!(
-                        "word part of selection {} which is {:?}",
-                        index,
-                        self.original_selected
-                    );
                     if let ClickedHeighlight::SelectedOriginal(
                         clicked_selected_index,
                         clicked_index,
@@ -170,18 +171,37 @@ impl TypingState {
                         }
                     } else if let Clicked::Original(clicked_index) = self.clicked {
                         if clicked_index == index {
-                            return WordState::SelectedPair(0);
+                            return WordState::ClickedSelected;
                         }
                     }
-                    return WordState::Pair(0);
+                    return WordState::Clicked;
+                } else {
+                    if let Some(selected_index) =
+                        self.get_pair_index_for_word_if_any(index, EvaluationFor::Original)
+                    {
+                        return WordState::Pair(selected_index);
+                    }
+                    logging::log!("word not part of selection {}", index);
+                    return WordState::None;
                 }
             }
             EvaluationFor::Translation => {
                 return WordState::Pair(0);
             }
         };
-        logging::log!("word not part of selection {}", index);
-        WordState::None
+    }
+
+    fn pair(&mut self) {
+        if !self.original_selected.is_empty() && !self.translated_selected.is_empty() {
+            self.pairs.insert(Association::new(
+                self.original_selected.clone(),
+                self.translated_selected.clone(),
+            ));
+        }
+
+        logging::log!("new pair {:?}", self.pairs);
+        self.original_selected.clear();
+        self.translated_selected.clear();
     }
 }
 #[component]
@@ -197,8 +217,10 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
     let (clicked_highlight, set_clicked_highlight) = create_signal(ClickedHeighlight::None);
 
     let (original_tick, set_original_tick) = create_signal(state.clone());
-    let (translation_tick, set_translation_tick) = create_signal(state);
-    let pair_button = move || {
+    let (translation_tick, set_translation_tick) = create_signal(state.clone());
+
+    let original_state = state.clone();
+    let pair_button = move |local_state: Arc<Mutex<TypingState>>| {
         if pair() {
             view! {
                 <div class="snap-start">
@@ -228,6 +250,9 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                     p.clear();
                                 });
                             set_pair.set(false);
+                            local_state.lock().unwrap().pair();
+                            set_translation_tick.update(|_state| {});
+                            set_original_tick.update(|_state| {});
                             set_clicked_highlight.set(ClickedHeighlight::None);
                         }
                     >
@@ -451,29 +476,27 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                 key=move |(index, c)| { format!("{}-{}", index, c.char_index) }
 
                                 children=move |(word_index, c)| {
-                                    let class = move || match original_tick.get()
+                                    let class = move || match original_tick
+                                        .get()
                                         .lock()
                                         .unwrap()
                                         .get_state_for_word(word_index, EvaluationFor::Original)
                                     {
-                                        WordState::Pair(_) => "relative flex px-2 p-1 underline",
+                                        WordState::Pair(_) => {
+                                            "relative flex px-2 p-1 outline-dashed"
+                                        }
                                         WordState::Highlighted(_) => "relative flex px-2 p-1",
                                         WordState::SelectedPair(_) => {
-                                            "relative flex px-2 p-1 underline"
+                                            "relative flex px-2 p-1 line-through"
                                         }
-                                        WordState::HighlightedPair(_) => "relative flex px-2 p-1",
+                                        WordState::HighlightedPair(_) => {
+                                            "relative flex px-2 p-1 outline"
+                                        }
                                         WordState::Clicked => "relative flex px-2 p-1 underline",
+                                        WordState::ClickedSelected => {
+                                            "relative flex px-2 p-1 underline bg-yellow-100"
+                                        }
                                         WordState::None => "relative flex px-2 p-1",
-                                    };
-                                    let highlight = move || {
-                                        if highlight_pair(word_index, EvaluationFor::Original) {
-                                            return "outline";
-                                        }
-                                        if highlight_word(word_index, EvaluationFor::Original) {
-                                            "outline-dashed"
-                                        } else {
-                                            ""
-                                        }
                                     };
                                     let hightlight_index = move || {
                                         if let Some(index) = highlight_index(
@@ -489,7 +512,6 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                             view! { <div class="absolute"></div> }
                                         }
                                     };
-                                    let class = move || format!("{} {}", class(), highlight());
                                     view! {
                                         <div
                                             class=class
@@ -523,7 +545,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                                     }
                                                     update_pair();
                                                 }
-                                               set_original_tick
+                                                set_original_tick
                                                     .update(|state| {
                                                         state
                                                             .lock()
@@ -574,18 +596,22 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                             />
 
                                             {hightlight_index}
-                                            {move || {
-                                                match clicked.get() {
-                                                    Clicked::Original(clicked_index) => {
-                                                        if pair() && clicked_index == word_index {
-                                                            pair_button.into_view()
-                                                        } else {
-                                                            view! {}.into_view()
+
+                                            {
+                                                let value = original_state.clone();
+                                                move || {
+                                                    match clicked.get() {
+                                                        Clicked::Original(clicked_index) => {
+                                                            if pair() && clicked_index == word_index {
+                                                                pair_button(value.clone()).into_view()
+                                                            } else {
+                                                                view! {}.into_view()
+                                                            }
                                                         }
+                                                        _ => view! {}.into_view(),
                                                     }
-                                                    _ => view! {}.into_view(),
                                                 }
-                                            }}
+                                            }
 
                                             {move || {
                                                 if let ClickedHeighlight::SelectedOriginal(
@@ -624,6 +650,9 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                 WordState::SelectedPair(_) => "relative flex px-2 p-1 underline",
                                 WordState::HighlightedPair(_) => "relative flex px-2 p-1",
                                 WordState::Clicked => "relative flex px-2 p-1 underline",
+                                WordState::ClickedSelected => {
+                                    "relative flex px-2 p-1 underline bg-yello-100"
+                                }
                                 WordState::None => "relative flex px-2 p-1",
                             };
                             let highlight = move || {
@@ -686,7 +715,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                                 set_clicked.set(Clicked::Translation(word_index));
                                             }
                                         };
-                                       set_translation_tick
+                                        set_translation_tick
                                             .update(|state| {
                                                 state
                                                     .lock()
@@ -703,18 +732,21 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                     {item}
                                     {hightlight_index}
 
-                                    {move || {
-                                        match clicked.get() {
-                                            Clicked::Translation(clicked_index) => {
-                                                if pair() && clicked_index == word_index {
-                                                    pair_button.into_view()
-                                                } else {
-                                                    view! {}.into_view()
+                                    {
+                                        let value = state.clone();
+                                        move || {
+                                            match clicked.get() {
+                                                Clicked::Translation(clicked_index) => {
+                                                    if pair() && clicked_index == word_index {
+                                                        pair_button(value.clone()).into_view()
+                                                    } else {
+                                                        view! {}.into_view()
+                                                    }
                                                 }
+                                                _ => view! {}.into_view(),
                                             }
-                                            _ => view! {}.into_view(),
                                         }
-                                    }}
+                                    }
 
                                     {move || {
                                         if let ClickedHeighlight::SelectedTranslation(
