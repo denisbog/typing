@@ -145,6 +145,7 @@ impl TypingState {
     }
 
     fn get_state_for_word(&self, index: usize, evaluation_for: EvaluationFor) -> WordState {
+        logging::log!("class evaluation {}", index);
         match evaluation_for {
             EvaluationFor::Original => {
                 if self.original_selected.contains(&index) {
@@ -185,7 +186,7 @@ impl TypingState {
 }
 #[component]
 pub fn Sentance(text: String, translation: String) -> impl IntoView {
-    let (state, set_state) = create_signal(Arc::new(Mutex::new(TypingState::default())));
+    let state = Arc::new(Mutex::new(TypingState::default()));
     let (pair, set_pair) = create_signal(false);
     let (original_selected, set_original_selected) = create_signal(BTreeSet::<usize>::new());
     let (translation_selected, set_translation_selected) = create_signal(HashSet::<usize>::new());
@@ -195,6 +196,8 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
     let (clicked, set_clicked) = create_signal(Clicked::None);
     let (clicked_highlight, set_clicked_highlight) = create_signal(ClickedHeighlight::None);
 
+    let (original_tick, set_original_tick) = create_signal(state.clone());
+    let (translation_tick, set_translation_tick) = create_signal(state);
     let pair_button = move || {
         if pair() {
             view! {
@@ -448,14 +451,16 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                 key=move |(index, c)| { format!("{}-{}", index, c.char_index) }
 
                                 children=move |(word_index, c)| {
-                                    let class = move|| match state
-                                        .get()
+                                    let class = move || match original_tick.get()
                                         .lock()
                                         .unwrap()
-                                        .get_state_for_word(word_index, EvaluationFor::Original) {
+                                        .get_state_for_word(word_index, EvaluationFor::Original)
+                                    {
                                         WordState::Pair(_) => "relative flex px-2 p-1 underline",
                                         WordState::Highlighted(_) => "relative flex px-2 p-1",
-                                        WordState::SelectedPair(_) => "relative flex px-2 p-1 underline",
+                                        WordState::SelectedPair(_) => {
+                                            "relative flex px-2 p-1 underline"
+                                        }
                                         WordState::HighlightedPair(_) => "relative flex px-2 p-1",
                                         WordState::Clicked => "relative flex px-2 p-1 underline",
                                         WordState::None => "relative flex px-2 p-1",
@@ -518,7 +523,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                                     }
                                                     update_pair();
                                                 }
-                                                set_state
+                                               set_original_tick
                                                     .update(|state| {
                                                         state
                                                             .lock()
@@ -608,19 +613,18 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                         each=move || translation_words.clone().into_iter().enumerate()
                         key=move |(index, _item)| index.clone()
                         children=move |(word_index, item)| {
-                            state
+                            let class = move || match translation_tick
                                 .get()
                                 .lock()
                                 .unwrap()
-                                .get_state_for_word(word_index, EvaluationFor::Translation);
-                            let class = move || {
-                                if !highlight_word(word_index, EvaluationFor::Translation)
-                                    && translation_selected.get().contains(&word_index)
-                                {
-                                    "relative flex px-2 py-1 underline"
-                                } else {
-                                    "relative flex px-2 py-1"
-                                }
+                                .get_state_for_word(word_index, EvaluationFor::Translation)
+                            {
+                                WordState::Pair(_) => "relative flex px-2 p-1 underline",
+                                WordState::Highlighted(_) => "relative flex px-2 p-1",
+                                WordState::SelectedPair(_) => "relative flex px-2 p-1 underline",
+                                WordState::HighlightedPair(_) => "relative flex px-2 p-1",
+                                WordState::Clicked => "relative flex px-2 p-1 underline",
+                                WordState::None => "relative flex px-2 p-1",
                             };
                             let highlight = move || {
                                 if highlight_pair(word_index, EvaluationFor::Translation) {
@@ -682,7 +686,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                                 set_clicked.set(Clicked::Translation(word_index));
                                             }
                                         };
-                                        set_state
+                                       set_translation_tick
                                             .update(|state| {
                                                 state
                                                     .lock()
