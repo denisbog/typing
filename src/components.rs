@@ -60,13 +60,20 @@ enum EvaluationFor {
     Translation,
 }
 enum WordState {
-    Selected(usize),
+    /// selected word part of pair
+    Pair(usize),
+    /// selected word part of highlighted pair
     Highlighted(usize),
+    /// word part of a selection
     SelectedPair(usize),
+    /// word part of highlighted pair
     HighlightedPair(usize),
+    /// new selection
     Clicked,
+    /// normal word renderr
     None,
 }
+
 struct TypingState {
     original_selected: BTreeSet<usize>,
     translated_selected: HashSet<usize>,
@@ -86,14 +93,6 @@ impl TypingState {
         }
     }
 
-    fn get_action_for_word(
-        index: usize,
-        _evaluation_for: EvaluationFor,
-    ) -> Option<(String, impl Fn())> {
-        Some(("delete".to_string(), move || {
-            logging::log!("delete {}", index);
-        }))
-    }
     fn get_pair_index_for_word_if_any(
         &self,
         index: usize,
@@ -122,17 +121,20 @@ impl TypingState {
         match evaluation_for {
             EvaluationFor::Original => {
                 if !self.original_selected.contains(&index) {
+                    logging::log!("click inserting {}", index);
                     self.original_selected.insert(index);
                     if let Some(selected_index) =
                         self.get_pair_index_for_word_if_any(index, EvaluationFor::Original)
                     {
-                        logging::log!("click on selection  {}", index);
+                        logging::log!("highlight selection {}", index);
                         self.clicked_hightlight =
                             ClickedHeighlight::SelectedOriginal(selected_index, index);
                     } else {
+                        logging::log!("click on selection {}", index);
                         self.clicked = Clicked::Original(index);
                     }
                 } else if self.original_selected.contains(&index) {
+                    logging::log!("remove from selection {}", index);
                     self.original_selected.remove(&index);
                 };
             }
@@ -143,24 +145,41 @@ impl TypingState {
     }
 
     fn get_state_for_word(&self, index: usize, evaluation_for: EvaluationFor) -> WordState {
-        if self.original_selected.contains(&index) {
-            if let ClickedHeighlight::SelectedOriginal(clicked_selected_index, clicked_index) =
-                self.clicked_hightlight
-            {
-                if clicked_index == index {
-                    return WordState::Highlighted(clicked_selected_index);
-                } else if let Some(selected_index) =
-                    self.get_pair_index_for_word_if_any(index, EvaluationFor::Original)
-                {
-                    if clicked_selected_index == selected_index {
-                        return WordState::HighlightedPair(selected_index);
+        match evaluation_for {
+            EvaluationFor::Original => {
+                if self.original_selected.contains(&index) {
+                    logging::log!(
+                        "word part of selection {} which is {:?}",
+                        index,
+                        self.original_selected
+                    );
+                    if let ClickedHeighlight::SelectedOriginal(
+                        clicked_selected_index,
+                        clicked_index,
+                    ) = self.clicked_hightlight
+                    {
+                        if clicked_index == index {
+                            return WordState::Highlighted(clicked_selected_index);
+                        } else if let Some(selected_index) =
+                            self.get_pair_index_for_word_if_any(index, EvaluationFor::Original)
+                        {
+                            if clicked_selected_index == selected_index {
+                                return WordState::HighlightedPair(selected_index);
+                            }
+                        }
+                    } else if let Clicked::Original(clicked_index) = self.clicked {
+                        if clicked_index == index {
+                            return WordState::SelectedPair(0);
+                        }
                     }
+                    return WordState::Pair(0);
                 }
-            }else if  let Clicked::Original(clicked_index) = self.clicked {
-            return WordState::
-
             }
-        }
+            EvaluationFor::Translation => {
+                return WordState::Pair(0);
+            }
+        };
+        logging::log!("word not part of selection {}", index);
         WordState::None
     }
 }
@@ -429,14 +448,17 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                 key=move |(index, c)| { format!("{}-{}", index, c.char_index) }
 
                                 children=move |(word_index, c)| {
-                                    let class = move || {
-                                        if !highlight_word(word_index, EvaluationFor::Original)
-                                            && original_selected.get().contains(&word_index)
-                                        {
-                                            "relative flex px-2 py-1 underline"
-                                        } else {
-                                            "relative flex px-2 py-1"
-                                        }
+                                    let class = move|| match state
+                                        .get()
+                                        .lock()
+                                        .unwrap()
+                                        .get_state_for_word(word_index, EvaluationFor::Original) {
+                                        WordState::Pair(_) => "relative flex px-2 p-1 underline",
+                                        WordState::Highlighted(_) => "relative flex px-2 p-1",
+                                        WordState::SelectedPair(_) => "relative flex px-2 p-1 underline",
+                                        WordState::HighlightedPair(_) => "relative flex px-2 p-1",
+                                        WordState::Clicked => "relative flex px-2 p-1 underline",
+                                        WordState::None => "relative flex px-2 p-1",
                                     };
                                     let highlight = move || {
                                         if highlight_pair(word_index, EvaluationFor::Original) {
@@ -496,6 +518,13 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                                     }
                                                     update_pair();
                                                 }
+                                                set_state
+                                                    .update(|state| {
+                                                        state
+                                                            .lock()
+                                                            .unwrap()
+                                                            .set_selection_click(word_index, EvaluationFor::Original);
+                                                    });
                                             }
                                         >
 
@@ -579,6 +608,11 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                         each=move || translation_words.clone().into_iter().enumerate()
                         key=move |(index, _item)| index.clone()
                         children=move |(word_index, item)| {
+                            state
+                                .get()
+                                .lock()
+                                .unwrap()
+                                .get_state_for_word(word_index, EvaluationFor::Translation);
                             let class = move || {
                                 if !highlight_word(word_index, EvaluationFor::Translation)
                                     && translation_selected.get().contains(&word_index)
