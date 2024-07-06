@@ -350,12 +350,12 @@ impl TypingState {
 
     fn get_style_for_word_state(word_state: WordState) -> &'static str {
         match word_state {
-            WordState::Pair => "relative flex px-2 p-1 bg-blue-100",
-            WordState::Highlighted => "relative flex px-2 p-1 bg-red-100",
-            WordState::HighlightedPair => "relative flex px-2 p-1 bg-blue-200",
-            WordState::Clicked => "relative flex px-2 p-1 underline",
-            WordState::ClickedSelected => "relative flex px-2 p-1 underline bg-yellow-100",
-            WordState::None => "relative flex px-2 p-1",
+            WordState::Pair => "relative flex px-2 p-1 mt-1 bg-blue-100",
+            WordState::Highlighted => "relative flex px-2 p-1 mt-1 bg-red-100",
+            WordState::HighlightedPair => "relative flex px-2 p-1 mt-1 bg-blue-200",
+            WordState::Clicked => "relative flex px-2 p-1 mt-1 underline",
+            WordState::ClickedSelected => "relative flex px-2 p-1 mt-1 underline bg-yellow-100",
+            WordState::None => "relative flex px-2 p-1 mt-1",
         }
     }
 
@@ -425,9 +425,9 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
     let (store, set_store) = create_signal(TypeState::from_str(&text));
     let class = move || {
         if original_tick.get().lock().unwrap().enable_selection {
-            "outline-dashed cursor-default"
+            "outline-dashed p-2 cursor-default"
         } else {
-            "outline-dashed"
+            "outline-dashed p-2"
         }
     };
     view! {
@@ -581,7 +581,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                                     )
                                                 {
                                                     view! {
-                                                        <div class="absolute -top-0 -right-0 text-red-600 italic text-base md:text-xl">
+                                                        <div class="absolute -top-4 right-1 text-red-600 italic text-base bg-blue-200 shadow-md rounded px-1 border-solid-1 font-sans">
                                                             {index}
                                                         </div>
                                                     }
@@ -671,7 +671,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                             )
                                         {
                                             view! {
-                                                <div class="absolute -top-0 -right-0 text-red-600 italic text-base md:text-xl">
+                                                        <div class="absolute -top-4 right-1 text-red-600 italic text-base bg-blue-200 shadow-md rounded px-1 border-solid-1 font-sans">
                                                     {index}
                                                 </div>
                                             }
