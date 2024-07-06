@@ -470,6 +470,19 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                         }
                                         WordState::None => "relative flex px-2 p-1",
                                     };
+                                    let refresh_other =move || match original_tick
+                                        .get()
+                                        .lock()
+                                        .unwrap()
+                                        .get_state_for_word(word_index, EvaluationFor::Original)
+                                    {
+                                        WordState::ClickedSelected => true,
+                                        _ => false,
+                                    };
+                                    if refresh_other(){
+                                logging::log!("update others");
+                                        set_translation_tick.update(|_state| {});
+                                    }
                                     view! {
                                         // let hightlight_index = move || {
                                         // if let Some(index) = original_tick.get().lock().unwrap().get_pair_index_for_word_if_any(
@@ -540,21 +553,20 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
 
                                             // {hightlight_index}
 
-                                           // {move || {
-                                           //     match original_tick.get().lock().unwrap().clicked {
-                                           //         Clicked::Original(clicked_word_index) => {
-                                           //             if clicked_word_index == word_index {
-                                           //                 pair_button().into_view()
-                                           //             } else {
-                                           //                 view! {}.into_view()
-                                           //             }
-                                           //         }
-                                           //         _ => {
-                                           //             logging::log!("evalution failed");
-                                           //             view! {}.into_view()
-                                           //         }
-                                           //     }
-                                           // }}
+                                            {move || {
+                                                let pair = match original_tick.get().lock().unwrap().clicked
+                                                {
+                                                    Clicked::Original(clicked_word_index) => {
+                                                        clicked_word_index == word_index
+                                                    }
+                                                    _ => false,
+                                                };
+                                                if pair {
+                                                    pair_button().into_view()
+                                                } else {
+                                                    view! {}.into_view()
+                                                }
+                                            }}
 
                                             {move || {
                                                 if let Clicked::SelectedOriginal(
@@ -641,18 +653,24 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                     {item}
                                     // {hightlight_index}
 
-                                   // {move || {
-                                   //     match translation_tick.get().lock().unwrap().clicked {
-                                   //         Clicked::Translation(clicked_index) => {
-                                   //             if clicked_index == word_index {
-                                   //                 pair_button().into_view()
-                                   //             } else {
-                                   //                 view! {}.into_view()
-                                   //             }
-                                   //         }
-                                   //         _ => view! {}.into_view(),
-                                   //     }
-                                   // }}
+                                    {move || {
+                                        let pair = match translation_tick
+                                            .get()
+                                            .lock()
+                                            .unwrap()
+                                            .clicked
+                                        {
+                                            Clicked::Translation(clicked_word_index) => {
+                                                clicked_word_index == word_index
+                                            }
+                                            _ => false,
+                                        };
+                                        if pair {
+                                            pair_button().into_view()
+                                        } else {
+                                            view! {}.into_view()
+                                        }
+                                    }}
 
                                     {move || {
                                         if let Clicked::SelectedTranslation(
