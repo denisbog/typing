@@ -33,7 +33,7 @@ pub struct TypeState {
 }
 
 impl TypeState {
-    pub fn from_str(value: &String) -> Self {
+    pub fn from_str(value: &str) -> Self {
         TypeState {
             word_index: 0,
             data: value

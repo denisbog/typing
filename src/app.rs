@@ -21,7 +21,7 @@ pub fn App() -> impl IntoView {
         // sets the document title
         <Title text="Typing app"/>
 
-        <Body class="h-screen bg-gray-400"/>
+        <Body class="h-screen bg-gray-400 text-5xl lg:text-3xl text-gray-900"/>
         // content for this welcome page
         <Router fallback=|| {
             let mut outside_errors = Errors::default();
@@ -86,7 +86,7 @@ fn TranslationPage() -> impl IntoView {
 
                                     <div class="p-2">
                                         <input
-                                            class="p-2"
+                                            class="p-2 m-1 shadow-md rounded bg-green-100"
                                             type="button"
                                             value="Translate"
                                             on:click=move |_event| {
@@ -110,7 +110,7 @@ fn TranslationPage() -> impl IntoView {
                                         />
 
                                         <input
-                                            class="p-2"
+                                            class="p-2 m-1 shadow-md rounded bg-gray-100 text-gray-400"
                                             type="button"
                                             value="Close"
                                             on:click=move |_event| {

@@ -58,11 +58,11 @@ enum EvaluationFor {
 }
 enum WordState {
     /// selected word part of pair
-    Pair(usize),
+    Pair,
     /// selected word part of highlighted pair
-    Highlighted(usize),
+    Highlighted,
     /// word part of highlighted pair
-    HighlightedPair(usize),
+    HighlightedPair,
     /// new selection
     Clicked,
     ClickedSelected,
@@ -75,6 +75,7 @@ struct TypingState {
     translated_selected: HashSet<usize>,
     pairs: BTreeSet<Association>,
     clicked: Clicked,
+    enable_selection: bool,
 }
 
 impl TypingState {
@@ -84,6 +85,7 @@ impl TypingState {
             translated_selected: HashSet::new(),
             pairs: BTreeSet::new(),
             clicked: Clicked::None,
+            enable_selection: false,
         }
     }
 
@@ -111,6 +113,9 @@ impl TypingState {
     /// check if clicked or if activate hightligh
     ///
     fn set_selection_click(&mut self, index: usize, evaluation_for: EvaluationFor) {
+        if !self.enable_selection {
+            return;
+        }
         logging::log!("click in new state {}", index);
         match evaluation_for {
             EvaluationFor::Original => {
@@ -225,18 +230,19 @@ impl TypingState {
     }
 
     fn get_state_for_word(&self, index: usize, evaluation_for: EvaluationFor) -> WordState {
+        logging::log!("get state for word");
         match evaluation_for {
             EvaluationFor::Original => {
                 if let Clicked::SelectedOriginal(clicked_selected_index, clicked_index) =
                     self.clicked
                 {
                     if clicked_index == index {
-                        return WordState::Highlighted(clicked_selected_index);
+                        return WordState::Highlighted;
                     } else if let Some(selected_index) =
                         self.get_pair_index_for_word_if_any(index, EvaluationFor::Original)
                     {
                         if clicked_selected_index == selected_index {
-                            return WordState::HighlightedPair(selected_index);
+                            return WordState::HighlightedPair;
                         }
                     }
                 }
@@ -248,7 +254,7 @@ impl TypingState {
                         self.get_pair_index_for_word_if_any(index, EvaluationFor::Original)
                     {
                         if clicked_selected_index == selected_index {
-                            return WordState::HighlightedPair(selected_index);
+                            return WordState::HighlightedPair;
                         }
                     }
                 }
@@ -262,13 +268,13 @@ impl TypingState {
                 if let Some(selected_index) =
                     self.get_pair_index_for_word_if_any(index, EvaluationFor::Original)
                 {
-                    return WordState::Pair(selected_index);
+                    return WordState::Pair;
                 }
 
                 if self.original_selected.contains(&index) {
-                    return WordState::Clicked;
+                    WordState::Clicked
                 } else {
-                    return WordState::None;
+                    WordState::None
                 }
             }
             EvaluationFor::Translation => {
@@ -276,12 +282,12 @@ impl TypingState {
                     self.clicked
                 {
                     if clicked_index == index {
-                        return WordState::Highlighted(clicked_selected_index);
+                        return WordState::Highlighted;
                     } else if let Some(selected_index) =
                         self.get_pair_index_for_word_if_any(index, EvaluationFor::Translation)
                     {
                         if clicked_selected_index == selected_index {
-                            return WordState::HighlightedPair(selected_index);
+                            return WordState::HighlightedPair;
                         }
                     }
                 }
@@ -293,7 +299,7 @@ impl TypingState {
                         self.get_pair_index_for_word_if_any(index, EvaluationFor::Translation)
                     {
                         if clicked_selected_index == selected_index {
-                            return WordState::HighlightedPair(selected_index);
+                            return WordState::HighlightedPair;
                         }
                     }
                 }
@@ -307,16 +313,16 @@ impl TypingState {
                 if let Some(selected_index) =
                     self.get_pair_index_for_word_if_any(index, EvaluationFor::Translation)
                 {
-                    return WordState::Pair(selected_index);
+                    return WordState::Pair;
                 }
 
                 if self.translated_selected.contains(&index) {
-                    return WordState::Clicked;
+                    WordState::Clicked
                 } else {
-                    return WordState::None;
+                    WordState::None
                 }
             }
-        };
+        }
     }
 
     fn pair_enabled(&self) -> bool {
@@ -341,6 +347,17 @@ impl TypingState {
         self.pairs.remove(&selected);
         self.clicked = Clicked::None;
     }
+
+    fn get_style_for_word_state(word_state: WordState) -> &'static str {
+        match word_state {
+            WordState::Pair => "relative flex px-2 p-1 bg-blue-100",
+            WordState::Highlighted => "relative flex px-2 p-1 bg-red-100",
+            WordState::HighlightedPair => "relative flex px-2 p-1 bg-blue-200",
+            WordState::Clicked => "relative flex px-2 p-1 underline",
+            WordState::ClickedSelected => "relative flex px-2 p-1 underline bg-yellow-100",
+            WordState::None => "relative flex px-2 p-1",
+        }
+    }
 }
 #[component]
 pub fn Sentance(text: String, translation: String) -> impl IntoView {
@@ -352,7 +369,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
             view! {
                 <div class="snap-start">
                     <div
-                        class="absolute -top-2 -right-2 italic text-base underline md:text-xl cursor-pointer z-10"
+                        class="absolute -top-2 -right-2 italic text-base underline md:text-xl cursor-pointer z-10 bg-yellow-200 p-1 shadow-md rounded"
                         on:click=move |_event| {
                             set_original_tick
                                 .update(|state| {
@@ -376,7 +393,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
         view! {
             <div>
                 <div
-                    class="absolute -top-2 -right-2 italic text-base underline md:text-xl cursor-pointer z-10"
+                    class="absolute -top-2 -right-2 italic text-base underline md:text-xl cursor-pointer z-10 bg-red-200 p-1 shadow-md rounded"
                     on:click=move |_event| {
                         set_original_tick
                             .update(|state| {
@@ -469,51 +486,26 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                 key=move |(index, c)| { format!("{}-{}", index, c.char_index) }
 
                                 children=move |(word_index, c)| {
-                                    let class = move || match original_tick
-                                        .get()
-                                        .lock()
-                                        .unwrap()
-                                        .get_state_for_word(word_index, EvaluationFor::Original)
-                                    {
-                                        WordState::Pair(_) => {
-                                            "relative flex px-2 p-1 outline-dashed bg-blue-200"
-                                        }
-                                        WordState::Highlighted(_) => {
-                                            "relative flex px-2 p-1 bg-red-200"
-                                        }
-                                        WordState::HighlightedPair(_) => {
-                                            "relative flex px-2 p-1 outline bg-orange-200"
-                                        }
-                                        WordState::Clicked => "relative flex px-2 p-1 underline",
-                                        WordState::ClickedSelected => {
-                                            "relative flex px-2 p-1 underline bg-yellow-200"
-                                        }
-                                        WordState::None => "relative flex px-2 p-1",
-                                    };
-                                    let refresh_other = move || match original_tick
-                                        .get()
-                                        .lock()
-                                        .unwrap()
-                                        .get_state_for_word(word_index, EvaluationFor::Original)
-                                    {
-                                        WordState::ClickedSelected => true,
-                                        _ => false,
-                                    };
-                                    if refresh_other() {
-                                        logging::log!("update others");
-                                        set_original_tick.update(|_state| {});
-                                    }
+                                    let class = move || TypingState::get_style_for_word_state(
+                                        original_tick
+                                            .get()
+                                            .lock()
+                                            .unwrap()
+                                            .get_state_for_word(word_index, EvaluationFor::Original),
+                                    );
                                     view! {
                                         <div
                                             class=class
                                             on:click=move |_| {
-                                                set_original_tick
-                                                    .update(|state| {
-                                                        state
-                                                            .lock()
-                                                            .unwrap()
-                                                            .set_selection_click(word_index, EvaluationFor::Original);
-                                                    });
+                                                if original_tick.get().lock().unwrap().enable_selection {
+                                                    set_original_tick
+                                                        .update(|state| {
+                                                            state
+                                                                .lock()
+                                                                .unwrap()
+                                                                .set_selection_click(word_index, EvaluationFor::Original);
+                                                        });
+                                                }
                                             }
                                         >
 
@@ -616,41 +608,31 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                 <div class="px-8 p-5 flex flex-wrap text-4xl lg:text-3xl text-gray-500 italic">
                     <For
                         each=move || translation_words.clone().into_iter().enumerate()
-                        key=move |(index, _item)| index.clone()
+                        key=move |(index, _item)| *index
                         children=move |(word_index, item)| {
-                            let class = move || match original_tick
-                                .get()
-                                .lock()
-                                .unwrap()
-                                .get_state_for_word(word_index, EvaluationFor::Translation)
-                            {
-                                WordState::Pair(_) => {
-                                    "relative flex px-2 p-1 outline-dashed bg-blue-200"
-                                }
-                                WordState::Highlighted(_) => "relative flex px-2 p-1 bg-red-200",
-                                WordState::HighlightedPair(_) => {
-                                    "relative flex px-2 p-1 outline bg-orange-200"
-                                }
-                                WordState::Clicked => "relative flex px-2 p-1 underline",
-                                WordState::ClickedSelected => {
-                                    "relative flex px-2 p-1 underline bg-yellow-200"
-                                }
-                                WordState::None => "relative flex px-2 p-1",
-                            };
+                            let class = move || TypingState::get_style_for_word_state(
+                                original_tick
+                                    .get()
+                                    .lock()
+                                    .unwrap()
+                                    .get_state_for_word(word_index, EvaluationFor::Translation),
+                            );
                             view! {
                                 <div
                                     class=class
                                     on:click=move |_| {
-                                        set_original_tick
-                                            .update(|state| {
-                                                state
-                                                    .lock()
-                                                    .unwrap()
-                                                    .set_selection_click(
-                                                        word_index,
-                                                        EvaluationFor::Translation,
-                                                    );
-                                            });
+                                        if original_tick.get().lock().unwrap().enable_selection {
+                                            set_original_tick
+                                                .update(|state| {
+                                                    state
+                                                        .lock()
+                                                        .unwrap()
+                                                        .set_selection_click(
+                                                            word_index,
+                                                            EvaluationFor::Translation,
+                                                        );
+                                                });
+                                        }
                                     }
                                 >
 
