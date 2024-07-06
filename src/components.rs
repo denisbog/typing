@@ -358,6 +358,16 @@ impl TypingState {
             WordState::None => "relative flex px-2 p-1",
         }
     }
+
+    fn toogle_enable_pair(&mut self) {
+        if self.enable_selection {
+            self.original_selected.clear();
+            self.translated_selected.clear();
+            self.clicked = Clicked::None;
+        }
+
+        self.enable_selection = !self.enable_selection;
+    }
 }
 #[component]
 pub fn Sentance(text: String, translation: String) -> impl IntoView {
@@ -413,9 +423,16 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
     let translation_words: Vec<String> =
         translation.clone().split(" ").map(str::to_string).collect();
     let (store, set_store) = create_signal(TypeState::from_str(&text));
+    let class = move || {
+        if original_tick.get().lock().unwrap().enable_selection {
+            "outline-dashed cursor-default"
+        } else {
+            "outline-dashed"
+        }
+    };
     view! {
         <div class="flex flex-col justify-center min-h-lvh lg:h-min snap-start">
-            <div class="outline-dashed">
+            <div class=class>
                 <div
                     class="p-3 flex flex-wrap text-5xl lg:text-3xl text-gray-500 font-mono focus:outline-none"
                     tabindex=1
@@ -443,7 +460,11 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                         }
                     }
 
-                    on:focus=move |_event| { set_store.update(|store| store.focus = true) }
+                    on:focus=move |_event| {
+                        if !original_tick.get().lock().unwrap().enable_selection {
+                            set_store.update(|store| store.focus = true)
+                        }
+                    }
 
                     on:focusout=move |_event| { set_store.update(|store| store.focus = false) }
 
@@ -605,7 +626,8 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                     }
 
                 </div>
-                <div class="px-8 p-5 flex flex-wrap text-4xl lg:text-3xl text-gray-500 italic">
+                <div class="px-8 p-5 flex flex-wrap text-4xl lg:text-3xl text-gray-500 italic cursor-default">
+
                     <For
                         each=move || translation_words.clone().into_iter().enumerate()
                         key=move |(index, _item)| *index
@@ -693,6 +715,31 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
 
                 </div>
             </div>
+
+            {
+                let label = move || {
+                    if original_tick.get().lock().unwrap().enable_selection {
+                        "click to enable typing"
+                    } else {
+                        "click to enable pairing"
+                    }
+                };
+                view! {
+                    <div
+                        class="w-fit text-3xl lg:text-2xl m-2 p-2 shadow-md rounded bg-gray-300 cursor-pointer"
+                        on:click=move |_event| {
+                            set_original_tick
+                                .update(|state| {
+                                    state.lock().unwrap().toogle_enable_pair();
+                                });
+                        }
+                    >
+
+                        {label}
+                    </div>
+                }
+            }
+
         </div>
     }
 }
