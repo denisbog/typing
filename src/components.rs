@@ -2,7 +2,6 @@ use std::collections::BTreeSet;
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::sync::Arc;
-use std::sync::Mutex;
 
 use leptos::*;
 
@@ -344,11 +343,10 @@ impl TypingState {
 }
 #[component]
 pub fn Sentance(text: String, translation: String) -> impl IntoView {
-    let (original_tick, set_original_tick) =
-        create_signal(Arc::new(Mutex::new(TypingState::default())));
+    let (original_tick, set_original_tick) = create_signal(Arc::new(TypingState::default()));
 
     let pair_button = move || {
-        if original_tick.get().lock().unwrap().pair_enabled() {
+        if original_tick.get().pair_enabled() {
             view! {
                 <div class="snap-start">
                     <div
@@ -356,7 +354,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                         on:click=move |_event| {
                             set_original_tick
                                 .update(|state| {
-                                    state.lock().unwrap().pair();
+                                    state.pair();
                                 });
                         }
                     >
@@ -492,8 +490,6 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                     };
                                     let refresh_other = move || match original_tick
                                         .get()
-                                        .lock()
-                                        .unwrap()
                                         .get_state_for_word(word_index, EvaluationFor::Original)
                                     {
                                         WordState::ClickedSelected => true,
@@ -510,8 +506,6 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                                 set_original_tick
                                                     .update(|state| {
                                                         state
-                                                            .lock()
-                                                            .unwrap()
                                                             .set_selection_click(word_index, EvaluationFor::Original);
                                                     });
                                             }
@@ -560,8 +554,6 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                             {move || {
                                                 if let Some(index) = original_tick
                                                     .get()
-                                                    .lock()
-                                                    .unwrap()
                                                     .get_pair_index_for_word_if_any(
                                                         word_index,
                                                         EvaluationFor::Original,
@@ -578,7 +570,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                             }}
 
                                             {move || {
-                                                let pair = match original_tick.get().lock().unwrap().clicked
+                                                let pair = match original_tick.get().clicked
                                                 {
                                                     Clicked::Original(clicked_word_index) => {
                                                         clicked_word_index == word_index
@@ -596,7 +588,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                                 if let Clicked::SelectedOriginal(
                                                     clicked_highlight,
                                                     clicked_highligth_word_index,
-                                                ) = original_tick.get().lock().unwrap().clicked
+                                                ) = original_tick.get().clicked
                                                 {
                                                     if clicked_highligth_word_index == word_index {
                                                         return delete_button(clicked_highlight);
@@ -620,8 +612,6 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                         children=move |(word_index, item)| {
                             let class = move || match original_tick
                                 .get()
-                                .lock()
-                                .unwrap()
                                 .get_state_for_word(word_index, EvaluationFor::Translation)
                             {
                                 WordState::Pair(_) => {
@@ -644,8 +634,6 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                         set_original_tick
                                             .update(|state| {
                                                 state
-                                                    .lock()
-                                                    .unwrap()
                                                     .set_selection_click(
                                                         word_index,
                                                         EvaluationFor::Translation,
@@ -659,8 +647,6 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                     {move || {
                                         if let Some(index) = original_tick
                                             .get()
-                                            .lock()
-                                            .unwrap()
                                             .get_pair_index_for_word_if_any(
                                                 word_index,
                                                 EvaluationFor::Translation,
@@ -677,7 +663,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                     }}
 
                                     {move || {
-                                        let pair = match original_tick.get().lock().unwrap().clicked
+                                        let pair = match original_tick.get().clicked
                                         {
                                             Clicked::Translation(clicked_word_index) => {
                                                 clicked_word_index == word_index
@@ -695,7 +681,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                         if let Clicked::SelectedTranslation(
                                             clicked_highlight,
                                             clicked_highligth_word_index,
-                                        ) = original_tick.get().lock().unwrap().clicked
+                                        ) = original_tick.get().clicked
                                         {
                                             if clicked_highligth_word_index == word_index {
                                                 return delete_button(clicked_highlight);
