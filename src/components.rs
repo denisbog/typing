@@ -3,7 +3,6 @@ use std::collections::HashSet;
 use std::hash::Hash;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::usize;
 
 use leptos::*;
 
@@ -125,7 +124,7 @@ impl TypingState {
                             logging::log!("highlight selection {}", index);
                             self.clicked = Clicked::SelectedOriginal(selected_index, index);
                             self.original_selected.clear();
-                            return ();
+                            return;
                         } else {
                             self.clicked = Clicked::None;
                         }
@@ -138,7 +137,7 @@ impl TypingState {
                     self.clicked = Clicked::SelectedOriginal(selected_index, index);
                     self.original_selected.clear();
                     self.translated_selected.clear();
-                    return ();
+                    return;
                 }
 
                 if !self.original_selected.contains(&index) {
@@ -179,7 +178,7 @@ impl TypingState {
                             logging::log!("highlight selection {}", index);
                             self.clicked = Clicked::SelectedTranslation(selected_index, index);
                             self.translated_selected.clear();
-                            return ();
+                            return;
                         } else {
                             self.clicked = Clicked::None;
                         }
@@ -192,7 +191,7 @@ impl TypingState {
                     self.clicked = Clicked::SelectedTranslation(selected_index, index);
                     self.original_selected.clear();
                     self.translated_selected.clear();
-                    return ();
+                    return;
                 }
 
                 if !self.translated_selected.contains(&index) {
@@ -355,8 +354,10 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                     <div
                         class="absolute -top-2 -right-2 italic text-base underline md:text-xl cursor-pointer z-10"
                         on:click=move |_event| {
-                            original_tick.get().lock().unwrap().pair();
-                            set_original_tick.update(|_state| {});
+                            set_original_tick
+                                .update(|state| {
+                                    state.lock().unwrap().pair();
+                                });
                         }
                     >
 
@@ -371,14 +372,16 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
         }
     };
 
-    let delete_button = move |state: Arc<Mutex<TypingState>>, pair_to_remove: usize| {
+    let delete_button = move |pair_to_remove: usize| {
         view! {
             <div>
                 <div
                     class="absolute -top-2 -right-2 italic text-base underline md:text-xl cursor-pointer z-10"
                     on:click=move |_event| {
-                        state.lock().unwrap().remove(pair_to_remove);
-                        set_original_tick.update(|_state| {});
+                        set_original_tick
+                            .update(|state| {
+                                state.lock().unwrap().remove(pair_to_remove);
+                            });
                     }
                 >
 
@@ -596,10 +599,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                                 ) = original_tick.get().lock().unwrap().clicked
                                                 {
                                                     if clicked_highligth_word_index == word_index {
-                                                        return delete_button(
-                                                            original_tick.get(),
-                                                            clicked_highlight,
-                                                        );
+                                                        return delete_button(clicked_highlight);
                                                     }
                                                 }
                                                 view! {}.into_view()
@@ -698,10 +698,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                         ) = original_tick.get().lock().unwrap().clicked
                                         {
                                             if clicked_highligth_word_index == word_index {
-                                                return delete_button(
-                                                    original_tick.get(),
-                                                    clicked_highlight,
-                                                );
+                                                return delete_button(clicked_highlight);
                                             }
                                         }
                                         view! {}.into_view()
