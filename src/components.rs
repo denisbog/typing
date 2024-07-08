@@ -671,7 +671,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                             )
                                         {
                                             view! {
-                                                        <div class="absolute -top-4 right-1 text-red-600 italic text-base bg-blue-200 shadow-md rounded px-1 border-solid-1 font-sans">
+                                                <div class="absolute -top-4 right-1 text-red-600 italic text-base bg-blue-200 shadow-md rounded px-1 border-solid-1 font-sans">
                                                     {index}
                                                 </div>
                                             }

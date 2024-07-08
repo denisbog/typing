@@ -1,8 +1,8 @@
 use crate::{
     application_types::{Article, Data},
-    components::Sentance,
     error_template::{AppError, ErrorTemplate},
     translation::{get_translations, TranslationRequest},
+    translation_page::{ArticlePage, TranslationPage},
 };
 use leptos::*;
 use leptos_meta::*;
@@ -12,59 +12,6 @@ use leptos_router::*;
 pub fn App() -> impl IntoView {
     provide_meta_context();
 
-    view! {
-        <Html class="snap-y snap-y-mandatory"/>
-
-        // injects a stylesheet into the document <head>
-        // id=leptos means cargo-leptos will hot-reload this stylesheet
-        <Stylesheet id="leptos" href="/typing.css"/>
-
-        // sets the document title
-        <Title text="Typing app"/>
-
-        <Body class="h-screen bg-gray-400 text-5xl lg:text-3xl text-gray-900"/>
-        // content for this welcome page
-        <Router fallback=|| {
-            let mut outside_errors = Errors::default();
-            outside_errors.insert_with_default_key(AppError::NotFound);
-            view! { <ErrorTemplate outside_errors/> }.into_view()
-        }>
-            <main>
-                <Routes>
-                    <Route path="" view=TranslationPage/>
-                    <Route path="/translate" view=TranslationPage/>
-                </Routes>
-            </main>
-        </Router>
-    }
-}
-
-fn load_data() -> Data {
-    let sentances = vec![
-        "Mit intelligenten Stromzählern können Verbraucher selbst am Energiemarkt teilnehmen. Wie Sie Geld sparen und sogar welches verdienen.",
-        "Die Preise an der Strombörse fahren an vielen Tagen des Jahres Achterbahn: Sie vervielfachen sich oft binnen weniger Stunden, um kurz darauf genauso rasant wieder abzustürzen. Mitunter gar in den negativen Bereich – die Versorger bekommen dann Geld dafür, dass sie Strom abnehmen.",
-        "Für die Verbraucher hat dieses Auf und Ab keine unmittelbaren Folgen, da sie für ihren Strom in der Regel stets den gleichen Preis zahlen. Damit gewinnen sie Sicherheit. Das bedeutet aber auch, dass sie nichts davon haben, wenn es an der Börse mal wieder abwärtsgeht.",
-        "Mit dem schrittweisen Einzug intelligenter Stromzähler in die Haushalte ändert sich das nun aber: Sie geben Bürgern die Möglichkeit, am Strommarkt teilzuhaben und damit Geld zu sparen – und sogar zu verdienen."
-];
-
-    let translations = vec![
-		"With intelligent power meters, consumers can participate in the energy market themselves. How to save money and even earn what.",
-		"The prices at the power exchange run roller coaster on many days of the year: they often multiply within a few hours to crash just as rapidly shortly afterwards. Sometimes even into the negative area – the suppliers then get money for them to lose electricity.",
-		"For consumers, this ups and downs have no immediate consequences, as they usually pay the same price for their electricity. This means that they gain security. This also means that they have nothing of it if it goes down again on the stock market.",
-		"But with the gradual introduction of smart electricity meters into households, this is now changing: they give citizens the opportunity to participate in the electricity market and thus save – and even earn – money."
-
-    ];
-    let data = Data {
-        articles: vec![Article::from_pair(
-            sentances.iter().map(|item| item.to_string()).collect(),
-            translations.iter().map(|item| item.to_string()).collect(),
-        )],
-    };
-    data
-}
-
-#[component]
-fn TranslationPage() -> impl IntoView {
     let (translation_input, set_translation_input) = create_signal("".to_string());
 
     let data = load_data();
@@ -100,15 +47,13 @@ fn TranslationPage() -> impl IntoView {
                                                 logging::log!("passing argument: {}", temp);
                                                 set_input_popup.set(false);
                                                 spawn_local(async move {
-
                                                     let request = TranslationRequest::from_str(&temp);
                                                     let response = get_translations(request.clone()).await.unwrap();
-                                                    logging::log!("client: {:?}", response);
                                                     set_translation_post
-                                                        .update(| data|{
-
-                                        data.articles.push(Article::from_pair(request.src, response.translated));
-                                        });
+                                                        .update(|data| {
+                                                            data.articles
+                                                                .push(Article::from_pair(request.src, response.translated));
+                                                        });
                                                 });
                                             }
                                         />
@@ -134,28 +79,71 @@ fn TranslationPage() -> impl IntoView {
         }
     };
 
-    let views = move || {
-        translation_post
-            .get()
-            .articles
-            .into_iter()
-            .flat_map(|item| item.paragraphs.into_iter())
-            .map(|item| {
-                view! { <Sentance text=item.original translation=item.translation/> }
-            })
-            .collect_view()
-    };
-
     view! {
-        <div class="p-3 pt-7 lg:text-3xl text-5xl font-bold text-gray-100 font-mono w-screen items-center flex flex-col snap-start">
-            <div>Learn German by typing!</div>
-        </div>
-        <div class="p-3 pt-7 lg:text-3xl text-5xl font-bold text-gray-100 font-mono w-screen items-center flex flex-col snap-start">
-            <div on:click=move |_event| set_input_popup(true)>Update text!</div>
-        </div>
-        <div class="w-screen flex flex-col items-center">
-            <div class="w-screen lg:w-3/4 flex flex-col">{views}</div>
-            <div>{move || input_popup_component}</div>
-        </div>
+        <Html class="snap-y snap-y-mandatory"/>
+
+        // injects a stylesheet into the document <head>
+        // id=leptos means cargo-leptos will hot-reload this stylesheet
+        <Stylesheet id="leptos" href="/typing.css"/>
+
+        // sets the document title
+        <Title text="Typing app"/>
+
+        <Body class="h-screen bg-gray-400 text-5xl lg:text-3xl text-gray-900"/>
+        // content for this welcome page
+        <Router fallback=|| {
+            let mut outside_errors = Errors::default();
+            outside_errors.insert_with_default_key(AppError::NotFound);
+            view! { <ErrorTemplate outside_errors/> }.into_view()
+        }>
+            <div class="p-3 pt-7 lg:text-3xl text-5xl font-bold text-gray-100 font-mono w-screen items-center flex flex-col snap-start">
+                <a href="/"><div>Learn German by typing!</div></a>
+            </div>
+            <div class="p-3 pt-7 lg:text-3xl text-5xl font-bold text-gray-100 font-mono w-screen items-center flex flex-col snap-start">
+                <div on:click=move |_event| set_input_popup(true)>Update text!</div>
+            </div>
+            <main class="w-screen flex flex-col items-center">
+                <Routes>
+                    <Route
+                        path=""
+                        view=move || view! { <TranslationPage data=translation_post/> }
+                />
+                    <Route
+                        path="/article/:id"
+                        view=move || view! { <ArticlePage data=translation_post.get()/> }
+                    />
+                </Routes>
+                <div>{move || input_popup_component}</div>
+            </main>
+        </Router>
     }
+}
+
+fn load_data() -> Data {
+    let sentances = vec![
+        "Mit intelligenten Stromzählern können Verbraucher selbst am Energiemarkt teilnehmen. Wie Sie Geld sparen und sogar welches verdienen.",
+        "Die Preise an der Strombörse fahren an vielen Tagen des Jahres Achterbahn: Sie vervielfachen sich oft binnen weniger Stunden, um kurz darauf genauso rasant wieder abzustürzen. Mitunter gar in den negativen Bereich – die Versorger bekommen dann Geld dafür, dass sie Strom abnehmen.",
+        "Für die Verbraucher hat dieses Auf und Ab keine unmittelbaren Folgen, da sie für ihren Strom in der Regel stets den gleichen Preis zahlen. Damit gewinnen sie Sicherheit. Das bedeutet aber auch, dass sie nichts davon haben, wenn es an der Börse mal wieder abwärtsgeht.",
+        "Mit dem schrittweisen Einzug intelligenter Stromzähler in die Haushalte ändert sich das nun aber: Sie geben Bürgern die Möglichkeit, am Strommarkt teilzuhaben und damit Geld zu sparen – und sogar zu verdienen."
+];
+
+    let translations = vec![
+		"With intelligent power meters, consumers can participate in the energy market themselves. How to save money and even earn what.",
+		"The prices at the power exchange run roller coaster on many days of the year: they often multiply within a few hours to crash just as rapidly shortly afterwards. Sometimes even into the negative area – the suppliers then get money for them to lose electricity.",
+		"For consumers, this ups and downs have no immediate consequences, as they usually pay the same price for their electricity. This means that they gain security. This also means that they have nothing of it if it goes down again on the stock market.",
+		"But with the gradual introduction of smart electricity meters into households, this is now changing: they give citizens the opportunity to participate in the electricity market and thus save – and even earn – money."
+    ];
+    let data = Data {
+        articles: vec![
+            Article::from_pair(
+                sentances.iter().map(|item| item.to_string()).collect(),
+                translations.iter().map(|item| item.to_string()).collect(),
+            ),
+            Article::from_pair(
+                sentances.iter().map(|item| item.to_string()).collect(),
+                translations.iter().map(|item| item.to_string()).collect(),
+            ),
+        ],
+    };
+    data
 }
