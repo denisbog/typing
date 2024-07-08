@@ -10,6 +10,18 @@ pub struct TranslationRequest {
 pub struct TranslationResponse {
     pub translated: Vec<String>,
 }
+
+impl TranslationRequest {
+    pub fn from_str(original: &String) -> Self {
+        Self {
+            src: original
+                .split("\n")
+                .map(str::to_string)
+                .collect::<Vec<String>>(),
+        }
+    }
+}
+
 #[server(Api, "/api")]
 pub async fn get_translations(
     request: TranslationRequest,

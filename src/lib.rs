@@ -6,6 +6,9 @@ pub mod app;
 pub mod error_template;
 pub mod translation;
 
+pub mod application_types;
+pub mod translation_page;
+
 #[cfg(feature = "ssr")]
 pub mod fileserv;
 

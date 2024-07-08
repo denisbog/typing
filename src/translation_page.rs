@@ -1,5 +1,4 @@
 use crate::{
-    application_types::{Article, Data},
     components::Sentance,
     error_template::{AppError, ErrorTemplate},
     translation::{get_translations, TranslationRequest},
@@ -39,7 +38,9 @@ pub fn App() -> impl IntoView {
     }
 }
 
-fn load_data() -> Data {
+#[component]
+fn TranslationPage() -> impl IntoView {
+    let (translation_input, set_translation_input) = create_signal("".to_string());
     let sentances = vec![
         "Mit intelligenten Stromzählern können Verbraucher selbst am Energiemarkt teilnehmen. Wie Sie Geld sparen und sogar welches verdienen.",
         "Die Preise an der Strombörse fahren an vielen Tagen des Jahres Achterbahn: Sie vervielfachen sich oft binnen weniger Stunden, um kurz darauf genauso rasant wieder abzustürzen. Mitunter gar in den negativen Bereich – die Versorger bekommen dann Geld dafür, dass sie Strom abnehmen.",
@@ -54,21 +55,15 @@ fn load_data() -> Data {
 		"But with the gradual introduction of smart electricity meters into households, this is now changing: they give citizens the opportunity to participate in the electricity market and thus save – and even earn – money."
 
     ];
-    let data = Data {
-        articles: vec![Article::from_pair(
-            sentances.iter().map(|item| item.to_string()).collect(),
-            translations.iter().map(|item| item.to_string()).collect(),
-        )],
-    };
-    data
-}
 
-#[component]
-fn TranslationPage() -> impl IntoView {
-    let (translation_input, set_translation_input) = create_signal("".to_string());
+    let initial_translations: Vec<(String, String)> = sentances
+        .iter()
+        .cloned()
+        .map(str::to_string)
+        .zip(translations.iter().cloned().map(str::to_string))
+        .collect();
+    let (translation_post, set_translation_post) = create_signal(initial_translations);
 
-    let data = load_data();
-    let (translation_post, set_translation_post) = create_signal(data);
     let (input_popup, set_input_popup) = create_signal(false);
 
     let input_popup_component = move || {
@@ -100,15 +95,17 @@ fn TranslationPage() -> impl IntoView {
                                                 logging::log!("passing argument: {}", temp);
                                                 set_input_popup.set(false);
                                                 spawn_local(async move {
-
-                                                    let request = TranslationRequest::from_str(&temp);
-                                                    let response = get_translations(request.clone()).await.unwrap();
+                                                    let temp = temp
+                                                        .split("\n")
+                                                        .map(str::to_string)
+                                                        .collect::<Vec<String>>();
+                                                    let request = TranslationRequest {
+                                                        src: temp.clone(),
+                                                    };
+                                                    let response = get_translations(request).await.unwrap();
                                                     logging::log!("client: {:?}", response);
                                                     set_translation_post
-                                                        .update(| data|{
-
-                                        data.articles.push(Article::from_pair(request.src, response.translated));
-                                        });
+                                                        .set(temp.into_iter().zip(response.translated).collect());
                                                 });
                                             }
                                         />
@@ -137,11 +134,9 @@ fn TranslationPage() -> impl IntoView {
     let views = move || {
         translation_post
             .get()
-            .articles
             .into_iter()
-            .flat_map(|item| item.paragraphs.into_iter())
-            .map(|item| {
-                view! { <Sentance text=item.original translation=item.translation/> }
+            .map(|(item, translation)| {
+                view! { <Sentance text=item translation=translation/> }
             })
             .collect_view()
     };
