@@ -1,11 +1,13 @@
+use serde::{Deserialize, Serialize};
+
 use crate::translation::{get_translations, TranslationRequest};
 
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Data {
     pub articles: Vec<Article>,
 }
 
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Article {
     pub title: String,
     pub paragraphs: Vec<Paragraph>,
@@ -20,7 +22,7 @@ impl Article {
             .map(|(original, translation)| Paragraph {
                 original,
                 translation,
-                pairs: Vec::<Pair>::new(),
+                pairs: None,
             })
             .collect();
         Article { title, paragraphs }
@@ -37,7 +39,7 @@ impl Article {
             .map(|(original, translation)| Paragraph {
                 original,
                 translation,
-                pairs: Vec::<Pair>::new(),
+                pairs: None,
             })
             .collect();
 
@@ -45,14 +47,14 @@ impl Article {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Paragraph {
     pub original: String,
     pub translation: String,
-    pub pairs: Vec<Pair>,
+    pub pairs: Option<Vec<Pair>>,
 }
 
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Pair {
     pub orignal: Vec<usize>,
     pub traslation: Vec<usize>,

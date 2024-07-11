@@ -9,7 +9,7 @@ pub struct ArticleParams {
 }
 
 #[component]
-pub fn TranslationPage(data: ReadSignal<Data>) -> impl IntoView {
+pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl IntoView {
     let params = use_params::<ArticleParams>();
     params.with(|param| {
         if let Ok(item) = param {
@@ -23,7 +23,25 @@ pub fn TranslationPage(data: ReadSignal<Data>) -> impl IntoView {
             .into_iter()
             .enumerate()
             .map(|(index, item)| {
-                view! { <a href={format!("/article/{}", index)}> {item.title} </a>}
+                view! {
+                    <div class="flex p-2">
+                        <a class="w-full" href=format!("/article/{}", index)>
+                            {item.title}
+                        </a>
+                        <div
+                            class="w-fit text-3xl lg:text-2xl m-2 p-2 shadow-md rounded bg-gray-300 cursor-pointer"
+                            on:click=move |_event| {
+                                set_data
+                                    .update(|item| {
+                                        item.articles.remove(index);
+                                    })
+                            }
+                        >
+
+                            Delete
+                        </div>
+                    </div>
+                }
             })
             .collect_view()
     };
@@ -31,7 +49,7 @@ pub fn TranslationPage(data: ReadSignal<Data>) -> impl IntoView {
 }
 
 #[component]
-pub fn ArticlePage(data: Data) -> impl IntoView {
+pub fn ArticlePage(data: Data, delete_article: impl Fn(usize)) -> impl IntoView {
     let params = use_params::<ArticleParams>();
     let article_id = params.with(|param| param.as_ref().unwrap().id);
 
@@ -47,7 +65,5 @@ pub fn ArticlePage(data: Data) -> impl IntoView {
             })
             .collect_view()
     };
-    view! {
-            <div class="w-screen lg:w-3/4 flex flex-col">{views}</div>
-    }
+    view! { <div class="w-screen lg:w-3/4 flex flex-col relative">{views}</div> }
 }

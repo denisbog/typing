@@ -1,6 +1,10 @@
-use leptos::{server, ServerFnError};
+use leptos::{logging, server, use_context, ServerFnError};
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "ssr")]
+use crate::AppState;
+
+use crate::application_types::Data;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TranslationRequest {
     pub src: Vec<String>,
@@ -20,6 +24,40 @@ impl TranslationRequest {
                 .collect::<Vec<String>>(),
         }
     }
+}
+
+#[server(Store, "/store")]
+pub async fn store_data(id: String, data: Data) -> Result<(), ServerFnError> {
+    let app_state = use_context::<AppState>();
+    app_state
+        .unwrap()
+        .sled
+        .lock()
+        .unwrap()
+        .insert(id.as_bytes(), serde_json::to_vec(&data).unwrap())
+        .unwrap();
+    Ok(())
+}
+
+#[server(FetchData, "/store")]
+pub async fn get_data(id: String) -> Result<Data, ServerFnError> {
+    logging::log!("getting Data");
+    let app_state = use_context::<AppState>();
+    Ok(serde_json::from_slice(
+        std::str::from_utf8(
+            &app_state
+                .unwrap()
+                .sled
+                .lock()
+                .unwrap()
+                .get(id.as_bytes())
+                .unwrap()
+                .unwrap(),
+        )
+        .unwrap()
+        .as_bytes(),
+    )
+    .unwrap())
 }
 
 #[server(Api, "/api")]
