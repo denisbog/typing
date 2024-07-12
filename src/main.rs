@@ -3,12 +3,10 @@ use leptos::*;
 #[cfg(feature = "ssr")]
 #[tokio::main]
 async fn main() {
-    use std::sync::Arc;
-
     use axum::Router;
     use leptos::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
-    use typing::{app::App, fileserv::file_and_error_handler, AppState};
+    use typing::{app::App, fileserv::file_and_error_handler, init_db};
 
     // Setting get_configuration(None) means we'll be using cargo-leptos's env values
     // For deployment these variables are:
@@ -20,18 +18,12 @@ async fn main() {
     let addr = leptos_options.site_addr;
     let routes = generate_route_list(App);
 
-    let db: sled::Db = sled::open("./my_db").unwrap();
-    let db = Arc::new(tokio::sync::Mutex::new(db));
-    let app_state = AppState {
-        sled: db,
-        leptos_options,
-    };
-
+    init_db().await;
     // build our application with a route
     let app = Router::new()
-        .leptos_routes(&app_state, routes, App)
+        .leptos_routes(&leptos_options, routes, App)
         .fallback(file_and_error_handler)
-        .with_state(app_state);
+        .with_state(leptos_options);
 
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
     logging::log!("listening on http://{}", &addr);

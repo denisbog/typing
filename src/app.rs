@@ -30,7 +30,6 @@ pub fn App() -> impl IntoView {
 
     let (translation_post, set_translation_post) = create_signal(Data::default());
     if let Some(session) = session_id.get() {
-        #[cfg(feature = "hydrate")]
         spawn_local(async move {
             set_translation_post.set(get_data(session).await.unwrap());
         });
@@ -74,6 +73,12 @@ pub fn App() -> impl IntoView {
                                                             data.articles
                                                                 .push(Article::from_pair(request.src, response.translated));
                                                         });
+                                                    let _response = store_data(
+                                                            session_id.get().unwrap(),
+                                                            translation_post.get_untracked(),
+                                                        )
+                                                        .await
+                                                        .unwrap();
                                                 });
                                             }
                                         />
@@ -129,18 +134,6 @@ pub fn App() -> impl IntoView {
             </div>
             <div class="p-3 pt-7 lg:text-3xl text-5xl font-bold text-gray-100 font-mono w-screen items-center flex flex-col snap-start">
                 <div on:click=move |_event| set_input_popup(true)>Add Article</div>
-            </div>
-            <div class="w-fit text-3xl lg:text-2xl m-2 p-2 shadow-md rounded bg-gray-300 cursor-pointer">
-                <div on:click=move |_event| {
-                    spawn_local(async move {
-                        let _response = store_data(
-                                session_id.get().unwrap(),
-                                translation_post.get(),
-                            )
-                            .await
-                            .unwrap();
-                    });
-                }>Save</div>
             </div>
             <main class="w-screen flex flex-col items-center">
                 <Routes>

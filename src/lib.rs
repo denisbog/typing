@@ -35,3 +35,16 @@ pub fn hydrate() {
     console_error_panic_hook::set_once();
     leptos::mount_to_body(App);
 }
+
+#[cfg(feature = "ssr")]
+static DB: std::sync::OnceLock<sled::Db> = std::sync::OnceLock::new();
+
+#[cfg(feature = "ssr")]
+pub async fn init_db() {
+    let db: sled::Db = sled::open("./my_db").unwrap();
+    DB.set(db).unwrap();
+}
+#[cfg(feature = "ssr")]
+pub async fn get_db<'a>() -> &'a sled::Db {
+    DB.get().unwrap()
+}

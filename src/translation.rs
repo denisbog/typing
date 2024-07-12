@@ -1,8 +1,5 @@
-use leptos::{logging, server, use_context, ServerFnError};
+use leptos::{logging, server, ServerFnError};
 use serde::{Deserialize, Serialize};
-
-#[cfg(feature = "ssr")]
-use crate::AppState;
 
 use crate::application_types::Data;
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,11 +25,7 @@ impl TranslationRequest {
 
 #[server(Store, "/store")]
 pub async fn store_data(id: String, data: Data) -> Result<(), ServerFnError> {
-    let app_state = use_context::<AppState>();
-    app_state
-        .unwrap()
-        .sled
-        .lock()
+    crate::get_db()
         .await
         .insert(id.as_bytes(), serde_json::to_vec(&data).unwrap())
         .unwrap();
@@ -41,21 +34,11 @@ pub async fn store_data(id: String, data: Data) -> Result<(), ServerFnError> {
 
 #[server(FetchData, "/store")]
 pub async fn get_data(id: String) -> Result<Data, ServerFnError> {
-    logging::log!("getting Data");
-    let app_state = use_context::<AppState>();
+    logging::log!("fetching data");
     Ok(serde_json::from_slice(
-        std::str::from_utf8(
-            &app_state
-                .unwrap()
-                .sled
-                .lock()
-                .await
-                .get(id.as_bytes())
-                .unwrap()
-                .unwrap(),
-        )
-        .unwrap()
-        .as_bytes(),
+        std::str::from_utf8(&crate::get_db().await.get(id.as_bytes()).unwrap().unwrap())
+            .unwrap()
+            .as_bytes(),
     )
     .unwrap())
 }
