@@ -33,7 +33,7 @@ pub async fn store_data(id: String, data: Data) -> Result<(), ServerFnError> {
         .unwrap()
         .sled
         .lock()
-        .unwrap()
+        .await
         .insert(id.as_bytes(), serde_json::to_vec(&data).unwrap())
         .unwrap();
     Ok(())
@@ -49,7 +49,7 @@ pub async fn get_data(id: String) -> Result<Data, ServerFnError> {
                 .unwrap()
                 .sled
                 .lock()
-                .unwrap()
+                .await
                 .get(id.as_bytes())
                 .unwrap()
                 .unwrap(),

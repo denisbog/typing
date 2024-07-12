@@ -130,8 +130,7 @@ pub fn App() -> impl IntoView {
             <div class="p-3 pt-7 lg:text-3xl text-5xl font-bold text-gray-100 font-mono w-screen items-center flex flex-col snap-start">
                 <div on:click=move |_event| set_input_popup(true)>Add Article</div>
             </div>
-
-            <div class="p-3 pt-7 lg:text-3xl text-5xl font-bold text-gray-100 font-mono w-screen items-center flex flex-col snap-start">
+            <div class="w-fit text-3xl lg:text-2xl m-2 p-2 shadow-md rounded bg-gray-300 cursor-pointer">
                 <div on:click=move |_event| {
                     spawn_local(async move {
                         let _response = store_data(
@@ -142,9 +141,6 @@ pub fn App() -> impl IntoView {
                             .unwrap();
                     });
                 }>Save</div>
-            </div>
-            <div class="p-3 pt-7 lg:text-3xl text-5xl font-bold text-gray-100 font-mono w-screen items-center flex flex-col snap-start">
-                <div on:click=move |_event| {}>Load</div>
             </div>
             <main class="w-screen flex flex-col items-center">
                 <Routes>

@@ -3,7 +3,7 @@ use leptos::*;
 #[cfg(feature = "ssr")]
 #[tokio::main]
 async fn main() {
-    use std::sync::{Arc, Mutex};
+    use std::sync::Arc;
 
     use axum::Router;
     use leptos::*;
@@ -21,10 +21,9 @@ async fn main() {
     let routes = generate_route_list(App);
 
     let db: sled::Db = sled::open("./my_db").unwrap();
-
-    let db = Arc::new(Mutex::new(db));
+    let db = Arc::new(tokio::sync::Mutex::new(db));
     let app_state = AppState {
-        sled: db.clone(),
+        sled: db,
         leptos_options,
     };
 

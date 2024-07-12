@@ -4,6 +4,8 @@ use std::sync::Arc;
 use axum::extract::FromRef;
 
 use leptos::LeptosOptions;
+#[cfg(feature = "ssr")]
+use tokio::sync::Mutex;
 
 pub mod components;
 mod types;
@@ -22,7 +24,7 @@ pub mod fileserv;
 #[cfg(feature = "ssr")]
 #[derive(FromRef, Clone, Debug)]
 pub struct AppState {
-    pub sled: Arc<std::sync::Mutex<sled::Db>>,
+    pub sled: Arc<Mutex<sled::Db>>,
     pub leptos_options: LeptosOptions,
 }
 
