@@ -1,5 +1,5 @@
 use std::collections::BTreeSet;
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -14,11 +14,11 @@ use core::hash::Hasher;
 struct Association {
     start_position: usize,
     original: BTreeSet<usize>,
-    translation: HashSet<usize>,
+    translation: BTreeSet<usize>,
 }
 
 impl Association {
-    fn new(original: BTreeSet<usize>, translation: HashSet<usize>) -> Self {
+    fn new(original: BTreeSet<usize>, translation: BTreeSet<usize>) -> Self {
         Association {
             start_position: *original.iter().next().unwrap(),
             original,
@@ -72,7 +72,7 @@ enum WordState {
 
 struct TypingState {
     original_selected: BTreeSet<usize>,
-    translated_selected: HashSet<usize>,
+    translated_selected: BTreeSet<usize>,
     pairs: BTreeSet<Association>,
     clicked: Clicked,
     enable_selection: bool,
@@ -82,7 +82,7 @@ impl TypingState {
     fn default() -> Self {
         Self {
             original_selected: BTreeSet::new(),
-            translated_selected: HashSet::new(),
+            translated_selected: BTreeSet::new(),
             pairs: BTreeSet::new(),
             clicked: Clicked::None,
             enable_selection: false,
@@ -326,7 +326,7 @@ impl TypingState {
     }
 
     fn pair_enabled(&self) -> bool {
-        logging::log!("evaluate if pari action is enabled {:?}", self.pairs);
+        logging::log!("evaluate if pair action is enabled {:?}", self.pairs);
         !self.original_selected.is_empty() && !self.translated_selected.is_empty()
     }
     fn pair(&mut self) {
@@ -370,20 +370,48 @@ impl TypingState {
     }
 }
 #[component]
-pub fn Sentance(text: String, translation: String) -> impl IntoView {
-    let (original_tick, set_original_tick) =
+pub fn Sentance(
+    text: String,
+    translation: String,
+    article_id: usize,
+    index: usize,
+    set_pairs: WriteSignal<HashMap<usize, HashMap<usize, Vec<(Vec<usize>, Vec<usize>)>>>>,
+) -> impl IntoView {
+    let (sentace_state, set_sentace_state) =
         create_signal(Arc::new(Mutex::new(TypingState::default())));
 
     let pair_button = move || {
-        if original_tick.get().lock().unwrap().pair_enabled() {
+        if sentace_state.get().lock().unwrap().pair_enabled() {
             view! {
                 <div class="snap-start">
                     <div
                         class="absolute -top-2 -right-2 italic text-base underline md:text-xl cursor-pointer z-10 bg-yellow-200 p-1 shadow-md rounded"
                         on:click=move |_event| {
-                            set_original_tick
+                            set_sentace_state
                                 .update(|state| {
-                                    state.lock().unwrap().pair();
+                                    let mut state = state.lock().unwrap();
+                                    set_pairs
+                                        .update(|pairs| {
+                                            pairs
+                                                .entry(article_id)
+                                                .or_default()
+                                                .entry(index)
+                                                .or_default()
+                                                .push((
+                                                    state
+                                                        .original_selected
+                                                        .iter()
+                                                        .cloned()
+                                                        .collect::<Vec<usize>>(),
+                                                    state
+                                                        .translated_selected
+                                                        .iter()
+                                                        .cloned()
+                                                        .collect::<Vec<usize>>(),
+                                                ));
+                                            logging::log!("pairs {:?}", pairs);
+                                        });
+                                    state.pair();
                                 });
                         }
                     >
@@ -405,9 +433,18 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                 <div
                     class="absolute -top-2 -right-2 italic text-base underline md:text-xl cursor-pointer z-10 bg-red-200 p-1 shadow-md rounded"
                     on:click=move |_event| {
-                        set_original_tick
+                        set_sentace_state
                             .update(|state| {
                                 state.lock().unwrap().remove(pair_to_remove);
+                                set_pairs
+                                    .update(|pairs| {
+                                        pairs
+                                            .get_mut(&article_id)
+                                            .unwrap()
+                                            .get_mut(&index)
+                                            .unwrap()
+                                            .remove(pair_to_remove);
+                                    });
                             });
                     }
                 >
@@ -424,7 +461,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
         translation.clone().split(" ").map(str::to_string).collect();
     let (store, set_store) = create_signal(TypeState::from_str(&text));
     let class = move || {
-        if original_tick.get().lock().unwrap().enable_selection {
+        if sentace_state.get().lock().unwrap().enable_selection {
             "outline-dashed p-2 cursor-default"
         } else {
             "outline-dashed p-2"
@@ -461,7 +498,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                     }
 
                     on:focus=move |_event| {
-                        if !original_tick.get().lock().unwrap().enable_selection {
+                        if !sentace_state.get().lock().unwrap().enable_selection {
                             set_store.update(|store| store.focus = true)
                         }
                     }
@@ -508,7 +545,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
 
                                 children=move |(word_index, c)| {
                                     let class = move || TypingState::get_style_for_word_state(
-                                        original_tick
+                                        sentace_state
                                             .get()
                                             .lock()
                                             .unwrap()
@@ -518,8 +555,8 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                         <div
                                             class=class
                                             on:click=move |_| {
-                                                if original_tick.get().lock().unwrap().enable_selection {
-                                                    set_original_tick
+                                                if sentace_state.get().lock().unwrap().enable_selection {
+                                                    set_sentace_state
                                                         .update(|state| {
                                                             state
                                                                 .lock()
@@ -571,7 +608,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                             />
 
                                             {move || {
-                                                if let Some(index) = original_tick
+                                                if let Some(index) = sentace_state
                                                     .get()
                                                     .lock()
                                                     .unwrap()
@@ -591,7 +628,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                             }}
 
                                             {move || {
-                                                let pair = match original_tick.get().lock().unwrap().clicked
+                                                let pair = match sentace_state.get().lock().unwrap().clicked
                                                 {
                                                     Clicked::Original(clicked_word_index) => {
                                                         clicked_word_index == word_index
@@ -609,7 +646,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                                 if let Clicked::SelectedOriginal(
                                                     clicked_highlight,
                                                     clicked_highligth_word_index,
-                                                ) = original_tick.get().lock().unwrap().clicked
+                                                ) = sentace_state.get().lock().unwrap().clicked
                                                 {
                                                     if clicked_highligth_word_index == word_index {
                                                         return delete_button(clicked_highlight);
@@ -633,7 +670,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                         key=move |(index, _item)| *index
                         children=move |(word_index, item)| {
                             let class = move || TypingState::get_style_for_word_state(
-                                original_tick
+                                sentace_state
                                     .get()
                                     .lock()
                                     .unwrap()
@@ -643,8 +680,8 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                 <div
                                     class=class
                                     on:click=move |_| {
-                                        if original_tick.get().lock().unwrap().enable_selection {
-                                            set_original_tick
+                                        if sentace_state.get().lock().unwrap().enable_selection {
+                                            set_sentace_state
                                                 .update(|state| {
                                                     state
                                                         .lock()
@@ -661,7 +698,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                     {item}
 
                                     {move || {
-                                        if let Some(index) = original_tick
+                                        if let Some(index) = sentace_state
                                             .get()
                                             .lock()
                                             .unwrap()
@@ -681,7 +718,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                     }}
 
                                     {move || {
-                                        let pair = match original_tick.get().lock().unwrap().clicked
+                                        let pair = match sentace_state.get().lock().unwrap().clicked
                                         {
                                             Clicked::Translation(clicked_word_index) => {
                                                 clicked_word_index == word_index
@@ -699,7 +736,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                                         if let Clicked::SelectedTranslation(
                                             clicked_highlight,
                                             clicked_highligth_word_index,
-                                        ) = original_tick.get().lock().unwrap().clicked
+                                        ) = sentace_state.get().lock().unwrap().clicked
                                         {
                                             if clicked_highligth_word_index == word_index {
                                                 return delete_button(clicked_highlight);
@@ -718,7 +755,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
 
             {
                 let label = move || {
-                    if original_tick.get().lock().unwrap().enable_selection {
+                    if sentace_state.get().lock().unwrap().enable_selection {
                         "click to enable typing"
                     } else {
                         "click to enable pairing"
@@ -728,7 +765,7 @@ pub fn Sentance(text: String, translation: String) -> impl IntoView {
                     <div
                         class="w-fit text-3xl lg:text-2xl m-2 p-2 shadow-md rounded bg-gray-300 cursor-pointer"
                         on:click=move |_event| {
-                            set_original_tick
+                            set_sentace_state
                                 .update(|state| {
                                     state.lock().unwrap().toogle_enable_pair();
                                 });

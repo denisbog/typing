@@ -1,4 +1,4 @@
-use std::convert::Infallible;
+use std::{collections::HashMap, convert::Infallible};
 
 use crate::{
     application_types::{Article, Data},
@@ -110,6 +110,10 @@ pub fn App() -> impl IntoView {
         });
     };
 
+    let (pairs, set_pairs) = create_signal(HashMap::<
+        usize,
+        HashMap<usize, Vec<(Vec<usize>, Vec<usize>)>>,
+    >::new());
     view! {
         <Html class="snap-y snap-y-mandatory"/>
 
@@ -144,6 +148,7 @@ pub fn App() -> impl IntoView {
                                 <TranslationPage
                                     data=translation_post
                                     set_data=set_translation_post
+                                    pairs
                                 />
                             }
                         }
@@ -154,8 +159,10 @@ pub fn App() -> impl IntoView {
                         view=move || {
                             view! {
                                 <ArticlePage
-                                    data=translation_post.get()
+                                    data=translation_post
                                     delete_article=delete_article
+                                    set_data=set_translation_post
+                                    set_pairs=set_pairs
                                 />
                             }
                         }
