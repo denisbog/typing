@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
-use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -12,6 +11,8 @@ use serde::Serialize;
 use crate::types::TypeState;
 use crate::utils::compare;
 use core::hash::Hasher;
+
+use crate::BUTTON_CLASS;
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Association {
@@ -361,12 +362,14 @@ impl TypingState {
 
     fn get_style_for_word_state(word_state: WordState) -> &'static str {
         match word_state {
-            WordState::Pair => "relative flex px-2 p-1 mt-1 bg-blue-100",
-            WordState::Highlighted => "relative flex px-2 p-1 mt-1 bg-red-100",
-            WordState::HighlightedPair => "relative flex px-2 p-1 mt-1 bg-blue-200",
-            WordState::Clicked => "relative flex px-2 p-1 mt-1 underline",
-            WordState::ClickedSelected => "relative flex px-2 p-1 mt-1 underline bg-yellow-100",
-            WordState::None => "relative flex px-2 p-1 mt-1",
+            WordState::Pair => "relative flex lg:px-2 p-1 lg:mt-1 bg-blue-100",
+            WordState::Highlighted => "relative flex lg:px-2 p-1 lg:mt-1 bg-red-100",
+            WordState::HighlightedPair => "relative flex lg:px-2 p-1 lg:mt-1 bg-blue-200",
+            WordState::Clicked => "relative flex lg:px-2 p-1 lg:mt-1 underline",
+            WordState::ClickedSelected => {
+                "relative flex lg:px-2 p-1 lg:mt-1 underline bg-yellow-100"
+            }
+            WordState::None => "relative flex lg:px-2 p-1 lg:mt-1",
         }
     }
 
@@ -408,7 +411,7 @@ pub fn Sentance(
             view! {
                 <div class="snap-start">
                     <div
-                        class="absolute -top-2 -right-2 italic text-base underline md:text-xl cursor-pointer z-10 bg-yellow-200 p-1 shadow-md rounded"
+                        class="absolute -top-2 -right-2 italic text-xs lg:text-md underline cursor-pointer z-10 bg-yellow-200 p-1 shadow-md rounded"
                         on:click=move |_event| {
                             set_sentace_state
                                 .update(|state| {
@@ -440,7 +443,7 @@ pub fn Sentance(
         view! {
             <div>
                 <div
-                    class="absolute -top-2 -right-2 italic text-base underline md:text-xl cursor-pointer z-10 bg-red-200 p-1 shadow-md rounded"
+                    class="absolute -top-2 -right-2 italic text-xs lg:text-md underline cursor-pointer z-10 bg-red-200 p-1 shadow-md rounded"
                     on:click=move |_event| {
                         set_sentace_state
                             .update(|state| {
@@ -478,7 +481,7 @@ pub fn Sentance(
         <div class="flex flex-col justify-center min-h-lvh lg:h-min snap-start">
             <div class=class>
                 <div
-                    class="p-3 flex flex-wrap text-5xl lg:text-3xl text-gray-500 font-mono focus:outline-none"
+                    class="lg:p-2 flex flex-wrap lg:text-2xl text-gray-500 font-mono focus:outline-none"
                     tabindex=1
                     on:keydown=move |event| {
                         let key = event.key_code();
@@ -496,11 +499,11 @@ pub fn Sentance(
                             } else if local_store.word_index > 0 {
                                 local_store.word_index -= 1;
                             }
-                            set_store(local_store);
+                            set_store.set(local_store);
                         } else if (key == 32) && local_store.word_index < local_store.data.len() {
                             event.prevent_default();
                             local_store.word_index += 1;
-                            set_store(local_store);
+                            set_store.set(local_store);
                         }
                     }
 
@@ -534,7 +537,7 @@ pub fn Sentance(
                                             .unwrap()
                                             .typed(char::from_u32(key).unwrap());
                                         word.char_index += 1;
-                                        set_store(local_store);
+                                        set_store.set(local_store);
                                     }
                                 }
                             }
@@ -585,15 +588,15 @@ pub fn Sentance(
                                                         if compare(typed_char, c.reference_char) {
                                                             let class = move || {
                                                                 if store.get().word_index == word_index {
-                                                                    "min-w-4 text-gray-900 underline"
+                                                                    "lg:min-w-4 text-gray-900 underline"
                                                                 } else {
-                                                                    "min-w-4 text-gray-900"
+                                                                    "lg:min-w-4 text-gray-900"
                                                                 }
                                                             };
                                                             return view! { <div class=class>{c.reference_char}</div> };
                                                         } else {
                                                             return view! {
-                                                                <div class="relative text-gray-400 min-w-4 underline">
+                                                                <div class="relative text-gray-400 lg:min-w-4 underline">
                                                                     {c.reference_char}
                                                                     <div class="absolute -top-0 -right-0 text-red-700 italic underline">
                                                                         <p>{c.typed_char}</p>
@@ -605,9 +608,9 @@ pub fn Sentance(
                                                     let class = move || {
                                                         if store.get().word_index == word_index && store.get().focus
                                                         {
-                                                            "min-w-4 underline"
+                                                            "lg:min-w-4 underline"
                                                         } else {
-                                                            "min-w-4"
+                                                            "lg:min-w-4"
                                                         }
                                                     };
                                                     view! { <div class=class>{c.reference_char}</div> }
@@ -625,7 +628,7 @@ pub fn Sentance(
                                                     )
                                                 {
                                                     view! {
-                                                        <div class="absolute -top-4 right-1 text-red-600 italic text-base bg-blue-200 shadow-md rounded px-1 border-solid-1 font-sans">
+                                                        <div class="absolute -top-2 lg:-top-4 right-1 text-red-600 italic text-xs lg:text-md bg-blue-200 shadow-md rounded px-1 border-solid-1 font-sans">
                                                             {index}
                                                         </div>
                                                     }
@@ -670,7 +673,7 @@ pub fn Sentance(
                     }
 
                 </div>
-                <div class="px-8 p-5 flex flex-wrap text-4xl lg:text-3xl text-gray-500 italic cursor-default">
+                <div class="px-2 lg:px-5 lg:p-3 flex flex-wrap text-gray-500 italic cursor-default">
 
                     <For
                         each=move || translation_words.clone().into_iter().enumerate()
@@ -715,7 +718,7 @@ pub fn Sentance(
                                             )
                                         {
                                             view! {
-                                                <div class="absolute -top-4 right-1 text-red-600 italic text-base bg-blue-200 shadow-md rounded px-1 border-solid-1 font-sans">
+                                                <div class="absolute -top-2 lg:-top-4 right-1 text-red-600 italic text-xs lg:text-md bg-blue-200 shadow-md rounded px-1 border-solid-1 font-sans">
                                                     {index}
                                                 </div>
                                             }
@@ -770,7 +773,7 @@ pub fn Sentance(
                 };
                 view! {
                     <div
-                        class="w-fit text-3xl lg:text-2xl m-2 p-2 shadow-md rounded bg-gray-300 cursor-pointer"
+                        class=BUTTON_CLASS
                         on:click=move |_event| {
                             set_sentace_state
                                 .update(|state| {

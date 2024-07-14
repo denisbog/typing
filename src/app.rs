@@ -14,8 +14,8 @@ use leptos_use::{use_cookie_with_options, utils::FromToStringCodec, UseCookieOpt
 use uuid::Uuid;
 
 use cookie::SameSite;
-const BUTTON_CLASS: &'static str =
-    "w-fit text-3xl lg:text-2xl m-2 p-2 shadow-md rounded bg-gray-300 cursor-pointer";
+
+use crate::BUTTON_CLASS;
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
@@ -41,7 +41,7 @@ pub fn App() -> impl IntoView {
     let (input_popup, set_input_popup) = create_signal(false);
 
     let input_popup_component = move || {
-        if input_popup() {
+        if input_popup.get() {
             view! {
                 <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity">
                     <div class="fixed inset-1 z-10 w-screen overflow-y-auto">
@@ -118,21 +118,21 @@ pub fn App() -> impl IntoView {
         // sets the document title
         <Title text="Typing app"/>
 
-        <Body class="h-screen bg-gray-400 text-5xl lg:text-3xl text-gray-900"/>
+        <Body class="h-screen bg-gray-400 text-gray-900"/>
         // content for this welcome page
         <Router fallback=|| {
             let mut outside_errors = Errors::default();
             outside_errors.insert_with_default_key(AppError::NotFound);
             view! { <ErrorTemplate outside_errors/> }.into_view()
         }>
-            <div class="p-3 pt-7 lg:text-3xl text-5xl font-bold text-gray-100 font-mono w-screen justify-center flex snap-start">
+            <div class="p-3 pt-7 text-xl lg:text-3xl font-bold text-gray-100 font-mono w-screen justify-center flex snap-start">
                 <a href="/">
                     <div>Learn German by typing!</div>
                 </a>
             </div>
              <div class="flex justify-center">
             <div class=BUTTON_CLASS>
-                <div on:click=move |_event| set_input_popup(true)>Add Article</div>
+                <div on:click=move |_event| set_input_popup.set(true)>Add Article</div>
             </div>
                     <div
                         class=BUTTON_CLASS

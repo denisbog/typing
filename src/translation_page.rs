@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
 use crate::components::Association;
+use crate::BUTTON_CLASS;
 use crate::{application_types::Data, components::Sentance};
 use leptos::*;
 use leptos_router::use_params;
@@ -91,7 +92,7 @@ pub fn TranslationPage(
 
                         </div>
                         <div
-                            class="flex size-fit text-3xl lg:text-2xl m-2 p-2 shadow-md rounded bg-gray-300 cursor-pointer"
+                            class=BUTTON_CLASS
                             on:click=move |_event| {
                                 set_data
                                     .update(|item| {

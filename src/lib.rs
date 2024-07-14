@@ -22,6 +22,9 @@ pub mod translation;
 pub mod application_types;
 pub mod translation_page;
 
+pub const BUTTON_CLASS: &'static str =
+    "w-fit text-md lg:text-xl m-2 p-2 shadow-md rounded bg-gray-300 cursor-pointer";
+
 #[cfg(feature = "ssr")]
 pub mod fileserv;
 
@@ -45,7 +48,10 @@ static DB: std::sync::OnceLock<sled::Db> = std::sync::OnceLock::new();
 
 #[cfg(feature = "ssr")]
 pub async fn init_db() {
-    let db: sled::Db = sled::open("./typing_db").unwrap();
+    let db_path = std::env::var("DATABASE_PATH")
+        .or_else(|_| Ok::<String, String>("./typing_db".to_string()))
+        .unwrap();
+    let db: sled::Db = sled::open(db_path).unwrap();
     DB.set(db).unwrap();
 }
 #[cfg(feature = "ssr")]
