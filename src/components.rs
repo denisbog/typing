@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -5,16 +6,18 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use leptos::*;
+use serde::Deserialize;
+use serde::Serialize;
 
 use crate::types::TypeState;
 use crate::utils::compare;
 use core::hash::Hasher;
 
-#[derive(Eq, PartialEq, Clone, Debug)]
-struct Association {
-    start_position: usize,
-    original: BTreeSet<usize>,
-    translation: BTreeSet<usize>,
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub struct Association {
+    pub start_position: usize,
+    pub original: BTreeSet<usize>,
+    pub translation: BTreeSet<usize>,
 }
 
 impl Association {
@@ -87,6 +90,14 @@ impl TypingState {
             clicked: Clicked::None,
             enable_selection: false,
         }
+    }
+
+    fn set_initial_pairs(&mut self, pairs: BTreeSet<Association>) {
+        self.pairs = pairs;
+    }
+
+    fn get_current_pairs(&self) -> BTreeSet<Association> {
+        self.pairs.clone()
     }
 
     fn get_pair_index_for_word_if_any(
@@ -375,10 +386,22 @@ pub fn Sentance(
     translation: String,
     article_id: usize,
     index: usize,
-    set_pairs: WriteSignal<HashMap<usize, HashMap<usize, Vec<(Vec<usize>, Vec<usize>)>>>>,
+    pairs: ReadSignal<BTreeMap<usize, BTreeMap<usize, BTreeSet<Association>>>>,
+    set_pairs: WriteSignal<BTreeMap<usize, BTreeMap<usize, BTreeSet<Association>>>>,
 ) -> impl IntoView {
     let (sentace_state, set_sentace_state) =
         create_signal(Arc::new(Mutex::new(TypingState::default())));
+
+    if let Some(pairs_for_article) = pairs.get().get(&article_id) {
+        if let Some(pairs_for_paragraph) = pairs_for_article.get(&index) {
+            set_sentace_state.update(|state| {
+                state
+                    .lock()
+                    .unwrap()
+                    .set_initial_pairs(pairs_for_paragraph.clone())
+            })
+        }
+    }
 
     let pair_button = move || {
         if sentace_state.get().lock().unwrap().pair_enabled() {
@@ -390,28 +413,14 @@ pub fn Sentance(
                             set_sentace_state
                                 .update(|state| {
                                     let mut state = state.lock().unwrap();
+                                    state.pair();
                                     set_pairs
                                         .update(|pairs| {
                                             pairs
                                                 .entry(article_id)
                                                 .or_default()
-                                                .entry(index)
-                                                .or_default()
-                                                .push((
-                                                    state
-                                                        .original_selected
-                                                        .iter()
-                                                        .cloned()
-                                                        .collect::<Vec<usize>>(),
-                                                    state
-                                                        .translated_selected
-                                                        .iter()
-                                                        .cloned()
-                                                        .collect::<Vec<usize>>(),
-                                                ));
-                                            logging::log!("pairs {:?}", pairs);
+                                                .insert(index, state.get_current_pairs());
                                         });
-                                    state.pair();
                                 });
                         }
                     >
@@ -439,11 +448,9 @@ pub fn Sentance(
                                 set_pairs
                                     .update(|pairs| {
                                         pairs
-                                            .get_mut(&article_id)
-                                            .unwrap()
-                                            .get_mut(&index)
-                                            .unwrap()
-                                            .remove(pair_to_remove);
+                                            .entry(article_id)
+                                            .or_default()
+                                            .insert(index, state.lock().unwrap().get_current_pairs());
                                     });
                             });
                     }

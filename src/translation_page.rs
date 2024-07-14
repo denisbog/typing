@@ -1,5 +1,7 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
+use crate::components::Association;
 use crate::{application_types::Data, components::Sentance};
 use leptos::*;
 use leptos_router::use_params;
@@ -14,7 +16,8 @@ pub struct ArticleParams {
 pub fn TranslationPage(
     data: ReadSignal<Data>,
     set_data: WriteSignal<Data>,
-    pairs: ReadSignal<HashMap<usize, HashMap<usize, Vec<(Vec<usize>, Vec<usize>)>>>>,
+    pairs: ReadSignal<BTreeMap<usize, BTreeMap<usize, BTreeSet<Association>>>>,
+    set_pairs: WriteSignal<BTreeMap<usize, BTreeMap<usize, BTreeSet<Association>>>>,
 ) -> impl IntoView {
     let params = use_params::<ArticleParams>();
     params.with(|param| {
@@ -55,19 +58,27 @@ pub fn TranslationPage(
                                             .collect::<Vec<String>>();
                                         paragraph_selection
                                             .iter()
-                                            .map(|(selection_original, selection_translated)| {
-                                                let pair_original = selection_original
+                                            .map(|association| {
+                                                let pair_original = association
+                                                    .original
                                                     .iter()
                                                     .map(|index| { words_original[*index].clone() })
-                                                    .collect::<String>();
-                                                let pair_translated = selection_translated
+                                                    .map(|word| {
+                                                        view! { <div class="flex p-1 italic">{word}</div> }
+                                                    })
+                                                    .collect_view();
+                                                let pair_translated = association
+                                                    .translation
                                                     .iter()
                                                     .map(|index| { words_translation[*index].clone() })
-                                                    .collect::<String>();
+                                                    .map(|word| {
+                                                        view! { <div class="flex p-1 italic">{word}</div> }
+                                                    })
+                                                    .collect_view();
                                                 view! {
-                                                    <div class="flex">
-                                                        <div>{pair_original}</div>
-                                                        <div>{pair_translated}</div>
+                                                    <div class="grid grid-cols-2 gap-4">
+                                                        <div class="flex justify-end">{pair_original}</div>
+                                                        <div class="flex">{pair_translated}</div>
                                                     </div>
                                                 }
                                             })
@@ -77,6 +88,7 @@ pub fn TranslationPage(
                             } else {
                                 view! {}.into_view()
                             }}
+
                         </div>
                         <div
                             class="w-fit text-3xl lg:text-2xl m-2 p-2 shadow-md rounded bg-gray-300 cursor-pointer"
@@ -98,14 +110,12 @@ pub fn TranslationPage(
     view! { <div class="w-screen lg:w-3/4 flex flex-col">{views}</div> }
 }
 
-pub fn update_data(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl IntoView {}
-
 #[component]
 pub fn ArticlePage(
     data: ReadSignal<Data>,
     set_data: WriteSignal<Data>,
-    delete_article: impl Fn(usize),
-    set_pairs: WriteSignal<HashMap<usize, HashMap<usize, Vec<(Vec<usize>, Vec<usize>)>>>>,
+    pairs: ReadSignal<BTreeMap<usize, BTreeMap<usize, BTreeSet<Association>>>>,
+    set_pairs: WriteSignal<BTreeMap<usize, BTreeMap<usize, BTreeSet<Association>>>>,
 ) -> impl IntoView {
     let params = use_params::<ArticleParams>();
     let article_id = params.with(|param| param.as_ref().unwrap().id).unwrap();
@@ -113,26 +123,26 @@ pub fn ArticlePage(
     let views = move || {
         if let Some(pargrah) = data.get().articles.get(article_id) {
             pargrah
-            .paragraphs
-            .clone()
-            .into_iter()
-            .enumerate()
-            .map(|(index, item)| {
-                view! { <Sentance text=item.original translation=item.translation article_id index set_pairs/> }
-            })
-            .collect_view()
+                .paragraphs
+                .clone()
+                .into_iter()
+                .enumerate()
+                .map(|(index, item)| {
+                    view! {
+                        <Sentance
+                            text=item.original
+                            translation=item.translation
+                            article_id
+                            index
+                            pairs
+                            set_pairs
+                        />
+                    }
+                })
+                .collect_view()
         } else {
             view! {}.into_view()
         }
     };
-    view! {
-        <div class="w-screen lg:w-3/4 flex flex-col relative">
-            <div>
-                <div class="w-fit text-3xl lg:text-2xl m-2 p-2 shadow-md rounded bg-gray-300 cursor-pointer">
-                    Save Pairs
-                </div>
-            </div>
-            {views}
-        </div>
-    }
+    view! { <div class="w-screen lg:w-3/4 flex flex-col relative">{views}</div> }
 }

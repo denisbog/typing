@@ -1,8 +1,12 @@
-use std::sync::Arc;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
+};
 
 #[cfg(feature = "ssr")]
 use axum::extract::FromRef;
 
+use components::Association;
 use leptos::LeptosOptions;
 #[cfg(feature = "ssr")]
 use tokio::sync::Mutex;
@@ -48,3 +52,5 @@ pub async fn init_db() {
 pub async fn get_db<'a>() -> &'a sled::Db {
     DB.get().unwrap()
 }
+
+pub type TypePairs = BTreeMap<usize, BTreeMap<usize, BTreeSet<Association>>>;

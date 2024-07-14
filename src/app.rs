@@ -1,10 +1,11 @@
-use std::{collections::HashMap, convert::Infallible};
+use std::convert::Infallible;
 
 use crate::{
     application_types::{Article, Data},
     error_template::{AppError, ErrorTemplate},
-    translation::{get_data, get_translations, store_data, TranslationRequest},
+    translation::{get_data, get_translations, store_data, store_pairs, TranslationRequest},
     translation_page::{ArticlePage, TranslationPage},
+    TypePairs,
 };
 use leptos::*;
 use leptos_meta::*;
@@ -19,7 +20,6 @@ pub fn App() -> impl IntoView {
     provide_meta_context();
 
     let (translation_input, set_translation_input) = create_signal("".to_string());
-
     let (session_id, _set_session_id) = use_cookie_with_options::<String, FromToStringCodec>(
         "session_id",
         UseCookieOptions::<String, Infallible>::default()
@@ -29,9 +29,12 @@ pub fn App() -> impl IntoView {
     );
 
     let (translation_post, set_translation_post) = create_signal(Data::default());
+    let (pairs, set_pairs) = create_signal(TypePairs::new());
     if let Some(session) = session_id.get() {
         spawn_local(async move {
-            set_translation_post.set(get_data(session).await.unwrap());
+            set_translation_post.set(get_data(session.clone()).await.unwrap());
+            #[cfg(feature = "hydrate")]
+            set_pairs.set(crate::translation::get_pairs(session).await.unwrap());
         });
     }
     let (input_popup, set_input_popup) = create_signal(false);
@@ -104,16 +107,6 @@ pub fn App() -> impl IntoView {
         }
     };
 
-    let delete_article = move |id: usize| {
-        set_translation_post.update(|data| {
-            data.articles.remove(id);
-        });
-    };
-
-    let (pairs, set_pairs) = create_signal(HashMap::<
-        usize,
-        HashMap<usize, Vec<(Vec<usize>, Vec<usize>)>>,
-    >::new());
     view! {
         <Html class="snap-y snap-y-mandatory"/>
 
@@ -140,6 +133,20 @@ pub fn App() -> impl IntoView {
                 <div on:click=move |_event| set_input_popup(true)>Add Article</div>
             </div>
             <main class="w-screen flex flex-col items-center">
+                <div>
+                    <div
+                        class="w-fit text-3xl lg:text-2xl m-2 p-2 shadow-md rounded bg-gray-300 cursor-pointer"
+                        on:click=move |_event| {
+                            spawn_local(async move {
+                                logging::log!("store pairs {:?}", pairs.get());
+                                let _ = store_pairs(session_id.get().unwrap(), pairs.get()).await;
+                            });
+                        }
+                    >
+
+                        Save Pairs
+                    </div>
+                </div>
                 <Routes>
                     <Route
                         path=""
@@ -149,6 +156,7 @@ pub fn App() -> impl IntoView {
                                     data=translation_post
                                     set_data=set_translation_post
                                     pairs
+                                    set_pairs
                                 />
                             }
                         }
@@ -160,9 +168,9 @@ pub fn App() -> impl IntoView {
                             view! {
                                 <ArticlePage
                                     data=translation_post
-                                    delete_article=delete_article
                                     set_data=set_translation_post
-                                    set_pairs=set_pairs
+                                    pairs
+                                    set_pairs
                                 />
                             }
                         }
