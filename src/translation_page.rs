@@ -91,7 +91,7 @@ pub fn TranslationPage(
 
                         </div>
                         <div
-                            class="w-fit text-3xl lg:text-2xl m-2 p-2 shadow-md rounded bg-gray-300 cursor-pointer"
+                            class="flex size-fit text-3xl lg:text-2xl m-2 p-2 shadow-md rounded bg-gray-300 cursor-pointer"
                             on:click=move |_event| {
                                 set_data
                                     .update(|item| {

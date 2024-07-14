@@ -595,7 +595,7 @@ pub fn Sentance(
                                                             return view! {
                                                                 <div class="relative text-gray-400 min-w-4 underline">
                                                                     {c.reference_char}
-                                                                    <div class="absolute -top-0 -right-0 text-red-600 italic text-base md:text-3xl">
+                                                                    <div class="absolute -top-0 -right-0 text-red-700 italic underline">
                                                                         <p>{c.typed_char}</p>
                                                                     </div>
                                                                 </div>

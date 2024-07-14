@@ -14,7 +14,8 @@ use leptos_use::{use_cookie_with_options, utils::FromToStringCodec, UseCookieOpt
 use uuid::Uuid;
 
 use cookie::SameSite;
-
+const BUTTON_CLASS: &'static str =
+    "w-fit text-3xl lg:text-2xl m-2 p-2 shadow-md rounded bg-gray-300 cursor-pointer";
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
@@ -87,7 +88,7 @@ pub fn App() -> impl IntoView {
                                         />
 
                                         <input
-                                            class="p-2 m-1 shadow-md rounded bg-gray-100 text-gray-400"
+                                            class="p-2 m-1 shadow-md rounded bg-gray-100 text-gray-700"
                                             type="button"
                                             value="Close"
                                             on:click=move |_event| {
@@ -124,18 +125,17 @@ pub fn App() -> impl IntoView {
             outside_errors.insert_with_default_key(AppError::NotFound);
             view! { <ErrorTemplate outside_errors/> }.into_view()
         }>
-            <div class="p-3 pt-7 lg:text-3xl text-5xl font-bold text-gray-100 font-mono w-screen items-center flex flex-col snap-start">
+            <div class="p-3 pt-7 lg:text-3xl text-5xl font-bold text-gray-100 font-mono w-screen justify-center flex snap-start">
                 <a href="/">
                     <div>Learn German by typing!</div>
                 </a>
             </div>
-            <div class="p-3 pt-7 lg:text-3xl text-5xl font-bold text-gray-100 font-mono w-screen items-center flex flex-col snap-start">
+             <div class="flex justify-center">
+            <div class=BUTTON_CLASS>
                 <div on:click=move |_event| set_input_popup(true)>Add Article</div>
             </div>
-            <main class="w-screen flex flex-col items-center">
-                <div>
                     <div
-                        class="w-fit text-3xl lg:text-2xl m-2 p-2 shadow-md rounded bg-gray-300 cursor-pointer"
+                        class=BUTTON_CLASS
                         on:click=move |_event| {
                             spawn_local(async move {
                                 logging::log!("store pairs {:?}", pairs.get());
@@ -146,7 +146,8 @@ pub fn App() -> impl IntoView {
 
                         Save Pairs
                     </div>
-                </div>
+            </div>
+            <main class="w-screen flex flex-col items-center">
                 <Routes>
                     <Route
                         path=""
