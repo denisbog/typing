@@ -43,9 +43,9 @@ pub fn App() -> impl IntoView {
     let input_popup_component = move || {
         if input_popup() {
             view! {
-                <div class="fixed inset-1 bg-gray-500 bg-opacity-75 transition-opacity">
+                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity">
                     <div class="fixed inset-1 z-10 w-screen overflow-y-auto">
-                        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0 lg:p-5">
+                        <div class="flex min-h-full items-end justify-center text-center sm:items-center sm:p-0 lg:p-5">
                             <div class="flex relative transform overflow-hidden bg-gray-100 shadow-xl transition-all w-full h-full">
                                 <div class="flex flex-1 flex-col bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
                                     <textarea

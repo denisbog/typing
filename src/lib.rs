@@ -45,7 +45,7 @@ static DB: std::sync::OnceLock<sled::Db> = std::sync::OnceLock::new();
 
 #[cfg(feature = "ssr")]
 pub async fn init_db() {
-    let db: sled::Db = sled::open("./my_db").unwrap();
+    let db: sled::Db = sled::open("./typing_db").unwrap();
     DB.set(db).unwrap();
 }
 #[cfg(feature = "ssr")]

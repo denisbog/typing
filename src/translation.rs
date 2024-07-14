@@ -44,12 +44,12 @@ pub async fn store_pairs(id: String, data: TypePairs) -> Result<(), ServerFnErro
 #[server(FetchData, "/store")]
 pub async fn get_data(id: String) -> Result<Data, ServerFnError> {
     logging::log!("fetching data");
-    Ok(serde_json::from_slice(
-        std::str::from_utf8(&crate::get_db().await.get(id.as_bytes()).unwrap().unwrap())
-            .unwrap()
-            .as_bytes(),
-    )
-    .unwrap())
+    let response = if let Ok(Some(articles)) = crate::get_db().await.get(id.as_bytes()) {
+        serde_json::from_slice(std::str::from_utf8(&articles).unwrap().as_bytes()).unwrap()
+    } else {
+        Data::default()
+    };
+    Ok(response)
 }
 
 #[server(FetchPairs, "/store")]

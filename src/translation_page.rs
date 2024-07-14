@@ -77,8 +77,8 @@ pub fn TranslationPage(
                                                     .collect_view();
                                                 view! {
                                                     <div class="grid grid-cols-2 gap-4">
-                                                        <div class="flex justify-end">{pair_original}</div>
-                                                        <div class="flex">{pair_translated}</div>
+                                                        <div class="flex justify-end text-gray-500">{pair_original}</div>
+                                                        <div class="flex text-green-700">{pair_translated}</div>
                                                     </div>
                                                 }
                                             })
