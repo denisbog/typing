@@ -23,7 +23,7 @@ pub mod application_types;
 pub mod translation_page;
 
 pub const BUTTON_CLASS: &'static str =
-    "w-fit text-md lg:text-xl m-2 p-2 shadow-md rounded bg-gray-300 cursor-pointer";
+    "size-fit text-md lg:text-xl m-2 p-2 shadow-md rounded bg-gray-300 cursor-pointer";
 
 #[cfg(feature = "ssr")]
 pub mod fileserv;
