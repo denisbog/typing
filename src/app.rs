@@ -33,9 +33,13 @@ pub fn App() -> impl IntoView {
     let (pairs, set_pairs) = create_signal(TypePairs::new());
     if let Some(session) = session_id.get() {
         spawn_local(async move {
-            set_translation_post.set(get_data(session.clone()).await.unwrap());
             #[cfg(feature = "hydrate")]
-            set_pairs.set(crate::translation::get_pairs(session).await.unwrap());
+            set_pairs.set(
+                crate::translation::get_pairs(session.clone())
+                    .await
+                    .unwrap(),
+            );
+            set_translation_post.set(get_data(session).await.unwrap());
         });
     }
     let (input_popup, set_input_popup) = create_signal(false);
