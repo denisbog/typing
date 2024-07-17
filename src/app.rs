@@ -32,8 +32,8 @@ pub fn App() -> impl IntoView {
     let (translation_post, set_translation_post) = create_signal(Data::default());
     let (pairs, set_pairs) = create_signal(TypePairs::new());
     if let Some(session) = session_id.get() {
+        #[cfg(feature = "hydrate")]
         spawn_local(async move {
-            #[cfg(feature = "hydrate")]
             set_pairs.set(
                 crate::translation::get_pairs(session.clone())
                     .await
