@@ -142,6 +142,19 @@ pub fn App() -> impl IntoView {
                     class=BUTTON_CLASS
                     on:click=move |_event| {
                         spawn_local(async move {
+                            logging::log!("store articles {:?}", translation_post.get());
+                            let _ = store_data(session_id.get().unwrap(), translation_post.get())
+                                .await;
+                        });
+                    }
+                >
+
+                    Save Articles
+                </div>
+                <div
+                    class=BUTTON_CLASS
+                    on:click=move |_event| {
+                        spawn_local(async move {
                             logging::log!("store pairs {:?}", pairs.get());
                             let _ = store_pairs(session_id.get().unwrap(), pairs.get()).await;
                         });

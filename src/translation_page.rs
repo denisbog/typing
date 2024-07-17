@@ -96,10 +96,14 @@ pub fn TranslationPage(
                         <div
                             class=BUTTON_CLASS
                             on:click=move |_event| {
+                                set_pairs
+                                    .update(|pairs| {
+                                        pairs.remove(&index).unwrap();
+                                    });
                                 set_data
                                     .update(|item| {
                                         item.articles.remove(index);
-                                    })
+                                    });
                             }
                         >
 
