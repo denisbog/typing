@@ -518,7 +518,7 @@ pub fn Sentance(
                     on:keypress=move |event| {
                         let key = event.key_code();
                         match key {
-                            (64..=93) | (97..=122) | 34 | 39 | 44 | 45 | 46 | 58 | 59 => {
+                            (64..=93) | (97..=122) | 34 | 39 | 44 | 45 | 46 | 58 | 59 | (48..=57) | 40 | 41 => {
                                 let mut local_store = store.get();
                                 if local_store.word_index < local_store.data.len() {
                                     logging::log!("current index {}", local_store.word_index);
