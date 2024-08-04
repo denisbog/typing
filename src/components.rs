@@ -362,14 +362,12 @@ impl TypingState {
 
     fn get_style_for_word_state(word_state: WordState) -> &'static str {
         match word_state {
-            WordState::Pair => "relative flex lg:px-2 p-1 lg:mt-1 bg-blue-100",
-            WordState::Highlighted => "relative flex lg:px-2 p-1 lg:mt-1 bg-red-100",
-            WordState::HighlightedPair => "relative flex lg:px-2 p-1 lg:mt-1 bg-blue-200",
-            WordState::Clicked => "relative flex lg:px-2 p-1 lg:mt-1 underline",
-            WordState::ClickedSelected => {
-                "relative flex lg:px-2 p-1 lg:mt-1 underline bg-yellow-100"
-            }
-            WordState::None => "relative flex lg:px-2 p-1 lg:mt-1",
+            WordState::Pair => "relative flex p-1 lg:mt-1 bg-blue-100",
+            WordState::Highlighted => "relative flex p-1 lg:mt-1 bg-red-100",
+            WordState::HighlightedPair => "relative flex p-1 lg:mt-1 bg-blue-200",
+            WordState::Clicked => "relative flex p-1 lg:mt-1 underline",
+            WordState::ClickedSelected => "relative flex p-1 lg:mt-1 underline bg-yellow-100",
+            WordState::None => "relative flex p-1 lg:mt-1",
         }
     }
 
@@ -518,7 +516,19 @@ pub fn Sentance(
                     on:keypress=move |event| {
                         let key = event.key_code();
                         match key {
-                            (64..=93) | (97..=122) | 34 | 39 | 44 | 45 | 46 | 58 | 59 | (48..=57) | 40 | 41 => {
+                            (64..=93)
+                            | (97..=122)
+                            | 34
+                            | 39
+                            | 44
+                            | 45
+                            | 46
+                            | 58
+                            | 59
+                            | (48..=57)
+                            | 40
+                            | 41
+                            | 63 => {
                                 let mut local_store = store.get();
                                 if local_store.word_index < local_store.data.len() {
                                     logging::log!("current index {}", local_store.word_index);
@@ -588,15 +598,15 @@ pub fn Sentance(
                                                         if compare(typed_char, c.reference_char) {
                                                             let class = move || {
                                                                 if store.get().word_index == word_index {
-                                                                    "lg:min-w-4 text-gray-900 underline"
+                                                                    "text-gray-900 underline"
                                                                 } else {
-                                                                    "lg:min-w-4 text-gray-900"
+                                                                    "text-gray-900"
                                                                 }
                                                             };
                                                             return view! { <div class=class>{c.reference_char}</div> };
                                                         } else {
                                                             return view! {
-                                                                <div class="relative text-gray-400 lg:min-w-4 underline">
+                                                                <div class="relative text-gray-400 underline">
                                                                     {c.reference_char}
                                                                     <div class="absolute -top-0 -right-0 text-red-700 italic underline">
                                                                         <p>{c.typed_char}</p>
@@ -608,9 +618,9 @@ pub fn Sentance(
                                                     let class = move || {
                                                         if store.get().word_index == word_index && store.get().focus
                                                         {
-                                                            "lg:min-w-4 underline"
+                                                            "underline"
                                                         } else {
-                                                            "lg:min-w-4"
+                                                            ""
                                                         }
                                                     };
                                                     view! { <div class=class>{c.reference_char}</div> }
