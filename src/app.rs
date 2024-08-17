@@ -10,8 +10,10 @@ use crate::{
 use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;
-use leptos_use::{use_cookie_with_options, utils::FromToStringCodec, UseCookieOptions};
+use leptos_use::{use_cookie_with_options, UseCookieOptions};
 use uuid::Uuid;
+
+use codee::string::FromToStringCodec;
 
 use cookie::SameSite;
 
@@ -23,10 +25,8 @@ pub fn App() -> impl IntoView {
     let (translation_input, set_translation_input) = create_signal("".to_string());
     let (session_id, _set_session_id) = use_cookie_with_options::<String, FromToStringCodec>(
         "session_id",
-        UseCookieOptions::<String, Infallible>::default()
-            .same_site(SameSite::None)
-            //.default_value(Some(Uuid::new_v4().to_string())),
-            .default_value(Some("session-id".to_string())),
+        UseCookieOptions::default().same_site(SameSite::None), //.default_value(Some(Uuid::new_v4().to_string())),
+                                                               //.default_value::<String>(Some("session-id".to_string())),
     );
 
     let (translation_post, set_translation_post) = create_signal(Data::default());
