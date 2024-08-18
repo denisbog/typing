@@ -557,8 +557,7 @@ pub fn Sentance(
                     }
                 >
 
-                    <div class="pr-2">{index + 1} {")"}
-                    </div>
+                    <div class="pr-2">{index + 1} {")"}</div>
 
                     {
                         view! {

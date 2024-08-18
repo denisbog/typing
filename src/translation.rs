@@ -1,7 +1,10 @@
 use leptos::{logging, server, ServerFnError};
 use serde::{Deserialize, Serialize};
 
-use crate::{application_types::Data, TypePairs};
+use crate::{
+    application_types::{Article, Data},
+    TypePairs,
+};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TranslationRequest {
     pub src: Vec<String>,
@@ -30,7 +33,23 @@ pub async fn store_data(id: String, data: Data) -> Result<(), ServerFnError> {
     //        .insert(id.as_bytes(), serde_json::to_vec(&data).unwrap())
     //        .unwrap();
     //    Ok(())
-    todo!()
+    //
+    use crate::persistance::Persistance;
+    crate::get_db().await.get_items_for_user(&id);
+    Ok(())
+}
+
+#[server(StoreArticle, "/store")]
+pub async fn store_article(id: String, mut article: Article) -> Result<(), ServerFnError> {
+    use crate::persistance::Persistance;
+
+    let mut article = article;
+    article.created_at = std::time::SystemTime::now()
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs_f64();
+    crate::get_db().await.put_item_for_user(&id, article).await;
+    Ok(())
 }
 
 #[server(StorePairs, "/store")]

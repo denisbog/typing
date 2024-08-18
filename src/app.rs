@@ -3,7 +3,9 @@ use std::convert::Infallible;
 use crate::{
     application_types::{Article, Data},
     error_template::{AppError, ErrorTemplate},
-    translation::{get_data, get_translations, store_data, store_pairs, TranslationRequest},
+    translation::{
+        get_data, get_translations, store_article, store_data, store_pairs, TranslationRequest,
+    },
     translation_page::{ArticlePage, TranslationPage},
     TypePairs,
 };
@@ -25,8 +27,9 @@ pub fn App() -> impl IntoView {
     let (translation_input, set_translation_input) = create_signal("".to_string());
     let (session_id, _set_session_id) = use_cookie_with_options::<String, FromToStringCodec>(
         "session_id",
-        UseCookieOptions::default().same_site(SameSite::None), //.default_value(Some(Uuid::new_v4().to_string())),
-                                                               //.default_value::<String>(Some("session-id".to_string())),
+        UseCookieOptions::<String, (), Infallible>::default()
+            .same_site(SameSite::None)
+            .default_value(Some("session_id".to_string())), //.default_value(Some(Uuid::new_v4().to_string())),
     );
 
     let (translation_post, set_translation_post) = create_signal(Data::default());
@@ -72,18 +75,22 @@ pub fn App() -> impl IntoView {
                                                 logging::log!("passing argument: {}", temp);
                                                 set_input_popup.set(false);
                                                 spawn_local(async move {
-                                                    let request = TranslationRequest::from_str(&temp);
-                                                    let response = get_translations(request.clone())
-                                                        .await
-                                                        .unwrap();
+                                                    let paragraphs = &temp
+                                                        .split("\n")
+                                                        .map(str::to_string)
+                                                        .collect::<Vec<String>>();
+                                                    let article = Article::from_pair(
+                                                        "user_id".to_string(),
+                                                        paragraphs.clone(),
+                                                        paragraphs.clone(),
+                                                    );
                                                     set_translation_post
                                                         .update(|data| {
-                                                            data.articles
-                                                                .push(Article::from_pair(request.src, response.translated));
+                                                            data.articles.push(article.clone());
                                                         });
-                                                    let _response = store_data(
+                                                    let _response = store_article(
                                                             session_id.get().unwrap(),
-                                                            translation_post.get_untracked(),
+                                                            article,
                                                         )
                                                         .await
                                                         .unwrap();

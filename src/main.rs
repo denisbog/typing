@@ -6,7 +6,7 @@ async fn main() {
     use axum::Router;
     use leptos::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
-    use typing::{app::App, fileserv::file_and_error_handler};
+    use typing::{app::App, fileserv::file_and_error_handler, init_db};
 
     // Setting get_configuration(None) means we'll be using cargo-leptos's env values
     // For deployment these variables are:
@@ -15,32 +15,31 @@ async fn main() {
     // The file would need to be included with the executable when moved to deployment
     let conf = get_configuration(None).await.unwrap();
     let leptos_options = conf.leptos_options;
-    let addr = leptos_options.site_addr;
     let routes = generate_route_list(App);
 
-    //    init_db().await;
+    init_db().await;
     // build our application with a route
     let app = Router::new()
         .leptos_routes(&leptos_options, routes, App)
         .fallback(file_and_error_handler)
-        .with_state(leptos_options);
+        .with_state(leptos_options.clone());
 
-    #[cfg(not(feature = "aws"))]
+    #[cfg(not(feature = "lambda"))]
     {
         logging::log!("local listener");
+        let addr = leptos_options.site_addr;
         let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
         logging::log!("listening on http://{}", &addr);
         axum::serve(listener, app.into_make_service())
             .await
             .unwrap();
     }
-    #[cfg(feature = "aws")]
+    #[cfg(feature = "lambda")]
     {
         logging::log!("lambda listener");
         let app = tower::ServiceBuilder::new()
             .layer(axum_aws_lambda::LambdaLayer::default())
             .service(app);
-
         lambda_http::run(app).await.unwrap();
     }
 }

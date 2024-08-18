@@ -20,6 +20,7 @@ pub mod error_template;
 pub mod translation;
 
 pub mod application_types;
+pub mod persistance;
 pub mod translation_page;
 
 pub const BUTTON_CLASS: &'static str =
@@ -43,6 +44,20 @@ pub fn hydrate() {
     leptos::mount_to_body(App);
 }
 
+#[cfg(feature = "ssr")]
+use crate::persistance::AwsPersistance;
+
+#[cfg(feature = "ssr")]
+static DB: std::sync::OnceLock<AwsPersistance> = std::sync::OnceLock::new();
+
+#[cfg(feature = "ssr")]
+pub async fn init_db() {
+    DB.set(AwsPersistance::init().await).unwrap();
+}
+#[cfg(feature = "ssr")]
+pub async fn get_db<'a>() -> &'a AwsPersistance {
+    DB.get().unwrap()
+}
 //#[cfg(feature = "ssr")]
 //static DB: std::sync::OnceLock<sled::Db> = std::sync::OnceLock::new();
 //

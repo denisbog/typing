@@ -9,12 +9,14 @@ pub struct Data {
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Article {
+    pub user_id: String,
+    pub created_at: f64,
     pub title: String,
     pub paragraphs: Vec<Paragraph>,
 }
 
 impl Article {
-    pub fn from_pair(original: Vec<String>, translation: Vec<String>) -> Self {
+    pub fn from_pair(user_id: String, original: Vec<String>, translation: Vec<String>) -> Self {
         let title = original.iter().nth(0).unwrap().to_string();
         let paragraphs: Vec<Paragraph> = original
             .into_iter()
@@ -25,9 +27,14 @@ impl Article {
                 pairs: None,
             })
             .collect();
-        Article { title, paragraphs }
+        Article {
+            user_id,
+            created_at: -1f64,
+            title,
+            paragraphs,
+        }
     }
-    pub async fn from_str(original: String) -> Self {
+    pub async fn from_str(user_id: String, original: String) -> Self {
         let request = TranslationRequest::from_str(&original);
         let response = get_translations(request.clone()).await.unwrap();
 
@@ -43,7 +50,12 @@ impl Article {
             })
             .collect();
 
-        Article { title, paragraphs }
+        Article {
+            user_id,
+            created_at: -1f64,
+            title,
+            paragraphs,
+        }
     }
 }
 
