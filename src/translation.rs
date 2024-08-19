@@ -33,7 +33,7 @@ pub async fn delete_article(article: Article) -> Result<(), ServerFnError> {
     Ok(())
 }
 #[server(StorePairs, "/store")]
-pub async fn store_pairs(id: String, data: TypePairs) -> Result<(), ServerFnError> {
+pub async fn store_pairs(article: Article, data: TypePairs) -> Result<(), ServerFnError> {
     Ok(())
 }
 

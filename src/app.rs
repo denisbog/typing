@@ -3,7 +3,7 @@ use std::convert::Infallible;
 use crate::{
     application_types::{Article, Data},
     error_template::{AppError, ErrorTemplate},
-    translation::{get_data, store_article, store_pairs},
+    translation::{get_data, store_article},
     translation_page::{ArticlePage, TranslationPage},
     TypePairs,
 };
@@ -136,18 +136,6 @@ pub fn App() -> impl IntoView {
             <div class="flex justify-center">
                 <div class=BUTTON_CLASS>
                     <div on:click=move |_event| set_input_popup.set(true)>Add Article</div>
-                </div>
-                <div
-                    class=BUTTON_CLASS
-                    on:click=move |_event| {
-                        spawn_local(async move {
-                            logging::log!("store pairs {:?}", pairs.get());
-                            let _ = store_pairs(session_id.get().unwrap(), pairs.get()).await;
-                        });
-                    }
-                >
-
-                    Save Pairs
                 </div>
             </div>
             <main class="w-screen flex flex-col items-center">

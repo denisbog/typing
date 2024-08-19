@@ -3,6 +3,7 @@ use std::collections::BTreeSet;
 
 use crate::components::Association;
 use crate::translation::delete_article;
+use crate::translation::store_pairs;
 use crate::BUTTON_CLASS;
 use crate::{application_types::Data, components::Sentance};
 use leptos::*;
@@ -96,6 +97,24 @@ pub fn TranslationPage(
                                 }}
 
                             </div>
+                        </div>
+                        <div
+                            class=BUTTON_CLASS
+                            on:click=move |_event| {
+                                spawn_local(async move {
+                                    logging::log!("store pairs {:?}", pairs.get());
+                                    let article_to_remove = data
+                                        .get_untracked()
+                                        .articles
+                                        .get(index)
+                                        .unwrap()
+                                        .clone();
+                                    let _ = store_pairs(article_to_remove, pairs.get()).await;
+                                });
+                            }
+                        >
+
+                            Save Pairs
                         </div>
                         <div
                             class=BUTTON_CLASS
