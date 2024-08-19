@@ -3,13 +3,16 @@ name = "typing"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "translate"
+path = "src/translate.rs"
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 axum = { version = "0.7", optional = true, features=["macros"] }
 console_error_panic_hook = "0.1"
-# leptos = { version = "0.6", features = ["csr", "nightly"] }
 leptos = { version = "0.6" }
 leptos_axum = { version = "0.6", optional = true }
 leptos_meta = { version = "0.6" }
@@ -25,7 +28,6 @@ http = "1"
 reqwest = {version ="0.12.5", features = ["json"], default-features = false}
 serde_json = "1.0.118"
 serde = "1.0.203"
-sled = "0.34.7"
 uuid = {version="1.10.0", features = ["v4"]}
 cookie = "0.18.1"
 codee = "0.1.2"
@@ -34,6 +36,7 @@ lambda_http = {version="0.13.0", optional=true}
 aws-config = { version = "1.1.7", features = ["behavior-version-latest"], optional=true }
 aws-sdk-dynamodb = {version = "1.42.0", optional = true }
 serde_dynamo = {version="4.2.14", features = ["aws-sdk-dynamodb+1"], optional=true}
+futures = "0.3.30"
 [features]
 hydrate = ["leptos/hydrate", "leptos_meta/hydrate", "leptos_router/hydrate"]
 ssr = [
@@ -69,6 +72,7 @@ codegen-units = 1
 panic = "abort"
 
 [package.metadata.leptos]
+bin-target = "typing"
 # The name used by wasm-bindgen/cargo-leptos for the JS/WASM bundle. Defaults to the crate name
 output-name = "typing"
 
@@ -130,3 +134,4 @@ lib-default-features = false
 #
 # Optional. Defaults to "release".
 lib-profile-release = "wasm-release"
+

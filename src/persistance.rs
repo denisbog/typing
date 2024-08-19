@@ -2,11 +2,10 @@ use std::collections::HashMap;
 
 #[cfg(feature = "ssr")]
 use aws_sdk_dynamodb::{types::AttributeValue, Client};
-use serde::{Deserialize, Serialize};
 #[cfg(feature = "ssr")]
 use serde_dynamo::from_items;
 
-use crate::application_types::{Article, Paragraph};
+use crate::application_types::Article;
 
 pub trait Persistance {
     fn get_items_for_user(
@@ -65,8 +64,7 @@ impl Persistance for AwsPersistance {
             "created_at".to_string(),
             AttributeValue::N(item.created_at.to_string()),
         );
-        let response = self
-            .client
+        self.client
             .delete_item()
             .table_name("translation")
             .set_key(Some(key))
@@ -82,8 +80,7 @@ mod tests {
     use std::collections::HashMap;
 
     use aws_sdk_dynamodb::types::AttributeValue;
-    use serde::{Deserialize, Serialize};
-    use serde_dynamo::{from_item, from_items, to_item};
+    use serde_dynamo::{from_item, from_items};
 
     use crate::{
         application_types::{Article, Paragraph},
@@ -92,8 +89,6 @@ mod tests {
 
     #[tokio::test]
     async fn insert_new_item() {
-        let config = aws_config::load_from_env().await;
-        let client = aws_sdk_dynamodb::Client::new(&config);
         let item = Article {
             user_id: "user_id".to_string(),
             created_at: 123f64,
@@ -101,7 +96,7 @@ mod tests {
             paragraphs: vec![Paragraph::default()],
         };
 
-        let mut persistance = AwsPersistance::init().await;
+        let persistance = AwsPersistance::init().await;
         persistance.put_item_for_user(item).await;
     }
 

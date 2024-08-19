@@ -1,15 +1,10 @@
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    sync::Arc,
-};
+use std::collections::{BTreeMap, BTreeSet};
 
 #[cfg(feature = "ssr")]
 use axum::extract::FromRef;
 
 use components::Association;
 use leptos::LeptosOptions;
-#[cfg(feature = "ssr")]
-use tokio::sync::Mutex;
 
 pub mod components;
 mod types;
@@ -32,7 +27,6 @@ pub mod fileserv;
 #[cfg(feature = "ssr")]
 #[derive(FromRef, Clone, Debug)]
 pub struct AppState {
-    pub sled: Arc<Mutex<sled::Db>>,
     pub leptos_options: LeptosOptions,
 }
 

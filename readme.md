@@ -28,8 +28,16 @@ mkdir tmp
 TMPDIR=/home/ec2-user/tmp pip install torch flask transformers sentencepiece sacremoses --no-cache-dir
 ```
 
+### start translation server
+
 ```python
 python translate_server.py
+```
+
+### translate articles
+
+```bash
+cargo r --bin translate --release --features=ssr
 ```
 
 ### nvim init.lua config:
@@ -76,5 +84,5 @@ passing additinal feature `aws`, LEPTOS_OUTPUT_NAME=`typing` should match the ma
 
 ```bash
 LEPTOS_OUTPUT_NAME=typing cargo lambda build --no-default-features --features=ssr,lambda --release
-cargo lambda deploy --include target/site --enable-function-url
+cargo lambda deploy --include target/site --enable-function-url --binary-name=typing
 ```
