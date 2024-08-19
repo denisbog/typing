@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
 use crate::components::Association;
+use crate::translation::delete_article;
 use crate::BUTTON_CLASS;
 use crate::{application_types::Data, components::Sentance};
 use leptos::*;
@@ -53,38 +54,41 @@ pub fn TranslationPage(
                                                 .split(" ")
                                                 .map(str::to_string)
                                                 .collect::<Vec<String>>();
-                                            let words_translation = paragraph
-                                                .translation
-                                                .split(" ")
-                                                .map(str::to_string)
-                                                .collect::<Vec<String>>();
-                                            paragraph_selection
-                                                .iter()
-                                                .map(|association| {
-                                                    let pair_original = association
-                                                        .original
-                                                        .iter()
-                                                        .map(|index| { words_original[*index].clone() })
-                                                        .map(|word| {
-                                                            view! { <div class="flex p-1 italic">{word}</div> }
-                                                        })
-                                                        .collect_view();
-                                                    let pair_translated = association
-                                                        .translation
-                                                        .iter()
-                                                        .map(|index| { words_translation[*index].clone() })
-                                                        .map(|word| {
-                                                            view! { <div class="flex p-1 italic">{word}</div> }
-                                                        })
-                                                        .collect_view();
-                                                    view! {
-                                                        <div class="flex justify-end text-gray-500">
-                                                            {pair_original}
-                                                        </div>
-                                                        <div class="flex text-green-700">{pair_translated}</div>
-                                                    }
-                                                })
-                                                .collect_view()
+                                            if let Some(translation) = &paragraph.translation {
+                                                let words_translation = translation
+                                                    .split(" ")
+                                                    .map(str::to_string)
+                                                    .collect::<Vec<String>>();
+                                                paragraph_selection
+                                                    .iter()
+                                                    .map(|association| {
+                                                        let pair_original = association
+                                                            .original
+                                                            .iter()
+                                                            .map(|index| { words_original[*index].clone() })
+                                                            .map(|word| {
+                                                                view! { <div class="flex p-1 italic">{word}</div> }
+                                                            })
+                                                            .collect_view();
+                                                        let pair_translated = association
+                                                            .translation
+                                                            .iter()
+                                                            .map(|index| { words_translation[*index].clone() })
+                                                            .map(|word| {
+                                                                view! { <div class="flex p-1 italic">{word}</div> }
+                                                            })
+                                                            .collect_view();
+                                                        view! {
+                                                            <div class="flex justify-end text-gray-500">
+                                                                {pair_original}
+                                                            </div>
+                                                            <div class="flex text-green-700">{pair_translated}</div>
+                                                        }
+                                                    })
+                                                    .collect_view()
+                                            } else {
+                                                view! { "no translation available" }.into_view()
+                                            }
                                         })
                                         .collect_view()
                                 } else {
@@ -96,6 +100,14 @@ pub fn TranslationPage(
                         <div
                             class=BUTTON_CLASS
                             on:click=move |_event| {
+
+                            let article_to_remove =
+                                            data.get_untracked().articles.get(index).unwrap().clone();
+                                spawn_local(async move {
+                                    let _response = delete_article(article_to_remove)
+                                        .await
+                                        .unwrap();
+                                });
                                 if let Some(_) = pairs.get().get(&index) {
                                     set_pairs
                                         .update(|pairs| {

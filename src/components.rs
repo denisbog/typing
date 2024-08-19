@@ -8,6 +8,7 @@ use leptos::*;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::translation;
 use crate::types::TypeState;
 use crate::utils::compare;
 use core::hash::Hasher;
@@ -384,7 +385,7 @@ impl TypingState {
 #[component]
 pub fn Sentance(
     text: String,
-    translation: String,
+    translation: Option<String>,
     article_id: usize,
     index: usize,
     pairs: ReadSignal<BTreeMap<usize, BTreeMap<usize, BTreeSet<Association>>>>,
@@ -465,8 +466,11 @@ pub fn Sentance(
             .into_view()
     };
 
-    let translation_words: Vec<String> =
-        translation.clone().split(" ").map(str::to_string).collect();
+    let translation_words: Vec<String> = if let Some(translation) = translation {
+        translation.clone().split(" ").map(str::to_string).collect()
+    } else {
+        vec![]
+    };
     let (store, set_store) = create_signal(TypeState::from_str(&text));
     let class = move || {
         if sentace_state.get().lock().unwrap().enable_selection {

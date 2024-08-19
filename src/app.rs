@@ -3,9 +3,7 @@ use std::convert::Infallible;
 use crate::{
     application_types::{Article, Data},
     error_template::{AppError, ErrorTemplate},
-    translation::{
-        get_data, get_translations, store_article, store_data, store_pairs, TranslationRequest,
-    },
+    translation::{get_data, store_article, store_pairs},
     translation_page::{ArticlePage, TranslationPage},
     TypePairs,
 };
@@ -69,31 +67,25 @@ pub fn App() -> impl IntoView {
                                         <input
                                             class="p-2 m-1 shadow-md rounded bg-green-100"
                                             type="button"
-                                            value="Translate article"
+                                            value="Add article"
                                             on:click=move |_event| {
                                                 let temp = translation_input.get();
                                                 logging::log!("passing argument: {}", temp);
                                                 set_input_popup.set(false);
                                                 spawn_local(async move {
-                                                    let paragraphs = &temp
+                                                    let paragraphs = temp
                                                         .split("\n")
                                                         .map(str::to_string)
                                                         .collect::<Vec<String>>();
-                                                    let article = Article::from_pair(
-                                                        "user_id".to_string(),
-                                                        paragraphs.clone(),
-                                                        paragraphs.clone(),
+                                                    let article = Article::from_str(
+                                                        session_id.get().unwrap(),
+                                                        paragraphs,
                                                     );
                                                     set_translation_post
                                                         .update(|data| {
                                                             data.articles.push(article.clone());
                                                         });
-                                                    let _response = store_article(
-                                                            session_id.get().unwrap(),
-                                                            article,
-                                                        )
-                                                        .await
-                                                        .unwrap();
+                                                    let _response = store_article(article).await.unwrap();
                                                 });
                                             }
                                         />
@@ -144,19 +136,6 @@ pub fn App() -> impl IntoView {
             <div class="flex justify-center">
                 <div class=BUTTON_CLASS>
                     <div on:click=move |_event| set_input_popup.set(true)>Add Article</div>
-                </div>
-                <div
-                    class=BUTTON_CLASS
-                    on:click=move |_event| {
-                        spawn_local(async move {
-                            logging::log!("store articles {:?}", translation_post.get());
-                            let _ = store_data(session_id.get().unwrap(), translation_post.get())
-                                .await;
-                        });
-                    }
-                >
-
-                    Save Articles
                 </div>
                 <div
                     class=BUTTON_CLASS

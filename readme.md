@@ -75,6 +75,6 @@ docker build -t build . -f container/Dockerfile
 passing additinal feature `aws`, LEPTOS_OUTPUT_NAME=`typing` should match the main artifact from `Cargo.toml`
 
 ```bash
-LEPTOS_OUTPUT_NAME=typing cargo lambda build --no-default-features --features=ssr,aws --release
+LEPTOS_OUTPUT_NAME=typing cargo lambda build --no-default-features --features=ssr,lambda --release
 cargo lambda deploy --include target/site --enable-function-url
 ```

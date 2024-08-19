@@ -5,106 +5,39 @@ use crate::{
     application_types::{Article, Data},
     TypePairs,
 };
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TranslationRequest {
-    pub src: Vec<String>,
-}
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TranslationResponse {
-    pub translated: Vec<String>,
-}
-
-impl TranslationRequest {
-    pub fn from_str(original: &String) -> Self {
-        Self {
-            src: original
-                .split("\n")
-                .map(str::to_string)
-                .collect::<Vec<String>>(),
-        }
-    }
-}
-
-#[server(Store, "/store")]
-pub async fn store_data(id: String, data: Data) -> Result<(), ServerFnError> {
-    //    crate::get_db()
-    //        .await
-    //        .insert(id.as_bytes(), serde_json::to_vec(&data).unwrap())
-    //        .unwrap();
-    //    Ok(())
-    //
+#[server(FetchData, "/store")]
+pub async fn get_data(id: String) -> Result<Data, ServerFnError> {
+    logging::log!("fetching data");
     use crate::persistance::Persistance;
-    crate::get_db().await.get_items_for_user(&id);
-    Ok(())
+    let articles = crate::get_db().await.get_items_for_user(&id).await;
+    Ok(Data { articles })
 }
 
 #[server(StoreArticle, "/store")]
-pub async fn store_article(id: String, mut article: Article) -> Result<(), ServerFnError> {
-    use crate::persistance::Persistance;
-
+pub async fn store_article(article: Article) -> Result<(), ServerFnError> {
     let mut article = article;
     article.created_at = std::time::SystemTime::now()
         .duration_since(std::time::SystemTime::UNIX_EPOCH)
         .unwrap()
         .as_secs_f64();
-    crate::get_db().await.put_item_for_user(&id, article).await;
+    use crate::persistance::Persistance;
+    crate::get_db().await.put_item_for_user(article).await;
     Ok(())
 }
 
+#[server(DeleteArticle, "/store")]
+pub async fn delete_article(article: Article) -> Result<(), ServerFnError> {
+    use crate::persistance::Persistance;
+    crate::get_db().await.delete_item_for_user(article).await;
+    Ok(())
+}
 #[server(StorePairs, "/store")]
 pub async fn store_pairs(id: String, data: TypePairs) -> Result<(), ServerFnError> {
-    //let id = format!("{}-pairs", id);
-    //crate::get_db()
-    //    .await
-    //    .insert(id.as_bytes(), serde_json::to_vec(&data).unwrap())
-    //    .unwrap();
-    //Ok(())
-    todo!()
-}
-
-#[server(FetchData, "/store")]
-pub async fn get_data(id: String) -> Result<Data, ServerFnError> {
-    logging::log!("fetching data");
-    //let response = if let Ok(Some(articles)) = crate::get_db().await.get(id.as_bytes()) {
-    //    serde_json::from_slice(std::str::from_utf8(&articles).unwrap().as_bytes()).unwrap()
-    //} else {
-    //    Data::default()
-    //};
-    //Ok(response)
-    Ok(Data::default())
+    Ok(())
 }
 
 #[server(FetchPairs, "/store")]
 pub async fn get_pairs(id: String) -> Result<TypePairs, ServerFnError> {
-    //let id = format!("{}-pairs", id);
-    //logging::log!("fetching pairs {}", id);
-    //let response = if let Ok(Some(pairs)) = crate::get_db().await.get(id.as_bytes()) {
-    //    serde_json::from_slice(std::str::from_utf8(&pairs).unwrap().as_bytes()).unwrap()
-    //} else {
-    //    TypePairs::new()
-    //};
-    //logging::log!("fetching pairs {}. return", id);
-    //Ok(response)
     Ok(TypePairs::new())
-}
-#[server(Api, "/api")]
-pub async fn get_translations(
-    request: TranslationRequest,
-) -> Result<TranslationResponse, ServerFnError> {
-    //let client = reqwest::Client::new();
-    //let res: TranslationResponse = client
-    //    .post("http://localhost:5000/translate")
-    //    .json(&request)
-    //    .send()
-    //    .await
-    //    .unwrap()
-    //    .json()
-    //    .await
-    //    .unwrap();
-    //Ok(res)
-    logging::log!("translation {:?}", &request.src);
-    Ok(TranslationResponse {
-        translated: request.src,
-    })
 }

@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use crate::translation::{get_translations, TranslationRequest};
-
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Data {
     pub articles: Vec<Article>,
@@ -23,7 +21,7 @@ impl Article {
             .zip(translation)
             .map(|(original, translation)| Paragraph {
                 original,
-                translation,
+                translation: Some(translation),
                 pairs: None,
             })
             .collect();
@@ -34,18 +32,13 @@ impl Article {
             paragraphs,
         }
     }
-    pub async fn from_str(user_id: String, original: String) -> Self {
-        let request = TranslationRequest::from_str(&original);
-        let response = get_translations(request.clone()).await.unwrap();
-
-        let title = request.src.iter().nth(0).unwrap().to_string();
-        let paragraphs: Vec<Paragraph> = request
-            .src
+    pub fn from_str(user_id: String, original: Vec<String>) -> Self {
+        let title = original.get(0).unwrap().to_string();
+        let paragraphs: Vec<Paragraph> = original
             .into_iter()
-            .zip(response.translated)
-            .map(|(original, translation)| Paragraph {
+            .map(|original| Paragraph {
                 original,
-                translation,
+                translation: None,
                 pairs: None,
             })
             .collect();
@@ -62,7 +55,7 @@ impl Article {
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Paragraph {
     pub original: String,
-    pub translation: String,
+    pub translation: Option<String>,
     pub pairs: Option<Vec<Pair>>,
 }
 

@@ -9,9 +9,12 @@ use serde_dynamo::from_items;
 use crate::application_types::{Article, Paragraph};
 
 pub trait Persistance {
-    async fn get_items_for_user(&self, user_id: &str) -> Vec<Article>;
-    async fn put_item_for_user(&self, user_id: &str, item: Article);
-    async fn delete_item_for_user(&self, user_id: &str, item: Article);
+    fn get_items_for_user(
+        &self,
+        user_id: &str,
+    ) -> impl std::future::Future<Output = Vec<Article>> + Send;
+    fn put_item_for_user(&self, item: Article) -> impl std::future::Future<Output = ()> + Send;
+    fn delete_item_for_user(&self, item: Article) -> impl std::future::Future<Output = ()> + Send;
 }
 
 #[derive(Debug)]
@@ -38,14 +41,14 @@ impl Persistance for AwsPersistance {
             .query()
             .table_name("translation")
             .key_condition_expression("user_id = :user_id")
-            .expression_attribute_values(":user_id", AttributeValue::S("user_id".to_string()))
+            .expression_attribute_values(":user_id", AttributeValue::S(user_id.to_string()))
             .send()
             .await
             .unwrap();
         from_items(response.items.unwrap()).unwrap()
     }
 
-    async fn put_item_for_user(&self, user_id: &str, item: Article) {
+    async fn put_item_for_user(&self, item: Article) {
         self.client
             .put_item()
             .table_name("translation")
@@ -55,8 +58,21 @@ impl Persistance for AwsPersistance {
             .unwrap();
     }
 
-    async fn delete_item_for_user(&self, user_id: &str, item: Article) {
-        todo!()
+    async fn delete_item_for_user(&self, item: Article) {
+        let mut key = HashMap::new();
+        key.insert("user_id".to_string(), AttributeValue::S(item.user_id));
+        key.insert(
+            "created_at".to_string(),
+            AttributeValue::N(item.created_at.to_string()),
+        );
+        let response = self
+            .client
+            .delete_item()
+            .table_name("translation")
+            .set_key(Some(key))
+            .send()
+            .await
+            .unwrap();
     }
 }
 
@@ -86,7 +102,7 @@ mod tests {
         };
 
         let mut persistance = AwsPersistance::init().await;
-        persistance.put_item_for_user("user_id", item).await;
+        persistance.put_item_for_user(item).await;
     }
 
     #[tokio::test]

@@ -58,20 +58,5 @@ pub async fn init_db() {
 pub async fn get_db<'a>() -> &'a AwsPersistance {
     DB.get().unwrap()
 }
-//#[cfg(feature = "ssr")]
-//static DB: std::sync::OnceLock<sled::Db> = std::sync::OnceLock::new();
-//
-//#[cfg(feature = "ssr")]
-//pub async fn init_db() {
-//    let db_path = std::env::var("DATABASE_PATH")
-//        .or_else(|_| Ok::<String, String>("./typing_db".to_string()))
-//        .unwrap();
-//    let db: sled::Db = sled::open(db_path).unwrap();
-//    DB.set(db).unwrap();
-//}
-//#[cfg(feature = "ssr")]
-//pub async fn get_db<'a>() -> &'a sled::Db {
-//    DB.get().unwrap()
-//}
 
 pub type TypePairs = BTreeMap<usize, BTreeMap<usize, BTreeSet<Association>>>;
