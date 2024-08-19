@@ -15,7 +15,7 @@ pub struct Article {
 
 impl Article {
     pub fn from_pair(user_id: String, original: Vec<String>, translation: Vec<String>) -> Self {
-        let title = original.iter().nth(0).unwrap().to_string();
+        let title = original.first().unwrap().to_string();
         let paragraphs: Vec<Paragraph> = original
             .into_iter()
             .zip(translation)
@@ -33,7 +33,7 @@ impl Article {
         }
     }
     pub fn from_str(user_id: String, original: Vec<String>) -> Self {
-        let title = original.get(0).unwrap().to_string();
+        let title = original.first().unwrap().to_string();
         let paragraphs: Vec<Paragraph> = original
             .into_iter()
             .map(|original| Paragraph {

@@ -100,15 +100,16 @@ pub fn TranslationPage(
                         <div
                             class=BUTTON_CLASS
                             on:click=move |_event| {
-
-                            let article_to_remove =
-                                            data.get_untracked().articles.get(index).unwrap().clone();
+                                let article_to_remove = data
+                                    .get_untracked()
+                                    .articles
+                                    .get(index)
+                                    .unwrap()
+                                    .clone();
                                 spawn_local(async move {
-                                    let _response = delete_article(article_to_remove)
-                                        .await
-                                        .unwrap();
+                                    delete_article(article_to_remove).await.unwrap();
                                 });
-                                if let Some(_) = pairs.get().get(&index) {
+                                if pairs.get().contains_key(&index) {
                                     set_pairs
                                         .update(|pairs| {
                                             pairs.remove(&index).unwrap();
@@ -143,6 +144,7 @@ pub fn ArticlePage(
 
     let views = move || {
         if let Some(pargrah) = data.get().articles.get(article_id) {
+            let total = pargrah.paragraphs.len();
             pargrah
                 .paragraphs
                 .clone()
@@ -155,6 +157,7 @@ pub fn ArticlePage(
                             translation=item.translation
                             article_id
                             index
+                            total
                             pairs
                             set_pairs
                         />

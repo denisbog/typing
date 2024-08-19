@@ -85,7 +85,7 @@ pub fn App() -> impl IntoView {
                                                         .update(|data| {
                                                             data.articles.push(article.clone());
                                                         });
-                                                    let _response = store_article(article).await.unwrap();
+                                                    store_article(article).await.unwrap();
                                                 });
                                             }
                                         />

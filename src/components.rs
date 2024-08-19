@@ -388,6 +388,7 @@ pub fn Sentance(
     translation: Option<String>,
     article_id: usize,
     index: usize,
+    total: usize,
     pairs: ReadSignal<BTreeMap<usize, BTreeMap<usize, BTreeSet<Association>>>>,
     set_pairs: WriteSignal<BTreeMap<usize, BTreeMap<usize, BTreeSet<Association>>>>,
 ) -> impl IntoView {
@@ -561,7 +562,7 @@ pub fn Sentance(
                     }
                 >
 
-                    <div class="pr-2">{index + 1} {")"}</div>
+                    <div class="pr-2">{index + 1} {"/"} {total} {")"}</div>
 
                     {
                         view! {
