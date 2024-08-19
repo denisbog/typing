@@ -8,9 +8,10 @@ use leptos::*;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::translation;
+use crate::application_types::Paragraph;
 use crate::types::TypeState;
 use crate::utils::compare;
+use crate::TypePairs;
 use core::hash::Hasher;
 
 use crate::BUTTON_CLASS;
@@ -384,27 +385,25 @@ impl TypingState {
 }
 #[component]
 pub fn Sentance(
-    text: String,
-    translation: Option<String>,
-    article_id: usize,
+    paragraph: Paragraph,
     index: usize,
     total: usize,
-    pairs: ReadSignal<BTreeMap<usize, BTreeMap<usize, BTreeSet<Association>>>>,
-    set_pairs: WriteSignal<BTreeMap<usize, BTreeMap<usize, BTreeSet<Association>>>>,
+    pairs: ReadSignal<TypePairs>,
+    set_pairs: WriteSignal<TypePairs>,
 ) -> impl IntoView {
     let (sentace_state, set_sentace_state) =
         create_signal(Arc::new(Mutex::new(TypingState::default())));
 
-    if let Some(pairs_for_article) = pairs.get().get(&article_id) {
-        if let Some(pairs_for_paragraph) = pairs_for_article.get(&index) {
-            set_sentace_state.update(|state| {
-                state
-                    .lock()
-                    .unwrap()
-                    .set_initial_pairs(pairs_for_paragraph.clone())
-            })
-        }
-    }
+    //if let Some(pairs_for_article) = pairs.get().get(&article_id) {
+    //    if let Some(pairs_for_paragraph) = paragraph.pairs {
+    //        set_sentace_state.update(|state| {
+    //            state
+    //                .lock()
+    //                .unwrap()
+    //                .set_initial_pairs(pairs_for_paragraph.clone())
+    //        })
+    //    }
+    //}
 
     let pair_button = move || {
         if sentace_state.get().lock().unwrap().pair_enabled() {
@@ -419,10 +418,7 @@ pub fn Sentance(
                                     state.pair();
                                     set_pairs
                                         .update(|pairs| {
-                                            pairs
-                                                .entry(article_id)
-                                                .or_default()
-                                                .insert(index, state.get_current_pairs());
+                                            pairs.insert(index, state.get_current_pairs());
                                         });
                                 });
                         }
@@ -451,8 +447,6 @@ pub fn Sentance(
                                 set_pairs
                                     .update(|pairs| {
                                         pairs
-                                            .entry(article_id)
-                                            .or_default()
                                             .insert(index, state.lock().unwrap().get_current_pairs());
                                     });
                             });
@@ -467,12 +461,12 @@ pub fn Sentance(
             .into_view()
     };
 
-    let translation_words: Vec<String> = if let Some(translation) = translation {
+    let translation_words: Vec<String> = if let Some(translation) = paragraph.translation {
         translation.clone().split(" ").map(str::to_string).collect()
     } else {
         vec![]
     };
-    let (store, set_store) = create_signal(TypeState::from_str(&text));
+    let (store, set_store) = create_signal(TypeState::from_str(&paragraph.original));
     let class = move || {
         if sentace_state.get().lock().unwrap().enable_selection {
             "outline-dashed p-2 cursor-default"
@@ -481,7 +475,7 @@ pub fn Sentance(
         }
     };
     view! {
-        <div class="flex flex-col justify-center min-h-lvh lg:h-min snap-start">
+        <div class="flex flex-col justify-center min-h-lvh lg:h-min snap-start parent" id=index + 1>
             <div class=class>
                 <div
                     class="lg:p-2 flex flex-wrap lg:text-2xl text-gray-500 font-mono focus:outline-none"

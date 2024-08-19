@@ -1,9 +1,6 @@
-use std::collections::BTreeMap;
-use std::collections::BTreeSet;
-
-use crate::components::Association;
 use crate::translation::delete_article;
 use crate::translation::store_pairs;
+use crate::TypePairs;
 use crate::BUTTON_CLASS;
 use crate::{application_types::Data, components::Sentance};
 use leptos::*;
@@ -16,12 +13,7 @@ pub struct ArticleParams {
 }
 
 #[component]
-pub fn TranslationPage(
-    data: ReadSignal<Data>,
-    set_data: WriteSignal<Data>,
-    pairs: ReadSignal<BTreeMap<usize, BTreeMap<usize, BTreeSet<Association>>>>,
-    set_pairs: WriteSignal<BTreeMap<usize, BTreeMap<usize, BTreeSet<Association>>>>,
-) -> impl IntoView {
+pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl IntoView {
     let params = use_params::<ArticleParams>();
     params.with(|param| {
         if let Ok(item) = param {
@@ -38,18 +30,18 @@ pub fn TranslationPage(
                 view! {
                     <div class="flex p-2">
                         <div class="flex flex-col w-full">
+
                             <a class="w-full" href=format!("/article/{}", index)>
                                 {item.title}
                             </a>
+
                             <div class="grid grid-cols-2 lg:grid-cols-8 gap-4">
-                                {if let Some(article_pairs) = pairs.get().get(&index) {
-                                    article_pairs
+
+                                {
+                                    item.paragraphs
                                         .iter()
-                                        .map(|(&paragraph_index, paragraph_selection)| {
-                                            let paragraph = item
-                                                .paragraphs
-                                                .get(paragraph_index)
-                                                .unwrap();
+                                        .filter(|paragraph| paragraph.pairs.is_some())
+                                        .map(|paragraph| {
                                             let words_original = paragraph
                                                 .original
                                                 .split(" ")
@@ -60,19 +52,22 @@ pub fn TranslationPage(
                                                     .split(" ")
                                                     .map(str::to_string)
                                                     .collect::<Vec<String>>();
-                                                paragraph_selection
+                                                paragraph
+                                                    .pairs
+                                                    .clone()
+                                                    .unwrap()
                                                     .iter()
-                                                    .map(|association| {
-                                                        let pair_original = association
-                                                            .original
+                                                    .map(|pair| {
+                                                        let pair_original = pair
+                                                            .orignal
                                                             .iter()
                                                             .map(|index| { words_original[*index].clone() })
                                                             .map(|word| {
                                                                 view! { <div class="flex p-1 italic">{word}</div> }
                                                             })
                                                             .collect_view();
-                                                        let pair_translated = association
-                                                            .translation
+                                                        let pair_translated = pair
+                                                            .traslation
                                                             .iter()
                                                             .map(|index| { words_translation[*index].clone() })
                                                             .map(|word| {
@@ -90,11 +85,8 @@ pub fn TranslationPage(
                                             } else {
                                                 view! { "no translation available" }.into_view()
                                             }
-                                        })
-                                        .collect_view()
-                                } else {
-                                    view! {}.into_view()
-                                }}
+                                        });
+                                }
 
                             </div>
                         </div>
@@ -102,14 +94,13 @@ pub fn TranslationPage(
                             class=BUTTON_CLASS
                             on:click=move |_event| {
                                 spawn_local(async move {
-                                    logging::log!("store pairs {:?}", pairs.get());
                                     let article_to_remove = data
                                         .get_untracked()
                                         .articles
                                         .get(index)
                                         .unwrap()
                                         .clone();
-                                    let _ = store_pairs(article_to_remove, pairs.get()).await;
+                                    let _ = store_pairs(article_to_remove).await;
                                 });
                             }
                         >
@@ -128,12 +119,6 @@ pub fn TranslationPage(
                                 spawn_local(async move {
                                     delete_article(article_to_remove).await.unwrap();
                                 });
-                                if pairs.get().contains_key(&index) {
-                                    set_pairs
-                                        .update(|pairs| {
-                                            pairs.remove(&index).unwrap();
-                                        });
-                                }
                                 set_data
                                     .update(|item| {
                                         item.articles.remove(index);
@@ -152,40 +137,52 @@ pub fn TranslationPage(
 }
 
 #[component]
-pub fn ArticlePage(
-    data: ReadSignal<Data>,
-    set_data: WriteSignal<Data>,
-    pairs: ReadSignal<BTreeMap<usize, BTreeMap<usize, BTreeSet<Association>>>>,
-    set_pairs: WriteSignal<BTreeMap<usize, BTreeMap<usize, BTreeSet<Association>>>>,
-) -> impl IntoView {
+pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl IntoView {
     let params = use_params::<ArticleParams>();
     let article_id = params.with(|param| param.as_ref().unwrap().id).unwrap();
 
+    let (pairs, set_pairs) = create_signal(TypePairs::new());
+
     let views = move || {
-        if let Some(pargrah) = data.get().articles.get(article_id) {
-            let total = pargrah.paragraphs.len();
-            pargrah
+        if let Some(article) = data.get().articles.get(article_id) {
+            let total = article.paragraphs.len();
+            let link = article
+                .paragraphs
+                .clone()
+                .into_iter()
+                .enumerate()
+                .map(|(index, _item)| {
+                    view! {
+                        <a class="pl-1" href=format!("#{}", index + 1)>
+                            {index + 1}
+                        </a>
+                    }
+                })
+                .collect_view();
+            let paragraphs = article
                 .paragraphs
                 .clone()
                 .into_iter()
                 .enumerate()
                 .map(|(index, item)| {
-                    view! {
-                        <Sentance
-                            text=item.original
-                            translation=item.translation
-                            article_id
-                            index
-                            total
-                            pairs
-                            set_pairs
-                        />
-                    }
+                    view! { <Sentance paragraph=item index total pairs set_pairs/> }
                 })
-                .collect_view()
+                .collect_view();
+
+            view! {
+                <div class="fixed bottom-2 p-2 text-gray-500 bg-gray-100 shadow-md cursor-default">
+                    "jump: " <a class="pl-1 underline" href="/">
+                        home
+                    </a> <a class="pl-1" href="#top">
+                        top
+                    </a> {link}
+                </div>
+                {paragraphs}
+            }
+            .into_view()
         } else {
             view! {}.into_view()
         }
     };
-    view! { <div class="w-screen lg:w-3/4 flex flex-col relative">{views}</div> }
+    view! { <div class="w-screen lg:w-3/4 flex flex-col ">{views}</div> }
 }

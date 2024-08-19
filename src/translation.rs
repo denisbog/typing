@@ -1,9 +1,8 @@
 use leptos::{logging, server, ServerFnError};
-use serde::{Deserialize, Serialize};
 
 use crate::{
     application_types::{Article, Data},
-    TypePairs,
+    persistance::Persistance,
 };
 
 #[server(FetchData, "/store")]
@@ -33,11 +32,10 @@ pub async fn delete_article(article: Article) -> Result<(), ServerFnError> {
     Ok(())
 }
 #[server(StorePairs, "/store")]
-pub async fn store_pairs(article: Article, data: TypePairs) -> Result<(), ServerFnError> {
+pub async fn store_pairs(article: Article) -> Result<(), ServerFnError> {
+    crate::get_db()
+        .await
+        .update_pairs_for_article(article)
+        .await;
     Ok(())
-}
-
-#[server(FetchPairs, "/store")]
-pub async fn get_pairs(id: String) -> Result<TypePairs, ServerFnError> {
-    Ok(TypePairs::new())
 }

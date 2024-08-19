@@ -53,4 +53,4 @@ pub async fn get_db<'a>() -> &'a AwsPersistance {
     DB.get().unwrap()
 }
 
-pub type TypePairs = BTreeMap<usize, BTreeMap<usize, BTreeSet<Association>>>;
+pub type TypePairs = BTreeMap<usize, BTreeSet<Association>>;

@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
 #[cfg(feature = "ssr")]
+use aws_sdk_dynamodb::types::AttributeValueUpdate;
+#[cfg(feature = "ssr")]
 use aws_sdk_dynamodb::{types::AttributeValue, Client};
 #[cfg(feature = "ssr")]
 use serde_dynamo::from_items;
@@ -13,6 +15,10 @@ pub trait Persistance {
         user_id: &str,
     ) -> impl std::future::Future<Output = Vec<Article>> + Send;
     fn put_item_for_user(&self, item: Article) -> impl std::future::Future<Output = ()> + Send;
+    fn update_pairs_for_article(
+        &self,
+        item: Article,
+    ) -> impl std::future::Future<Output = ()> + Send;
     fn delete_item_for_user(&self, item: Article) -> impl std::future::Future<Output = ()> + Send;
 }
 
@@ -72,6 +78,32 @@ impl Persistance for AwsPersistance {
             .await
             .unwrap();
     }
+
+    async fn update_pairs_for_article(&self, item: Article) {
+        let mut key = HashMap::new();
+        key.insert(
+            "user_id".to_string(),
+            AttributeValue::S(item.user_id.clone()),
+        );
+        key.insert(
+            "created_at".to_string(),
+            AttributeValue::N(item.created_at.to_string()),
+        );
+        let temp: HashMap<String, AttributeValue> = serde_dynamo::to_item(item).unwrap();
+        self.client
+            .update_item()
+            .table_name("translation")
+            .set_key(Some(key))
+            .attribute_updates(
+                "pairs",
+                AttributeValueUpdate::builder()
+                    .value(temp.get("pairs").unwrap().clone())
+                    .build(),
+            )
+            .send()
+            .await
+            .unwrap();
+    }
 }
 
 #[cfg(test)]
@@ -92,6 +124,7 @@ mod tests {
         let item = Article {
             user_id: "user_id".to_string(),
             created_at: 123f64,
+            translated: "false".to_string(),
             title: "test".to_string(),
             paragraphs: vec![Paragraph::default()],
         };

@@ -5,7 +5,6 @@ use crate::{
     error_template::{AppError, ErrorTemplate},
     translation::{get_data, store_article},
     translation_page::{ArticlePage, TranslationPage},
-    TypePairs,
 };
 use leptos::*;
 use leptos_meta::*;
@@ -31,15 +30,9 @@ pub fn App() -> impl IntoView {
     );
 
     let (translation_post, set_translation_post) = create_signal(Data::default());
-    let (pairs, set_pairs) = create_signal(TypePairs::new());
     if let Some(session) = session_id.get() {
         #[cfg(feature = "hydrate")]
         spawn_local(async move {
-            set_pairs.set(
-                crate::translation::get_pairs(session.clone())
-                    .await
-                    .unwrap(),
-            );
             set_translation_post.set(get_data(session).await.unwrap());
         });
     }
@@ -128,27 +121,30 @@ pub fn App() -> impl IntoView {
             outside_errors.insert_with_default_key(AppError::NotFound);
             view! { <ErrorTemplate outside_errors/> }.into_view()
         }>
-            <div class="p-3 pt-7 text-xl lg:text-3xl font-bold text-gray-100 font-mono w-screen justify-center flex snap-start">
-                <a href="/">
-                    <div>Learn German by typing!</div>
-                </a>
-            </div>
-            <div class="flex justify-center">
-                <div class=BUTTON_CLASS>
-                    <div on:click=move |_event| set_input_popup.set(true)>Add Article</div>
-                </div>
-            </div>
             <main class="w-screen flex flex-col items-center">
                 <Routes>
                     <Route
                         path=""
                         view=move || {
                             view! {
+                                <div
+                                    id="top"
+                                    class="p-3 pt-7 text-xl lg:text-3xl font-bold text-gray-100 font-mono w-screen justify-center flex snap-start"
+                                >
+                                    <a href="/">
+                                        <div>Learn German by typing!</div>
+                                    </a>
+                                </div>
+                                <div class="flex justify-center">
+                                    <div class=BUTTON_CLASS>
+                                        <div on:click=move |_event| {
+                                            set_input_popup.set(true)
+                                        }>Add Article</div>
+                                    </div>
+                                </div>
                                 <TranslationPage
                                     data=translation_post
                                     set_data=set_translation_post
-                                    pairs
-                                    set_pairs
                                 />
                             }
                         }
@@ -158,12 +154,7 @@ pub fn App() -> impl IntoView {
                         path="/article/:id"
                         view=move || {
                             view! {
-                                <ArticlePage
-                                    data=translation_post
-                                    set_data=set_translation_post
-                                    pairs
-                                    set_pairs
-                                />
+                                <ArticlePage data=translation_post set_data=set_translation_post/>
                             }
                         }
                     />
