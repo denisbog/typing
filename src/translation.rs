@@ -7,7 +7,7 @@ use crate::{
 
 #[server(FetchData, "/store")]
 pub async fn get_data(id: String) -> Result<Data, ServerFnError> {
-    logging::log!("fetching data");
+    logging::log!("fetching data for id {}", id);
     use crate::persistance::Persistance;
     let articles = crate::get_db().await.get_items_for_user(&id).await;
     Ok(Data { articles })

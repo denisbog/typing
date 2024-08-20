@@ -30,15 +30,14 @@ pub fn App() -> impl IntoView {
     );
 
     let (translation_post, set_translation_post) = create_signal(Data::default());
-    if let Some(session) = session_id.get() {
-        #[cfg(feature = "hydrate")]
-        spawn_local(async move {
-            set_translation_post.set(get_data(session).await.unwrap());
-        });
-    }
     let (input_popup, set_input_popup) = create_signal(false);
+    let (is_trigger, trigger) = create_signal(false);
+    let resource = create_resource(
+        move || (session_id.get(), is_trigger.get()),
+        |(session, _)| async { get_data(session.unwrap()).await.unwrap() },
+    );
 
-    let input_popup_component = move || {
+    let input_popup_component = move |set_translation_post: WriteSignal<Data>| {
         if input_popup.get() {
             view! {
                 <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity">
@@ -79,6 +78,7 @@ pub fn App() -> impl IntoView {
                                                             data.articles.push(article.clone());
                                                         });
                                                     store_article(article).await.unwrap();
+                                                    //trigger.update(|current| { *current = !*current });
                                                 });
                                             }
                                         />
@@ -125,6 +125,7 @@ pub fn App() -> impl IntoView {
                 <Routes>
                     <Route
                         path=""
+                        ssr=SsrMode::InOrder
                         view=move || {
                             view! {
                                 <div
@@ -142,10 +143,27 @@ pub fn App() -> impl IntoView {
                                         }>Add Article</div>
                                     </div>
                                 </div>
-                                <TranslationPage
-                                    data=translation_post
-                                    set_data=set_translation_post
-                                />
+                                <Suspense fallback=move || {
+                                    view! { <div>Loading...</div> }
+                                }>
+                                    {move || {
+                                        resource
+                                            .get()
+                                            .map(|data| {
+                                                set_translation_post.set(data);
+                                                view! {
+                                                    <TranslationPage
+                                                        data=translation_post
+                                                        set_data=set_translation_post
+                                                    />
+                                                    <div>
+                                                        {move || input_popup_component(set_translation_post)}
+                                                    </div>
+                                                }
+                                            })
+                                    }}
+
+                                </Suspense>
                             }
                         }
                     />
@@ -154,13 +172,29 @@ pub fn App() -> impl IntoView {
                         path="/article/:id"
                         view=move || {
                             view! {
-                                <ArticlePage data=translation_post set_data=set_translation_post/>
+                                <Suspense fallback=move || {
+                                    view! { <div>Loading...</div> }
+                                }>
+                                    {move || {
+                                        resource
+                                            .get()
+                                            .map(|data| {
+                                                set_translation_post.set(data);
+                                                view! {
+                                                    <ArticlePage
+                                                        data=translation_post
+                                                        set_data=set_translation_post
+                                                    />
+                                                }
+                                            })
+                                    }}
+
+                                </Suspense>
                             }
                         }
                     />
 
                 </Routes>
-                <div>{move || input_popup_component}</div>
             </main>
         </Router>
     }
