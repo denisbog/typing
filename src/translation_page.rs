@@ -36,56 +36,58 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                                 {item.title}
                             </a>
                             <div class="grid grid-cols-2 lg:grid-cols-8 gap-4">
-                                {
-                                    item.paragraphs
-                                        .iter()
-                                        .filter(|paragraph| paragraph.pairs.is_some())
-                                        .map(|paragraph| {
-                                            let words_original = paragraph
-                                                .original
+
+                                {item
+                                    .paragraphs
+                                    .iter()
+                                    .filter(|paragraph| paragraph.pairs.is_some())
+                                    .map(|paragraph| {
+                                        let words_original = paragraph
+                                            .original
+                                            .split(" ")
+                                            .map(str::to_string)
+                                            .collect::<Vec<String>>();
+                                        if let Some(translation) = &paragraph.translation {
+                                            let words_translation = translation
                                                 .split(" ")
                                                 .map(str::to_string)
                                                 .collect::<Vec<String>>();
-                                            if let Some(translation) = &paragraph.translation {
-                                                let words_translation = translation
-                                                    .split(" ")
-                                                    .map(str::to_string)
-                                                    .collect::<Vec<String>>();
-                                                paragraph
-                                                    .pairs
-                                                    .clone()
-                                                    .unwrap()
-                                                    .iter()
-                                                    .map(|pair| {
-                                                        let pair_original = pair
-                                                            .original
-                                                            .iter()
-                                                            .map(|index| { words_original[*index].clone() })
-                                                            .map(|word| {
-                                                                view! { <div class="flex p-1 italic">{word}</div> }
-                                                            })
-                                                            .collect_view();
-                                                        let pair_translated = pair
-                                                            .translation
-                                                            .iter()
-                                                            .map(|index| { words_translation[*index].clone() })
-                                                            .map(|word| {
-                                                                view! { <div class="flex p-1 italic">{word}</div> }
-                                                            })
-                                                            .collect_view();
-                                                        view! {
-                                                            <div class="flex justify-end text-gray-500">
-                                                                {pair_original}
-                                                            </div>
-                                                            <div class="flex text-green-700">{pair_translated}</div>
-                                                        }
-                                                    })
-                                                    .collect_view()
-                                            } else {
-                                                view! { "no translation available" }.into_view()
-                                            }
-                                        }).collect_view()
-                                }
+                                            paragraph
+                                                .pairs
+                                                .clone()
+                                                .unwrap()
+                                                .iter()
+                                                .map(|pair| {
+                                                    let pair_original = pair
+                                                        .original
+                                                        .iter()
+                                                        .map(|index| { words_original[*index].clone() })
+                                                        .map(|word| {
+                                                            view! { <div class="flex p-1 italic">{word}</div> }
+                                                        })
+                                                        .collect_view();
+                                                    let pair_translated = pair
+                                                        .translation
+                                                        .iter()
+                                                        .map(|index| { words_translation[*index].clone() })
+                                                        .map(|word| {
+                                                            view! { <div class="flex p-1 italic">{word}</div> }
+                                                        })
+                                                        .collect_view();
+                                                    view! {
+                                                        <div class="flex justify-end text-gray-500">
+                                                            {pair_original}
+                                                        </div>
+                                                        <div class="flex text-green-700">{pair_translated}</div>
+                                                    }
+                                                })
+                                                .collect_view()
+                                        } else {
+                                            view! { "no translation available" }.into_view()
+                                        }
+                                    })
+                                    .collect_view()}
+
                             </div>
                         </div>
                         <div
@@ -193,7 +195,7 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
     });
 
     let views = move || {
-        if let Some(article) = data.get().articles.get(article_id) {
+        if let Some(article) = data.get_untracked().articles.get(article_id) {
             let total = article.paragraphs.len();
             let link = article
                 .paragraphs
@@ -223,8 +225,6 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
                 <div class="fixed bottom-2 p-2 text-gray-500 bg-gray-100 shadow-md cursor-default">
                     "jump: " <a class="pl-1 underline" href="/">
                         home
-                    </a> <a class="pl-1" href="#top">
-                        top
                     </a> {link}
                 </div>
             }
