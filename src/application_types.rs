@@ -64,6 +64,6 @@ pub struct Paragraph {
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Pair {
-    pub orignal: Vec<usize>,
-    pub traslation: Vec<usize>,
+    pub original: Vec<usize>,
+    pub translation: Vec<usize>,
 }

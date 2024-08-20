@@ -95,9 +95,9 @@ impl Persistance for AwsPersistance {
             .table_name("translation")
             .set_key(Some(key))
             .attribute_updates(
-                "pairs",
+                "paragraphs",
                 AttributeValueUpdate::builder()
-                    .value(temp.get("pairs").unwrap().clone())
+                    .value(temp.get("paragraphs").unwrap().clone())
                     .build(),
             )
             .send()

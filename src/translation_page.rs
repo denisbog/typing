@@ -1,3 +1,5 @@
+use crate::application_types::Pair;
+use crate::components::Association;
 use crate::translation::delete_article;
 use crate::translation::store_pairs;
 use crate::TypePairs;
@@ -30,13 +32,10 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                 view! {
                     <div class="flex p-2">
                         <div class="flex flex-col w-full">
-
                             <a class="w-full" href=format!("/article/{}", index)>
                                 {item.title}
                             </a>
-
                             <div class="grid grid-cols-2 lg:grid-cols-8 gap-4">
-
                                 {
                                     item.paragraphs
                                         .iter()
@@ -59,7 +58,7 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                                                     .iter()
                                                     .map(|pair| {
                                                         let pair_original = pair
-                                                            .orignal
+                                                            .original
                                                             .iter()
                                                             .map(|index| { words_original[*index].clone() })
                                                             .map(|word| {
@@ -67,7 +66,7 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                                                             })
                                                             .collect_view();
                                                         let pair_translated = pair
-                                                            .traslation
+                                                            .translation
                                                             .iter()
                                                             .map(|index| { words_translation[*index].clone() })
                                                             .map(|word| {
@@ -85,9 +84,8 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                                             } else {
                                                 view! { "no translation available" }.into_view()
                                             }
-                                        });
+                                        }).collect_view()
                                 }
-
                             </div>
                         </div>
                         <div
@@ -143,6 +141,57 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
 
     let (pairs, set_pairs) = create_signal(TypePairs::new());
 
+    logging::log!("init pairs");
+    set_pairs.update(|state| {
+        if let Some(article) = data.get().articles.get(article_id) {
+            article
+                .clone()
+                .paragraphs
+                .into_iter()
+                .enumerate()
+                .for_each(|(index, paragraph)| {
+                    if paragraph.pairs.is_some() {
+                        let associations = paragraph
+                            .pairs
+                            .unwrap()
+                            .into_iter()
+                            .map(|pair| Association {
+                                start_position: pair.original[0],
+                                original: pair.original.into_iter().collect(),
+                                translation: pair.translation.into_iter().collect(),
+                            })
+                            .collect();
+
+                        logging::log!("inserted associations: {:?}", associations);
+                        state.insert(index, associations);
+                    }
+                });
+        }
+    });
+
+    create_effect(move |_| {
+        logging::log!("pairs updated");
+        set_data.update(|state| {
+            if let Some(article) = state.articles.get_mut(article_id) {
+                pairs.get().into_iter().for_each(|(key, value)| {
+                    logging::log!("key: {}", key);
+                    let pairs = value
+                        .into_iter()
+                        .map(|item| {
+                            let original: Vec<usize> = item.original.into_iter().collect();
+                            let translation: Vec<usize> = item.translation.into_iter().collect();
+                            Pair {
+                                original,
+                                translation,
+                            }
+                        })
+                        .collect();
+                    article.paragraphs[key].pairs = Some(pairs);
+                });
+            }
+        });
+    });
+
     let views = move || {
         if let Some(article) = data.get().articles.get(article_id) {
             let total = article.paragraphs.len();
@@ -170,6 +219,7 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
                 .collect_view();
 
             view! {
+                {paragraphs}
                 <div class="fixed bottom-2 p-2 text-gray-500 bg-gray-100 shadow-md cursor-default">
                     "jump: " <a class="pl-1 underline" href="/">
                         home
@@ -177,7 +227,6 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
                         top
                     </a> {link}
                 </div>
-                {paragraphs}
             }
             .into_view()
         } else {

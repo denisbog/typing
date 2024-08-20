@@ -394,16 +394,14 @@ pub fn Sentance(
     let (sentace_state, set_sentace_state) =
         create_signal(Arc::new(Mutex::new(TypingState::default())));
 
-    //if let Some(pairs_for_article) = pairs.get().get(&article_id) {
-    //    if let Some(pairs_for_paragraph) = paragraph.pairs {
-    //        set_sentace_state.update(|state| {
-    //            state
-    //                .lock()
-    //                .unwrap()
-    //                .set_initial_pairs(pairs_for_paragraph.clone())
-    //        })
-    //    }
-    //}
+    if let Some(pairs_for_paragraph) = pairs.get().get(&index) {
+        set_sentace_state.update(|state| {
+            state
+                .lock()
+                .unwrap()
+                .set_initial_pairs(pairs_for_paragraph.clone())
+        })
+    }
 
     let pair_button = move || {
         if sentace_state.get().lock().unwrap().pair_enabled() {
