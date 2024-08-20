@@ -8,7 +8,7 @@ pub struct Data {
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Article {
     pub user_id: String,
-    pub created_at: f64,
+    pub created_at: u64,
     pub translated: String,
     pub title: String,
     pub paragraphs: Vec<Paragraph>,
@@ -28,7 +28,7 @@ impl Article {
             .collect();
         Article {
             user_id,
-            created_at: -1f64,
+            created_at: 0,
             translated: "false".to_string(),
             title,
             paragraphs,
@@ -47,7 +47,7 @@ impl Article {
 
         Article {
             user_id,
-            created_at: -1f64,
+            created_at: 0,
             translated: "false".to_string(),
             title,
             paragraphs,

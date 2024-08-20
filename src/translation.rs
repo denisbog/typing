@@ -19,7 +19,7 @@ pub async fn store_article(article: Article) -> Result<(), ServerFnError> {
     article.created_at = std::time::SystemTime::now()
         .duration_since(std::time::SystemTime::UNIX_EPOCH)
         .unwrap()
-        .as_secs_f64();
+        .as_secs();
     use crate::persistance::Persistance;
     crate::get_db().await.put_item_for_user(article).await;
     Ok(())

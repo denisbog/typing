@@ -123,7 +123,7 @@ mod tests {
     async fn insert_new_item() {
         let item = Article {
             user_id: "user_id".to_string(),
-            created_at: 123f64,
+            created_at: 0,
             translated: "false".to_string(),
             title: "test".to_string(),
             paragraphs: vec![Paragraph::default()],
