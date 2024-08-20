@@ -76,6 +76,7 @@ enum WordState {
     None,
 }
 
+#[derive(Debug, Clone)]
 struct TypingState {
     original_selected: BTreeSet<usize>,
     translated_selected: BTreeSet<usize>,
@@ -391,20 +392,22 @@ pub fn Sentance(
     pairs: ReadSignal<TypePairs>,
     set_pairs: WriteSignal<TypePairs>,
 ) -> impl IntoView {
-    let (sentace_state, set_sentace_state) =
-        create_signal(Arc::new(Mutex::new(TypingState::default())));
-
-    if let Some(pairs_for_paragraph) = pairs.get().get(&index) {
-        set_sentace_state.update(|state| {
-            state
-                .lock()
-                .unwrap()
-                .set_initial_pairs(pairs_for_paragraph.clone())
-        })
-    }
+    let (sentace_state, set_sentace_state) = create_signal(TypingState::default());
+    create_effect(move |prev| {
+        logging::log!("init prev: {:?}", prev);
+        if prev.is_none() {
+            if let Some(pairs_for_paragraph) = pairs.get().get(&index) {
+                logging::log!("init prev found paragraph: {:?}", prev);
+                set_sentace_state
+                    .update(|state| state.set_initial_pairs(pairs_for_paragraph.clone()));
+                return true;
+            }
+        };
+        false
+    });
 
     let pair_button = move || {
-        if sentace_state.get().lock().unwrap().pair_enabled() {
+        if sentace_state.get().pair_enabled() {
             view! {
                 <div class="snap-start">
                     <div
@@ -412,7 +415,6 @@ pub fn Sentance(
                         on:click=move |_event| {
                             set_sentace_state
                                 .update(|state| {
-                                    let mut state = state.lock().unwrap();
                                     state.pair();
                                     set_pairs
                                         .update(|pairs| {
@@ -441,11 +443,11 @@ pub fn Sentance(
                     on:click=move |_event| {
                         set_sentace_state
                             .update(|state| {
-                                state.lock().unwrap().remove(pair_to_remove);
+                                state.remove(pair_to_remove);
                                 set_pairs
                                     .update(|pairs| {
                                         pairs
-                                            .insert(index, state.lock().unwrap().get_current_pairs());
+                                            .insert(index, state.get_current_pairs());
                                     });
                             });
                     }
@@ -466,7 +468,7 @@ pub fn Sentance(
     };
     let (store, set_store) = create_signal(TypeState::from_str(&paragraph.original));
     let class = move || {
-        if sentace_state.get().lock().unwrap().enable_selection {
+        if sentace_state.get().enable_selection {
             "outline-dashed p-2 cursor-default"
         } else {
             "outline-dashed p-2"
@@ -503,7 +505,7 @@ pub fn Sentance(
                     }
 
                     on:focus=move |_event| {
-                        if !sentace_state.get().lock().unwrap().enable_selection {
+                        if !sentace_state.get().enable_selection {
                             set_store.update(|store| store.focus = true)
                         }
                     }
@@ -566,20 +568,16 @@ pub fn Sentance(
                                     let class = move || TypingState::get_style_for_word_state(
                                         sentace_state
                                             .get()
-                                            .lock()
-                                            .unwrap()
                                             .get_state_for_word(word_index, EvaluationFor::Original),
                                     );
                                     view! {
                                         <div
                                             class=class
                                             on:click=move |_| {
-                                                if sentace_state.get().lock().unwrap().enable_selection {
+                                                if sentace_state.get().enable_selection {
                                                     set_sentace_state
                                                         .update(|state| {
                                                             state
-                                                                .lock()
-                                                                .unwrap()
                                                                 .set_selection_click(word_index, EvaluationFor::Original);
                                                         });
                                                 }
@@ -629,8 +627,6 @@ pub fn Sentance(
                                             {move || {
                                                 if let Some(index) = sentace_state
                                                     .get()
-                                                    .lock()
-                                                    .unwrap()
                                                     .get_pair_index_for_word_if_any(
                                                         word_index,
                                                         EvaluationFor::Original,
@@ -647,7 +643,7 @@ pub fn Sentance(
                                             }}
 
                                             {move || {
-                                                let pair = match sentace_state.get().lock().unwrap().clicked
+                                                let pair = match sentace_state.get().clicked
                                                 {
                                                     Clicked::Original(clicked_word_index) => {
                                                         clicked_word_index == word_index
@@ -665,7 +661,7 @@ pub fn Sentance(
                                                 if let Clicked::SelectedOriginal(
                                                     clicked_highlight,
                                                     clicked_highligth_word_index,
-                                                ) = sentace_state.get().lock().unwrap().clicked
+                                                ) = sentace_state.get().clicked
                                                 {
                                                     if clicked_highligth_word_index == word_index {
                                                         return delete_button(clicked_highlight);
@@ -691,20 +687,16 @@ pub fn Sentance(
                             let class = move || TypingState::get_style_for_word_state(
                                 sentace_state
                                     .get()
-                                    .lock()
-                                    .unwrap()
                                     .get_state_for_word(word_index, EvaluationFor::Translation),
                             );
                             view! {
                                 <div
                                     class=class
                                     on:click=move |_| {
-                                        if sentace_state.get().lock().unwrap().enable_selection {
+                                        if sentace_state.get().enable_selection {
                                             set_sentace_state
                                                 .update(|state| {
                                                     state
-                                                        .lock()
-                                                        .unwrap()
                                                         .set_selection_click(
                                                             word_index,
                                                             EvaluationFor::Translation,
@@ -719,8 +711,6 @@ pub fn Sentance(
                                     {move || {
                                         if let Some(index) = sentace_state
                                             .get()
-                                            .lock()
-                                            .unwrap()
                                             .get_pair_index_for_word_if_any(
                                                 word_index,
                                                 EvaluationFor::Translation,
@@ -737,7 +727,7 @@ pub fn Sentance(
                                     }}
 
                                     {move || {
-                                        let pair = match sentace_state.get().lock().unwrap().clicked
+                                        let pair = match sentace_state.get().clicked
                                         {
                                             Clicked::Translation(clicked_word_index) => {
                                                 clicked_word_index == word_index
@@ -755,7 +745,7 @@ pub fn Sentance(
                                         if let Clicked::SelectedTranslation(
                                             clicked_highlight,
                                             clicked_highligth_word_index,
-                                        ) = sentace_state.get().lock().unwrap().clicked
+                                        ) = sentace_state.get().clicked
                                         {
                                             if clicked_highligth_word_index == word_index {
                                                 return delete_button(clicked_highlight);
@@ -774,7 +764,7 @@ pub fn Sentance(
 
             {
                 let label = move || {
-                    if sentace_state.get().lock().unwrap().enable_selection {
+                    if sentace_state.get().enable_selection {
                         "click to enable typing"
                     } else {
                         "click to enable pairing"
@@ -786,7 +776,7 @@ pub fn Sentance(
                         on:click=move |_event| {
                             set_sentace_state
                                 .update(|state| {
-                                    state.lock().unwrap().toogle_enable_pair();
+                                    state.toogle_enable_pair();
                                 });
                         }
                     >

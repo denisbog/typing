@@ -143,31 +143,31 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
 
     let (pairs, set_pairs) = create_signal(TypePairs::new());
     logging::log!("init pairs");
-    set_pairs.update(|state| {
-        if let Some(article) = data.get().articles.get(article_id) {
-            article
-                .clone()
-                .paragraphs
-                .into_iter()
-                .enumerate()
-                .for_each(|(index, paragraph)| {
-                    if paragraph.pairs.is_some() {
-                        let associations = paragraph
-                            .pairs
-                            .unwrap()
-                            .into_iter()
-                            .map(|pair| Association {
-                                start_position: pair.original[0],
-                                original: pair.original.into_iter().collect(),
-                                translation: pair.translation.into_iter().collect(),
-                            })
-                            .collect();
 
-                        logging::log!("inserted associations: {:?}", associations);
-                        state.insert(index, associations);
-                    }
-                });
-        }
+    create_effect(move |_| {
+        set_pairs.update(|state| {
+            if let Some(article) = data.get().articles.get(article_id) {
+                article.clone().paragraphs.into_iter().enumerate().for_each(
+                    |(index, paragraph)| {
+                        if paragraph.pairs.is_some() {
+                            let associations = paragraph
+                                .pairs
+                                .unwrap()
+                                .into_iter()
+                                .map(|pair| Association {
+                                    start_position: pair.original[0],
+                                    original: pair.original.into_iter().collect(),
+                                    translation: pair.translation.into_iter().collect(),
+                                })
+                                .collect();
+
+                            logging::log!("inserted associations: {:?}", associations);
+                            state.insert(index, associations);
+                        }
+                    },
+                );
+            }
+        });
     });
 
     let on_back = move || {
