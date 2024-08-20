@@ -142,7 +142,6 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
     let article_id = params.with(|param| param.as_ref().unwrap().id).unwrap();
 
     let (pairs, set_pairs) = create_signal(TypePairs::new());
-
     logging::log!("init pairs");
     set_pairs.update(|state| {
         if let Some(article) = data.get().articles.get(article_id) {
@@ -171,7 +170,7 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
         }
     });
 
-    create_effect(move |_| {
+    let on_back = move || {
         logging::log!("pairs updated");
         set_data.update(|state| {
             if let Some(article) = state.articles.get_mut(article_id) {
@@ -192,10 +191,12 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
                 });
             }
         });
-    });
+        let navigate = leptos_router::use_navigate();
+        navigate("/", Default::default());
+    };
 
     let views = move || {
-        if let Some(article) = data.get_untracked().articles.get(article_id) {
+        if let Some(article) = data.get().articles.get(article_id) {
             let total = article.paragraphs.len();
             let link = article
                 .paragraphs
@@ -222,10 +223,10 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
 
             view! {
                 {paragraphs}
-                <div class="fixed bottom-2 p-2 text-gray-500 bg-gray-100 shadow-md cursor-default">
-                    "jump: " <a class="pl-1 underline" href="/">
+                <div class="fixed bottom-2 p-2 text-gray-500 bg-gray-100 shadow-md cursor-default flex">
+                    "jump: " <div class="pl-1 underline cursor-pointer" on:click=move |_| on_back()>
                         home
-                    </a> {link}
+                    </div> {link}
                 </div>
             }
             .into_view()

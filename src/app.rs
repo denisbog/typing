@@ -37,6 +37,13 @@ pub fn App() -> impl IntoView {
         |(session, _)| async { get_data(session.unwrap()).await.unwrap() },
     );
 
+    #[cfg(feature = "hydrate")]
+    spawn_local(async move {
+        resource.get().map(|data| {
+            set_translation_post.set(data);
+        });
+    });
+
     let input_popup_component = move |set_translation_post: WriteSignal<Data>| {
         if input_popup.get() {
             view! {
@@ -125,7 +132,6 @@ pub fn App() -> impl IntoView {
                 <Routes>
                     <Route
                         path=""
-                        ssr=SsrMode::InOrder
                         view=move || {
                             view! {
                                 <div
@@ -149,8 +155,7 @@ pub fn App() -> impl IntoView {
                                     {move || {
                                         resource
                                             .get()
-                                            .map(|data| {
-                                                set_translation_post.set(data);
+                                            .map(|_data| {
                                                 view! {
                                                     <TranslationPage
                                                         data=translation_post
@@ -178,8 +183,7 @@ pub fn App() -> impl IntoView {
                                     {move || {
                                         resource
                                             .get()
-                                            .map(|data| {
-                                                set_translation_post.set(data);
+                                            .map(|_data| {
                                                 view! {
                                                     <ArticlePage
                                                         data=translation_post
