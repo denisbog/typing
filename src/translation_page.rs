@@ -141,36 +141,7 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
     let params = use_params::<ArticleParams>();
     let article_id = params.with(|param| param.as_ref().unwrap().id).unwrap();
 
-    let (pairs, set_pairs) = create_signal(TypePairs::new());
-    logging::log!("init pairs");
-
-    create_effect(move |_| {
-        set_pairs.update(|state| {
-            if let Some(article) = data.get().articles.get(article_id) {
-                article.clone().paragraphs.into_iter().enumerate().for_each(
-                    |(index, paragraph)| {
-                        if paragraph.pairs.is_some() {
-                            let associations = paragraph
-                                .pairs
-                                .unwrap()
-                                .into_iter()
-                                .map(|pair| Association {
-                                    start_position: pair.original[0],
-                                    original: pair.original.into_iter().collect(),
-                                    translation: pair.translation.into_iter().collect(),
-                                })
-                                .collect();
-
-                            logging::log!("inserted associations: {:?}", associations);
-                            state.insert(index, associations);
-                        }
-                    },
-                );
-            }
-        });
-    });
-
-    let on_back = move || {
+    let on_back = move |pairs: ReadSignal<TypePairs>| {
         logging::log!("pairs updated");
         set_data.update(|state| {
             if let Some(article) = state.articles.get_mut(article_id) {
@@ -197,6 +168,32 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
 
     let views = move || {
         if let Some(article) = data.get().articles.get(article_id) {
+            let mut article_pairs = TypePairs::new();
+            article
+                .clone()
+                .paragraphs
+                .into_iter()
+                .enumerate()
+                .for_each(|(index, paragraph)| {
+                    if paragraph.pairs.is_some() {
+                        let associations = paragraph
+                            .pairs
+                            .unwrap()
+                            .into_iter()
+                            .map(|pair| Association {
+                                start_position: pair.original[0],
+                                original: pair.original.into_iter().collect(),
+                                translation: pair.translation.into_iter().collect(),
+                            })
+                            .collect();
+
+                        logging::log!("inserted associations: {:?}", associations);
+                        article_pairs.insert(index, associations);
+                    }
+                });
+
+            let (pairs, set_pairs) = create_signal(article_pairs);
+
             let total = article.paragraphs.len();
             let link = article
                 .paragraphs
@@ -224,7 +221,7 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
             view! {
                 {paragraphs}
                 <div class="fixed bottom-2 p-2 text-gray-500 bg-gray-100 shadow-md cursor-default flex">
-                    "jump: " <div class="pl-1 underline cursor-pointer" on:click=move |_| on_back()>
+                    "jump: " <div class="pl-1 underline cursor-pointer" on:click=move |_| on_back(pairs)>
                         home
                     </div> {link}
                 </div>

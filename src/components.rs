@@ -392,19 +392,11 @@ pub fn Sentance(
     pairs: ReadSignal<TypePairs>,
     set_pairs: WriteSignal<TypePairs>,
 ) -> impl IntoView {
-    let (sentace_state, set_sentace_state) = create_signal(TypingState::default());
-    create_effect(move |prev| {
-        logging::log!("init prev: {:?}", prev);
-        if prev.is_none() {
-            if let Some(pairs_for_paragraph) = pairs.get().get(&index) {
-                logging::log!("init prev found paragraph: {:?}", prev);
-                set_sentace_state
-                    .update(|state| state.set_initial_pairs(pairs_for_paragraph.clone()));
-                return true;
-            }
-        };
-        false
-    });
+    let mut typing_state = TypingState::default();
+    if let Some(pairs_for_paragraph) = pairs.get().get(&index) {
+        typing_state.set_initial_pairs(pairs_for_paragraph.clone());
+    }
+    let (sentace_state, set_sentace_state) = create_signal(typing_state);
 
     let pair_button = move || {
         if sentace_state.get().pair_enabled() {
