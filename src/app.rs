@@ -139,7 +139,7 @@ pub fn App() -> impl IntoView {
                                     class="p-3 pt-7 text-xl lg:text-3xl font-bold text-gray-100 font-mono w-screen justify-center flex snap-start"
                                 >
                                     <a href="/">
-                                        <div>Learn German by typing!</div>
+                                        <div>Lernen durch Tippen!</div>
                                     </a>
                                 </div>
                                 <div class="flex justify-center">
