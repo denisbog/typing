@@ -7,6 +7,9 @@ edition = "2021"
 name = "translate"
 path = "src/translate.rs"
 
+[[bin]]
+name = "translation-tool"
+path = "src/translation_tool.rs"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
@@ -31,12 +34,22 @@ serde = "1.0.203"
 uuid = {version="1.10.0", features = ["v4"]}
 cookie = "0.18.1"
 codee = "0.1.2"
+
 axum-aws-lambda = {version="0.8.0", optional=true}
 lambda_http = {version="0.13.0", optional=true}
 aws-config = { version = "1.1.7", features = ["behavior-version-latest"], optional=true }
 aws-sdk-dynamodb = {version = "1.42.0", optional = true }
 serde_dynamo = {version="4.2.14", features = ["aws-sdk-dynamodb+1"], optional=true}
-futures = "0.3.30"
+futures = { version = "0.3.30", optional = true }
+
+anyhow = { version = "1.0.86", optional = true }
+bindgen_cuda = { version="0.1.5", optional=true }
+candle-core = { version = "0.6.0", optional = true }
+candle-nn = { version = "0.6.0", optional = true }
+candle-transformers = { version = "0.6.0", optional = true }
+clap = { version = "4.5.16", features = ["derive"], optional = true }
+hf-hub = { version = "0.3.2", optional = true }
+tokenizers = { version = "0.20.0", optional = true }
 [features]
 hydrate = ["leptos/hydrate", "leptos_meta/hydrate", "leptos_router/hydrate"]
 ssr = [
@@ -55,10 +68,32 @@ ssr = [
     "dep:aws-config",
     "dep:serde_dynamo"
 ]
-lambda= ["dep:axum-aws-lambda",
+lambda = [
+    "dep:axum-aws-lambda",
     "dep:lambda_http",
 ]
+translation = [
+    "dep:anyhow",
+    "dep:bindgen_cuda",
+    "dep:candle-core",
+    "candle-core/cuda",
+    "dep:candle-nn",
+    "candle-nn/cuda",
+    "dep:candle-transformers",
+    "candle-transformers/cuda",
+    "dep:clap",
+    "dep:hf-hub",
+    "dep:tokenizers",
 
+    "dep:aws-config",
+    "dep:aws-sdk-dynamodb",
+    "dep:serde_dynamo",
+    "dep:futures",
+
+    "dep:tokio",
+    "tokio/rt-multi-thread",
+    "tokio/macros",
+]
 [package.metadata.cargo-all-features]
 denylist = ["axum", "tokio", "tower", "tower-http", "leptos_axum"]
 skip_feature_sets = [["ssr", "hydrate"]]

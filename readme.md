@@ -37,9 +37,13 @@ python translate_server.py
 ### translate articles
 
 ```bash
-cargo r --bin translate --release --features=ssr
+time cargo r --bin translate --release --features=translation
 ```
+### translate with rust ML
 
+```bash
+time PATH=$PATH:/usr/local/cuda-12.5/bin/ cargo run --release --features translation --bin translation-tool --  --tokenizer tokenizer-marian-base-de.json --tokenizer-dec tokenizer-marian-base-en.json
+```
 ### nvim init.lua config:
 
 ```lua
