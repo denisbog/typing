@@ -3,6 +3,7 @@ use std::convert::Infallible;
 use crate::{
     application_types::{Article, Data},
     error_template::{AppError, ErrorTemplate},
+    get_user_info, parse_hash,
     translation::{get_data, store_article},
     translation_page::{ArticlePage, TranslationPage},
 };
@@ -22,19 +23,24 @@ pub fn App() -> impl IntoView {
     provide_meta_context();
 
     let (translation_input, set_translation_input) = create_signal("".to_string());
-    let (session_id, _set_session_id) = use_cookie_with_options::<String, FromToStringCodec>(
+    let (session_id, set_session_id) = use_cookie_with_options::<String, FromToStringCodec>(
         "session_id",
         UseCookieOptions::<String, (), Infallible>::default()
-            .same_site(SameSite::None)
-            .default_value(Some("session_id".to_string())), //.default_value(Some(Uuid::new_v4().to_string())),
+            .default_value(None)
+            .same_site(SameSite::None),
     );
 
     let (translation_post, set_translation_post) = create_signal(Data::default());
     let (input_popup, set_input_popup) = create_signal(false);
-    let (is_trigger, trigger) = create_signal(false);
     let resource = create_resource(
-        move || (session_id.get(), is_trigger.get()),
-        |(session, _)| async { get_data(session.unwrap()).await.unwrap() },
+        move || session_id.get(),
+        |session| async {
+            if session.is_some() {
+                get_data(session.unwrap()).await.unwrap()
+            } else {
+                Data::default()
+            }
+        },
     );
 
     #[cfg(feature = "hydrate")]
@@ -43,7 +49,6 @@ pub fn App() -> impl IntoView {
             set_translation_post.set(data);
         });
     });
-
     let input_popup_component = move |set_translation_post: WriteSignal<Data>| {
         if input_popup.get() {
             view! {
@@ -85,7 +90,6 @@ pub fn App() -> impl IntoView {
                                                             data.articles.push(article.clone());
                                                         });
                                                     store_article(article).await.unwrap();
-                                                    //trigger.update(|current| { *current = !*current });
                                                 });
                                             }
                                         />
@@ -128,8 +132,71 @@ pub fn App() -> impl IntoView {
             outside_errors.insert_with_default_key(AppError::NotFound);
             view! { <ErrorTemplate outside_errors/> }.into_view()
         }>
+
+            {
+            #[cfg(feature = "hydrate")]
+            {
+                if session_id.get().is_none() {
+                    let location = use_location();
+                    let hash = location.hash.get();
+                    if !hash.is_empty() {
+                        let hash = parse_hash(hash);
+                        logging::log!("hash {:?}", hash);
+                        spawn_local(async move {
+                            let user_info = get_user_info(hash);
+                            set_session_id.set(Some(user_info.await.sub));
+                            location
+                                .hash
+                                .with(|hash| {
+                                    logging::log!("location {:?}", hash);
+                                });
+                        });
+                    } else {
+                        #[cfg(feature = "hydrate")]
+                        {
+                            let navigate = leptos_router::use_navigate();
+                            navigate("/login", Default::default());
+                        }
+                    }
+                }
+            }}
             <main class="w-screen flex flex-col items-center">
                 <Routes>
+                    <Route
+                        path="/login"
+                        view=move || {
+                            #[cfg(feature = "hydrate")]
+                            if session_id.get().is_some() {
+                                {
+                                    let navigate = leptos_router::use_navigate();
+                                    navigate("/", Default::default());
+                                }
+                            }
+                            view! {
+                                <div
+                                    id="top"
+                                    class="p-3 pt-7 text-xl lg:text-3xl font-bold text-gray-100 font-mono w-screen justify-center flex snap-start"
+                                >
+                                    <a href="/">
+                                        <div>Lernen durch Tippen!</div>
+                                    </a>
+                                </div>
+                                <div class="flex justify-center">
+                                    <div class=BUTTON_CLASS>
+                                        <div on:click=move |_event| {
+                                            window()
+                                                .location()
+                                                .assign(
+                                                    "https://typing.auth.us-east-1.amazoncognito.com/oauth2/authorize?client_id=2n9mqgc2vfhharda4r547sdcpm&response_type=token&scope=email+openid&redirect_uri=https%3A%2F%2Fxfwvamzfhhd4wjc766gmj6qsza0pcjeq.lambda-url.us-east-1.on.aws%2F",
+                                                )
+                                                .unwrap();
+                                        }>Login</div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    />
+
                     <Route
                         path=""
                         view=move || {

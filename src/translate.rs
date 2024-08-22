@@ -1,46 +1,59 @@
-use std::collections::HashMap;
+#[cfg(feature = "translation")]
+mod translation {
+    use std::collections::HashMap;
 
-use aws_sdk_dynamodb::types::{AttributeValue, AttributeValueUpdate};
-use serde::{Deserialize, Serialize};
-use serde_dynamo::from_items;
-use typing::application_types::{Article, Paragraph};
+    use aws_sdk_dynamodb::types::{AttributeValue, AttributeValueUpdate};
+    use serde::{Deserialize, Serialize};
+    use serde_dynamo::from_items;
+    use typing::application_types::{Article, Paragraph};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TranslationRequest {
-    pub src: Vec<String>,
-}
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct TranslationRequest {
+        pub src: Vec<String>,
+    }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TranslationResponse {
-    pub translated: Vec<String>,
-}
+    #[derive(Debug, Serialize, Deserialize)]
+    pub struct TranslationResponse {
+        pub translated: Vec<String>,
+    }
 
-impl TranslationRequest {
-    pub fn from_str(original: &String) -> Self {
-        Self {
-            src: original
-                .split("\n")
-                .map(str::to_string)
-                .collect::<Vec<String>>(),
+    impl TranslationRequest {
+        pub fn from_str(original: &String) -> Self {
+            Self {
+                src: original
+                    .split("\n")
+                    .map(str::to_string)
+                    .collect::<Vec<String>>(),
+            }
         }
     }
-}
-pub async fn get_translations(request: TranslationRequest) -> Result<TranslationResponse, String> {
-    let client = reqwest::Client::new();
-    let res: TranslationResponse = client
-        .post("http://localhost:5000/translate")
-        .json(&request)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
-    Ok(res)
+    pub async fn get_translations(
+        request: TranslationRequest,
+    ) -> Result<TranslationResponse, String> {
+        let client = reqwest::Client::new();
+        let res: TranslationResponse = client
+            .post("http://localhost:5000/translate")
+            .json(&request)
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        Ok(res)
+    }
 }
 
+#[cfg(feature = "translation")]
 #[tokio::main]
 async fn main() {
+    use std::collections::HashMap;
+
+    use aws_sdk_dynamodb::types::{AttributeValue, AttributeValueUpdate};
+    use serde_dynamo::from_items;
+    use translation::{get_translations, TranslationRequest};
+    use typing::application_types::{Article, Paragraph};
+
     println!("translating");
     let config = aws_config::load_from_env().await;
     let client = aws_sdk_dynamodb::Client::new(&config);
@@ -118,3 +131,6 @@ async fn main() {
     }))
     .await;
 }
+
+#[cfg(not(feature = "translation"))]
+fn main() {}

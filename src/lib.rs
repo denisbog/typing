@@ -1,10 +1,12 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 #[cfg(feature = "ssr")]
 use axum::extract::FromRef;
 
 use components::Association;
 use leptos::LeptosOptions;
+use reqwest::Client;
+use serde::{Deserialize, Serialize};
 
 pub mod components;
 mod types;
@@ -51,6 +53,43 @@ pub async fn init_db() {
 #[cfg(feature = "ssr")]
 pub async fn get_db<'a>() -> &'a AwsPersistance {
     DB.get().unwrap()
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct UserInfo {
+    pub sub: String,
+    pub email_verified: String,
+    pub email: String,
+    pub username: String,
+}
+
+pub async fn get_user_info(hash: HashMap<String, String>) -> UserInfo {
+    let client = Client::new();
+
+    let body = client
+        .get("https://typing.auth.us-east-1.amazoncognito.com/oauth2/userInfo")
+        .header(
+            reqwest::header::AUTHORIZATION,
+            format!(
+                "{} {}",
+                hash.get("token_type").unwrap(),
+                hash.get("access_token").unwrap()
+            ),
+        );
+    body.send().await.unwrap().json::<UserInfo>().await.unwrap()
+}
+
+pub fn parse_hash(hash: String) -> HashMap<String, String> {
+    let hash = &hash[1..];
+    let hash =
+        hash.split("&")
+            .into_iter()
+            .fold(HashMap::<String, String>::new(), |mut acc, item| {
+                let parts: Vec<&str> = item.split("=").collect();
+                acc.insert(parts[0].to_string(), parts[1].to_string());
+                acc
+            });
+    hash
 }
 
 pub type TypePairs = BTreeMap<usize, BTreeSet<Association>>;
