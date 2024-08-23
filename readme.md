@@ -43,6 +43,7 @@ time cargo r --bin translate --release --features=translation
 
 ```bash
 time PATH=$PATH:/usr/local/cuda-12.5/bin/ cargo run --release --features translation --bin translation-tool --  --tokenizer tokenizer-marian-base-de.json --tokenizer-dec tokenizer-marian-base-en.json
+time PATH=$PATH:/usr/local/cuda-12.5/bin/ cargo run --release --features translation --bin translation-tool
 ```
 ### nvim init.lua config:
 

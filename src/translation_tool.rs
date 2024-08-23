@@ -18,6 +18,9 @@ mod translation {
 
     #[derive(Parser)]
     pub struct Args {
+        #[arg(long, default_value = "false")]
+        cpu: bool,
+
         #[arg(long)]
         model: Option<String>,
 
@@ -54,8 +57,10 @@ mod translation {
             vocab_size: 58101,
         }
     }
-    pub fn device() -> Result<Device> {
-        if cuda_is_available() {
+    pub fn device(cpu: bool) -> Result<Device> {
+        if cpu {
+            Ok(Device::Cpu)
+        } else if cuda_is_available() {
             Ok(Device::new_cuda(0)?)
         } else if metal_is_available() {
             Ok(Device::new_metal(0)?)
@@ -91,7 +96,7 @@ mod translation {
             let tokenizer_dec = Tokenizer::from_file(&std::path::PathBuf::from(args.tokenizer_dec))
                 .map_err(E::msg)?;
 
-            let device = device()?;
+            let device = device(args.cpu)?;
             let vb = {
                 let model = match args.model {
                     Some(model) => std::path::PathBuf::from(model),
