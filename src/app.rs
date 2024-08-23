@@ -42,12 +42,8 @@ pub fn App() -> impl IntoView {
             }
         },
     );
-
-    #[cfg(feature = "hydrate")]
-    spawn_local(async move {
-        resource.get().map(|data| {
-            set_translation_post.set(data);
-        });
+    create_effect(move |_| {
+        set_translation_post.set(resource.get().unwrap());
     });
     let input_popup_component = move |set_translation_post: WriteSignal<Data>| {
         if input_popup.get() {
@@ -134,7 +130,6 @@ pub fn App() -> impl IntoView {
         }>
 
             {
-            #[cfg(feature = "hydrate")]
             {
                 if session_id.get().is_none() {
                     let location = use_location();
@@ -145,11 +140,6 @@ pub fn App() -> impl IntoView {
                         spawn_local(async move {
                             let user_info = get_user_info(hash);
                             set_session_id.set(Some(user_info.await.sub));
-                            location
-                                .hash
-                                .with(|hash| {
-                                    logging::log!("location {:?}", hash);
-                                });
                         });
                     } else {
                         #[cfg(feature = "hydrate")]
