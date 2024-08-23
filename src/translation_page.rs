@@ -16,12 +16,6 @@ pub struct ArticleParams {
 
 #[component]
 pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl IntoView {
-    let params = use_params::<ArticleParams>();
-    params.with(|param| {
-        if let Ok(item) = param {
-            logging::log!("params {:?}", item.id);
-        }
-    });
     let views = move || {
         data.get()
             .articles
