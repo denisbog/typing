@@ -24,7 +24,7 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
             .enumerate()
             .map(|(index, item)| {
                 view! {
-                    <div class="flex p-2">
+                    <div class="flex p-2 snap-start">
                         <div class="flex flex-col w-full">
                             <a class="w-full" href=format!("/article/{}", index)>
                                 {item.title}
