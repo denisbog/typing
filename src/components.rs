@@ -470,7 +470,7 @@ pub fn Sentance(
         <div class="flex flex-col justify-center min-h-lvh lg:h-min snap-start parent" id=index + 1>
             <div class=class>
                 <div
-                    class="lg:p-2 flex flex-wrap lg:text-2xl text-gray-500 font-mono focus:outline-none"
+                    class="lg:p-2 flex flex-wrap lg:text-2xl text-blue-800 font-mono focus:outline-none"
                     tabindex=1
                     on:keydown=move |event| {
                         let key = event.key_code();
@@ -595,12 +595,13 @@ pub fn Sentance(
                                                             return view! { <div class=class>{c.reference_char}</div> };
                                                         } else {
                                                             return view! {
-                                                                <div class="relative text-gray-400 underline">
-                                                                    {c.reference_char}
-                                                                    <div class="absolute -top-0 -right-0 text-red-700 italic underline">
+                                                                //<div class="relative text-blue-900 underline">
+                                                                    //{c.reference_char}
+                                                                    // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
+                                                                    <div class="text-red-800 italic underline">
                                                                         <p>{c.typed_char}</p>
                                                                     </div>
-                                                                </div>
+                                                                //</div>
                                                             };
                                                         }
                                                     }
