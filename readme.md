@@ -43,7 +43,7 @@ time cargo r --bin translate --release --features=translation
 
 ```bash
 time PATH=$PATH:/usr/local/cuda-12.5/bin/ cargo run --release --features translation --bin translation-tool --  --tokenizer tokenizer-marian-base-de.json --tokenizer-dec tokenizer-marian-base-en.json
-time PATH=$PATH:/usr/local/cuda-12.5/bin/ cargo run --release --features translation --bin translation-tool
+time NVCC_CCBIN=gcc-13 PATH=$PATH:/usr/local/cuda/bin cargo run --release --features translation --bin translation-tool
 ```
 ### nvim init.lua config:
 
@@ -88,6 +88,7 @@ docker build -t build . -f container/Dockerfile
 passing additinal feature `aws`, LEPTOS_OUTPUT_NAME=`typing` should match the main artifact from `Cargo.toml`
 
 ```bash
+cargo leptos watch --release
 LEPTOS_OUTPUT_NAME=typing cargo lambda build --no-default-features --features=ssr,lambda --release
 cargo lambda deploy --include target/site --enable-function-url --binary-name=typing
 ```
