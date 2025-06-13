@@ -1,4 +1,5 @@
-use leptos::{logging, server, ServerFnError};
+use leptos::prelude::*;
+use leptos::{logging, server};
 
 use crate::{
     application_types::{Article, Data},

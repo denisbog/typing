@@ -1,10 +1,9 @@
-use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::hash::Hash;
-use std::sync::Arc;
-use std::sync::Mutex;
 
-use leptos::*;
+use leptos::either::Either;
+use leptos::logging::log;
+use leptos::prelude::*;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -131,7 +130,7 @@ impl TypingState {
         if !self.enable_selection {
             return;
         }
-        logging::log!("click in new state {}", index);
+        log!("click in new state {}", index);
         match evaluation_for {
             EvaluationFor::Original => {
                 if let Clicked::SelectedOriginal(clicked_selected_index, clicked_index) =
@@ -141,7 +140,7 @@ impl TypingState {
                         self.get_pair_index_for_word_if_any(index, EvaluationFor::Original)
                     {
                         if selected_index == clicked_selected_index {
-                            logging::log!("highlight selection {}", index);
+                            log!("highlight selection {}", index);
                             self.clicked = Clicked::SelectedOriginal(selected_index, index);
                             self.original_selected.clear();
                             return;
@@ -161,20 +160,20 @@ impl TypingState {
                 }
 
                 if !self.original_selected.contains(&index) {
-                    logging::log!("click inserting {}", index);
+                    log!("click inserting {}", index);
                     self.original_selected.insert(index);
                     if let Some(selected_index) =
                         self.get_pair_index_for_word_if_any(index, EvaluationFor::Original)
                     {
-                        logging::log!("highlight selection {}", index);
+                        log!("highlight selection {}", index);
                         self.clicked = Clicked::SelectedOriginal(selected_index, index);
                     } else {
-                        logging::log!("click on selection {}", index);
+                        log!("click on selection {}", index);
                         self.clicked = Clicked::Original(index);
                     }
                 } else if let Clicked::Original(clicked_index) = self.clicked {
                     if clicked_index == index {
-                        logging::log!("remove from selection {}", index);
+                        log!("remove from selection {}", index);
                         self.original_selected.remove(&index);
                         self.clicked = Clicked::None;
                     } else {
@@ -184,8 +183,8 @@ impl TypingState {
                     self.clicked = Clicked::Original(index);
                 };
 
-                logging::log!("click {:?}", self.clicked);
-                logging::log!("original selected {:?}", self.original_selected);
+                log!("click {:?}", self.clicked);
+                log!("original selected {:?}", self.original_selected);
             }
             EvaluationFor::Translation => {
                 if let Clicked::SelectedTranslation(clicked_selected_index, clicked_index) =
@@ -195,7 +194,7 @@ impl TypingState {
                         self.get_pair_index_for_word_if_any(index, EvaluationFor::Translation)
                     {
                         if selected_index == clicked_selected_index {
-                            logging::log!("highlight selection {}", index);
+                            log!("highlight selection {}", index);
                             self.clicked = Clicked::SelectedTranslation(selected_index, index);
                             self.translated_selected.clear();
                             return;
@@ -215,20 +214,20 @@ impl TypingState {
                 }
 
                 if !self.translated_selected.contains(&index) {
-                    logging::log!("click inserting {}", index);
+                    log!("click inserting {}", index);
                     self.translated_selected.insert(index);
                     if let Some(selected_index) =
                         self.get_pair_index_for_word_if_any(index, EvaluationFor::Translation)
                     {
-                        logging::log!("highlight selection {}", index);
+                        log!("highlight selection {}", index);
                         self.clicked = Clicked::SelectedTranslation(selected_index, index);
                     } else {
-                        logging::log!("click on selection {}", index);
+                        log!("click on selection {}", index);
                         self.clicked = Clicked::Translation(index);
                     }
                 } else if let Clicked::Translation(clicked_index) = self.clicked {
                     if clicked_index == index {
-                        logging::log!("remove from selection {}", index);
+                        log!("remove from selection {}", index);
                         self.translated_selected.remove(&index);
                         self.clicked = Clicked::None;
                     } else {
@@ -238,14 +237,14 @@ impl TypingState {
                     self.clicked = Clicked::Translation(index);
                 };
 
-                logging::log!("click {:?}", self.clicked);
-                logging::log!("translation selected {:?}", self.translated_selected);
+                log!("click {:?}", self.clicked);
+                log!("translation selected {:?}", self.translated_selected);
             }
         };
     }
 
     fn get_state_for_word(&self, index: usize, evaluation_for: EvaluationFor) -> WordState {
-        logging::log!("get state for word");
+        log!("get state for word");
         match evaluation_for {
             EvaluationFor::Original => {
                 if let Clicked::SelectedOriginal(clicked_selected_index, clicked_index) =
@@ -341,7 +340,7 @@ impl TypingState {
     }
 
     fn pair_enabled(&self) -> bool {
-        logging::log!("evaluate if pair action is enabled {:?}", self.pairs);
+        log!("evaluate if pair action is enabled {:?}", self.pairs);
         !self.original_selected.is_empty() && !self.translated_selected.is_empty()
     }
     fn pair(&mut self) {
@@ -350,7 +349,7 @@ impl TypingState {
                 self.original_selected.clone(),
                 self.translated_selected.clone(),
             ));
-            logging::log!("new pair {:?}", self.pairs);
+            log!("new pair {:?}", self.pairs);
             self.original_selected.clear();
             self.translated_selected.clear();
             self.clicked = Clicked::None;
@@ -396,11 +395,11 @@ pub fn Sentance(
     if let Some(pairs_for_paragraph) = pairs.get().get(&index) {
         typing_state.set_initial_pairs(pairs_for_paragraph.clone());
     }
-    let (sentace_state, set_sentace_state) = create_signal(typing_state);
+    let (sentace_state, set_sentace_state) = signal(typing_state);
 
     let pair_button = move || {
         if sentace_state.get().pair_enabled() {
-            view! {
+            Either::Left(view! {
                 <div class="snap-start">
                     <div
                         class="absolute -top-2 -right-2 italic text-xs lg:text-md underline cursor-pointer z-10 bg-yellow-200 p-1 shadow-md rounded"
@@ -420,10 +419,9 @@ pub fn Sentance(
                     </div>
 
                 </div>
-            }
-            .into_view()
+            })
         } else {
-            view! {}.into_view()
+            Either::Right(view! {})
         }
     };
 
@@ -438,8 +436,7 @@ pub fn Sentance(
                                 state.remove(pair_to_remove);
                                 set_pairs
                                     .update(|pairs| {
-                                        pairs
-                                            .insert(index, state.get_current_pairs());
+                                        pairs.insert(index, state.get_current_pairs());
                                     });
                             });
                     }
@@ -458,7 +455,7 @@ pub fn Sentance(
     } else {
         vec![]
     };
-    let (store, set_store) = create_signal(TypeState::from_str(&paragraph.original));
+    let (store, set_store) = signal(TypeState::from_str(&paragraph.original));
     let class = move || {
         if sentace_state.get().enable_selection {
             "outline-dashed p-2 cursor-default"
@@ -475,7 +472,7 @@ pub fn Sentance(
                     on:keydown=move |event| {
                         let key = event.key_code();
                         let mut local_store = store.get_untracked();
-                        logging::log!("key down {} {}", key, local_store.word_index);
+                        log!("key down {} {}", key, local_store.word_index);
                         if key == 8 {
                             if let Some(word) = local_store.data.get_mut(local_store.word_index) {
                                 if word.char_index > 0 {
@@ -522,8 +519,8 @@ pub fn Sentance(
                             | 63 => {
                                 let mut local_store = store.get();
                                 if local_store.word_index < local_store.data.len() {
-                                    logging::log!("current index {}", local_store.word_index);
-                                    logging::log!(
+                                    log!("current index {}", local_store.word_index);
+                                    log!(
                                         "current word index {}", local_store.data.get(local_store
                                         .word_index).unwrap().char_index
                                     );
@@ -532,7 +529,7 @@ pub fn Sentance(
                                         .get_mut(local_store.word_index)
                                         .unwrap();
                                     if word.char_index < word.data.len() {
-                                        logging::log!("inserting {}", char::from_u32(key).unwrap());
+                                        log!("inserting {}", char::from_u32(key).unwrap());
                                         word.data
                                             .get_mut(word.char_index)
                                             .unwrap()
@@ -544,7 +541,7 @@ pub fn Sentance(
                             }
                             _ => {}
                         };
-                        logging::log!("keypress {:?}", & key);
+                        log!("keypress {:?}", & key);
                     }
                 >
 
@@ -592,17 +589,18 @@ pub fn Sentance(
                                                                     "text-gray-900"
                                                                 }
                                                             };
-                                                            return view! { <div class=class>{c.reference_char}</div> };
+                                                            return view! { <div class=class>{c.reference_char}</div> }
+                                                                .into_any();
                                                         } else {
                                                             return view! {
-                                                                //<div class="relative text-blue-900 underline">
-                                                                    //{c.reference_char}
-                                                                    // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
-                                                                    <div class="text-red-800 italic underline">
-                                                                        <p>{c.typed_char}</p>
-                                                                    </div>
-                                                                //</div>
-                                                            };
+                                                                // <div class="relative text-blue-900 underline">
+                                                                // {c.reference_char}
+                                                                // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
+                                                                <div class="text-red-800 italic underline">
+                                                                    <p>{c.typed_char}</p>
+                                                                </div>
+                                                            }
+                                                                .into_any();
                                                         }
                                                     }
                                                     let class = move || {
@@ -613,7 +611,47 @@ pub fn Sentance(
                                                             ""
                                                         }
                                                     };
-                                                    view! { <div class=class>{c.reference_char}</div> }
+                                                    view! {
+                                                        // <div class="relative text-blue-900 underline">
+                                                        // {c.reference_char}
+                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
+
+                                                        // <div class="relative text-blue-900 underline">
+                                                        // {c.reference_char}
+                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
+
+                                                        // <div class="relative text-blue-900 underline">
+                                                        // {c.reference_char}
+                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
+
+                                                        // <div class="relative text-blue-900 underline">
+                                                        // {c.reference_char}
+                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
+
+                                                        // <div class="relative text-blue-900 underline">
+                                                        // {c.reference_char}
+                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
+
+                                                        // <div class="relative text-blue-900 underline">
+                                                        // {c.reference_char}
+                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
+
+                                                        // <div class="relative text-blue-900 underline">
+                                                        // {c.reference_char}
+                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
+
+                                                        // <div class="relative text-blue-900 underline">
+                                                        // {c.reference_char}
+                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
+
+                                                        // <div class="relative text-blue-900 underline">
+                                                        // {c.reference_char}
+                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
+                                                        // </div>
+
+                                                        <div class=class>{c.reference_char}</div>
+                                                    }
+                                                        .into_any()
                                                 }
                                             />
 
@@ -625,28 +663,29 @@ pub fn Sentance(
                                                         EvaluationFor::Original,
                                                     )
                                                 {
-                                                    view! {
-                                                        <div class="absolute -top-2 lg:-top-4 right-1 text-red-600 italic text-xs lg:text-md bg-blue-200 shadow-md rounded px-1 border-solid-1 font-sans">
-                                                            {index}
-                                                        </div>
-                                                    }
+                                                    Either::Left(
+                                                        view! {
+                                                            <div class="absolute -top-2 lg:-top-4 right-1 text-red-600 italic text-xs lg:text-md bg-blue-200 shadow-md rounded px-1 border-solid-1 font-sans">
+                                                                {index}
+                                                            </div>
+                                                        },
+                                                    )
                                                 } else {
-                                                    view! { <div class="absolute"></div> }
+                                                    Either::Right(view! { <div class="absolute"></div> })
                                                 }
                                             }}
 
                                             {move || {
-                                                let pair = match sentace_state.get().clicked
-                                                {
+                                                let pair = match sentace_state.get().clicked {
                                                     Clicked::Original(clicked_word_index) => {
                                                         clicked_word_index == word_index
                                                     }
                                                     _ => false,
                                                 };
                                                 if pair {
-                                                    pair_button().into_view()
+                                                    Either::Left(pair_button())
                                                 } else {
-                                                    view! {}.into_view()
+                                                    Either::Right(view! {})
                                                 }
                                             }}
 
@@ -657,10 +696,10 @@ pub fn Sentance(
                                                 ) = sentace_state.get().clicked
                                                 {
                                                     if clicked_highligth_word_index == word_index {
-                                                        return delete_button(clicked_highlight);
+                                                        return delete_button(clicked_highlight).into_any();
                                                     }
                                                 }
-                                                view! {}.into_view()
+                                                view! {}.into_any()
                                             }}
 
                                         </div>
@@ -709,28 +748,29 @@ pub fn Sentance(
                                                 EvaluationFor::Translation,
                                             )
                                         {
-                                            view! {
-                                                <div class="absolute -top-2 lg:-top-4 right-1 text-red-600 italic text-xs lg:text-md bg-blue-200 shadow-md rounded px-1 border-solid-1 font-sans">
-                                                    {index}
-                                                </div>
-                                            }
+                                            Either::Left(
+                                                view! {
+                                                    <div class="absolute -top-2 lg:-top-4 right-1 text-red-600 italic text-xs lg:text-md bg-blue-200 shadow-md rounded px-1 border-solid-1 font-sans">
+                                                        {index}
+                                                    </div>
+                                                },
+                                            )
                                         } else {
-                                            view! { <div class="absolute"></div> }
+                                            Either::Right(view! { <div class="absolute"></div> })
                                         }
                                     }}
 
                                     {move || {
-                                        let pair = match sentace_state.get().clicked
-                                        {
+                                        let pair = match sentace_state.get().clicked {
                                             Clicked::Translation(clicked_word_index) => {
                                                 clicked_word_index == word_index
                                             }
                                             _ => false,
                                         };
                                         if pair {
-                                            pair_button().into_view()
+                                            Either::Left(pair_button())
                                         } else {
-                                            view! {}.into_view()
+                                            Either::Right(view! {})
                                         }
                                     }}
 
@@ -741,10 +781,10 @@ pub fn Sentance(
                                         ) = sentace_state.get().clicked
                                         {
                                             if clicked_highligth_word_index == word_index {
-                                                return delete_button(clicked_highlight);
+                                                return delete_button(clicked_highlight).into_any();
                                             }
                                         }
-                                        view! {}.into_view()
+                                        view! {}.into_any()
                                     }}
 
                                 </div>

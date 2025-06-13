@@ -1,28 +1,51 @@
 use std::convert::Infallible;
 
+use codee::string::FromToStringCodec;
+use leptos::either::Either;
+use leptos::logging::log;
+use leptos::task::spawn_local;
+use leptos_router::path;
+use leptos_use::use_cookie_with_options;
+use leptos_use::UseCookieOptions;
+
+use crate::get_user_info;
+use crate::parse_hash;
+use crate::translation_page::TranslationPage;
 use crate::{
     application_types::{Article, Data},
-    error_template::{AppError, ErrorTemplate},
-    get_user_info, parse_hash,
     translation::{get_data, store_article},
-    translation_page::{ArticlePage, TranslationPage},
+    translation_page::ArticlePage,
+    BUTTON_CLASS,
 };
-use leptos::*;
-use leptos_meta::*;
-use leptos_router::*;
-use leptos_use::{use_cookie_with_options, UseCookieOptions};
-use uuid::Uuid;
-
-use codee::string::FromToStringCodec;
-
 use cookie::SameSite;
+use leptos_router::components::{Route, Router, Routes};
+use leptos_router::hooks::use_location;
 
-use crate::BUTTON_CLASS;
+use leptos::prelude::*;
+use leptos_meta::*;
+
+pub fn shell(options: LeptosOptions) -> impl IntoView {
+    provide_meta_context();
+    view! {
+        <!DOCTYPE html>
+        <html lang="en" class="snap-y snap-y-mandatory">
+            <head>
+                <meta charset="utf-8"/>
+                <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                <Title text="Typing app"/>
+                <Stylesheet id="leptos" href="/typing.css"/>
+                <AutoReload options=options.clone()/>
+                <HydrationScripts options/>
+                <MetaTags/>
+            </head>
+            <body class="h-screen bg-gray-400 text-gray-900"></body>
+        </html>
+    }
+}
+
 #[component]
 pub fn App() -> impl IntoView {
-    provide_meta_context();
-
-    let (translation_input, set_translation_input) = create_signal("".to_string());
+    let (translation_input, set_translation_input) = signal("".to_string());
     let (session_id, set_session_id) = use_cookie_with_options::<String, FromToStringCodec>(
         "session_id",
         UseCookieOptions::<String, (), Infallible>::default()
@@ -30,24 +53,29 @@ pub fn App() -> impl IntoView {
             .same_site(SameSite::None),
     );
 
-    let (translation_post, set_translation_post) = create_signal(Data::default());
-    let (input_popup, set_input_popup) = create_signal(false);
-    let resource = create_resource(
-        move || session_id.get(),
-        |session| async {
-            if session.is_some() {
-                get_data(session.unwrap()).await.unwrap()
+    let (translation_post, set_translation_post) = signal(Data::default());
+    let (input_popup, set_input_popup) = signal(false);
+    let resource = Resource::new(
+        move || session_id,
+        |session| async move {
+            if session.get().is_some() {
+                get_data(session.get().unwrap()).await.unwrap()
             } else {
                 Data::default()
             }
         },
     );
-    create_effect(move |_| {
-        set_translation_post.set(resource.get().unwrap());
+    Effect::new(move |_| {
+        if let Some(data) = resource.get() {
+            log!("setting data {:?}", data);
+            set_translation_post.set(data);
+        } else {
+            log!("data not loaded");
+        }
     });
     let input_popup_component = move |set_translation_post: WriteSignal<Data>| {
         if input_popup.get() {
-            view! {
+            Either::Left(view! {
                 <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity">
                     <div class="fixed inset-1 z-10 w-screen overflow-y-auto">
                         <div class="flex min-h-full items-end justify-center text-center sm:items-center sm:p-0 lg:p-5">
@@ -55,7 +83,6 @@ pub fn App() -> impl IntoView {
                                 <div class="flex flex-1 flex-col bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
                                     <textarea
                                         class="h-80"
-                                        type="textarea"
                                         placeholder="type here your text"
                                         prop:value=translation_input
                                         on:input=move |event| {
@@ -70,7 +97,7 @@ pub fn App() -> impl IntoView {
                                             value="Add article"
                                             on:click=move |_event| {
                                                 let temp = translation_input.get();
-                                                logging::log!("passing argument: {}", temp);
+                                                log!("passing argument: {}", temp);
                                                 set_input_popup.set(false);
                                                 spawn_local(async move {
                                                     let paragraphs = temp
@@ -91,12 +118,13 @@ pub fn App() -> impl IntoView {
                                         />
 
                                         <input
-                                            class="p-2 m-1 shadow-md rounded bg-gray-100 text-gray-700"
-                                            type="button"
-                                            value="Close"
                                             on:click=move |_event| {
                                                 set_input_popup.set(false);
                                             }
+
+                                            class="p-2 m-1 shadow-md rounded bg-gray-100 text-gray-700"
+                                            type="button"
+                                            value="Close"
                                         />
 
                                     </div>
@@ -105,38 +133,21 @@ pub fn App() -> impl IntoView {
                         </div>
                     </div>
                 </div>
-            }.into_view()
+            }.into_view())
         } else {
-            view! {}.into_view()
+            Either::Right(view! {}.into_view())
         }
     };
 
     view! {
-        <Html class="snap-y snap-y-mandatory"/>
-
-        // injects a stylesheet into the document <head>
-        // id=leptos means cargo-leptos will hot-reload this stylesheet
-        <Stylesheet id="leptos" href="/typing.css"/>
-
-        // sets the document title
-        <Title text="Typing app"/>
-
-        <Body class="h-screen bg-gray-400 text-gray-900"/>
-        // content for this welcome page
-        <Router fallback=|| {
-            let mut outside_errors = Errors::default();
-            outside_errors.insert_with_default_key(AppError::NotFound);
-            view! { <ErrorTemplate outside_errors/> }.into_view()
-        }>
-
-            {
-            {
+        <Router>
+            {move || {
                 if session_id.get().is_none() {
                     let location = use_location();
                     let hash = location.hash.get();
                     if !hash.is_empty() {
                         let hash = parse_hash(hash);
-                        logging::log!("hash {:?}", hash);
+                        log!("hash {:?}", hash);
                         spawn_local(async move {
                             let user_info = get_user_info(hash);
                             set_session_id.set(Some(user_info.await.sub));
@@ -144,21 +155,23 @@ pub fn App() -> impl IntoView {
                     } else {
                         #[cfg(feature = "hydrate")]
                         {
-                            let navigate = leptos_router::use_navigate();
+                            use leptos_router::hooks::use_navigate;
+                            let navigate = use_navigate();
                             navigate("/login", Default::default());
                         }
                     }
                 }
             }}
             <main class="w-screen flex flex-col items-center">
-                <Routes>
+                <Routes fallback=|| "Not found!">
                     <Route
-                        path="/login"
+                        path=path!("/login")
                         view=move || {
                             #[cfg(feature = "hydrate")]
                             if session_id.get().is_some() {
                                 {
-                                    let navigate = leptos_router::use_navigate();
+                                    use leptos_router::hooks::use_navigate;
+                                    let navigate = use_navigate();
                                     navigate("/", Default::default());
                                 }
                             }
@@ -168,7 +181,7 @@ pub fn App() -> impl IntoView {
                                     class="p-3 pt-7 text-xl lg:text-3xl font-bold text-gray-100 font-mono w-screen justify-center flex snap-start"
                                 >
                                     <a href="/">
-                                        <div>Lernen durch Tippen!</div>
+                                        <div>Tippen!</div>
                                     </a>
                                 </div>
                                 <div class="flex justify-center">
@@ -188,7 +201,7 @@ pub fn App() -> impl IntoView {
                     />
 
                     <Route
-                        path=""
+                        path=path!("")
                         view=move || {
                             view! {
                                 <div
@@ -196,7 +209,7 @@ pub fn App() -> impl IntoView {
                                     class="p-3 pt-7 text-xl lg:text-3xl font-bold text-gray-100 font-mono w-screen justify-center flex snap-start"
                                 >
                                     <a href="/">
-                                        <div>Lernen durch Tippen!</div>
+                                        <div>Tippen!</div>
                                     </a>
                                 </div>
                                 <div class="flex justify-center">
@@ -219,7 +232,7 @@ pub fn App() -> impl IntoView {
                                                         set_data=set_translation_post
                                                     />
                                                     <div>
-                                                        {move || input_popup_component(set_translation_post)}
+                                                        {input_popup_component(set_translation_post)}
                                                     </div>
                                                 }
                                             })
@@ -231,7 +244,7 @@ pub fn App() -> impl IntoView {
                     />
 
                     <Route
-                        path="/article/:id"
+                        path=path!("/article/:id")
                         view=move || {
                             view! {
                                 <Suspense fallback=move || {

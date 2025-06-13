@@ -1,10 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-#[cfg(feature = "ssr")]
-use axum::extract::FromRef;
-
 use components::Association;
-use leptos::LeptosOptions;
+use leptos::prelude::LeptosOptions;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
@@ -24,10 +21,7 @@ pub const BUTTON_CLASS: &'static str =
     "size-fit text-md m-2 p-2 shadow-md rounded bg-gray-300 cursor-pointer text-nowrap whitespace-nowrap";
 
 #[cfg(feature = "ssr")]
-pub mod fileserv;
-
-#[cfg(feature = "ssr")]
-#[derive(FromRef, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct AppState {
     pub leptos_options: LeptosOptions,
 }
@@ -35,9 +29,11 @@ pub struct AppState {
 #[cfg(feature = "hydrate")]
 #[wasm_bindgen::prelude::wasm_bindgen]
 pub fn hydrate() {
+    use leptos::mount::mount_to_body;
+
     use crate::app::*;
     console_error_panic_hook::set_once();
-    leptos::mount_to_body(App);
+    mount_to_body(App);
 }
 
 #[cfg(feature = "ssr")]

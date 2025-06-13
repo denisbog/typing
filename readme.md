@@ -77,6 +77,7 @@ time NVCC_CCBIN=gcc-13 PATH=$PATH:/usr/local/cuda/bin cargo run --release --feat
 
 
 ```
+
 ### build for AWS image
 
 ```docker
@@ -87,8 +88,14 @@ docker build -t build . -f container/Dockerfile
 
 passing additinal feature `aws`, LEPTOS_OUTPUT_NAME=`typing` should match the main artifact from `Cargo.toml`
 
+## build and deploy the application
+
 ```bash
 cargo leptos watch --release
-LEPTOS_OUTPUT_NAME=typing cargo lambda build --no-default-features --features=ssr,lambda --release
+RUSTFLAGS="-Zlinker-features=-lld" LEPTOS_OUTPUT_NAME=typing cargo lambda build --no-default-features --features=ssr,lambda --release
 cargo lambda deploy --include target/site --enable-function-url --binary-name=typing
+
+## translation
+```bash
+NVCC_CCBIN=gcc-14 PATH=$PATH:/usr/local/cuda/bin cargo r --release --package translation-tool
 ```

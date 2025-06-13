@@ -1,0 +1,39 @@
+[package]
+name = "translation-tool"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# aws-config.workspace = true
+# aws-config.features = ["behavior-version-latest"]
+# aws-sdk-dynamodb.workspace = true
+# serde_dynamo.workspace = true
+# serde_dynamo.features = ["aws-sdk-dynamodb+1"]
+# tracing.workspace = true
+
+serde.workspace = true
+# aws-config.workspace = true
+# aws-config.features = ["behavior-version-latest"]
+# aws-sdk-dynamodb.workspace = true
+# serde_dynamo.workspace = true
+# serde_dynamo.features = ["aws-sdk-dynamodb+1"]
+# tracing.workspace = true
+
+serde.features = ["derive"]
+serde_json.workspace = true
+
+aws-config = { version = "1.6.3", features = ["behavior-version-latest"]}
+aws-sdk-dynamodb = {version = "1.79.0" }
+serde_dynamo = {version="4.2.14", features = ["aws-sdk-dynamodb+1"]}
+
+anyhow = {version = "1.0.98"}
+bindgen_cuda = { version="0.1.5", optional=true }
+candle-core = { version = "0.9.1", features = ["cuda"] }
+candle-nn = { version = "0.9.1", features = ["cuda"] }
+candle-transformers = { version = "0.9.1", features = ["cuda"] }
+clap = { version = "4.5.40", features = ["derive"] }
+hf-hub = { version = "0.4.2" }
+tokenizers = { version = "0.21.1" }
+
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+futures = { version = "0.3.31" }
