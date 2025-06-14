@@ -135,7 +135,7 @@ pub fn App() -> impl IntoView {
                 </div>
             }.into_view())
         } else {
-            Either::Right(view! {}.into_view())
+            Either::Right(())
         }
     };
 

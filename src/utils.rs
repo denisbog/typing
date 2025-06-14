@@ -11,8 +11,6 @@ pub fn compare(t: char, r: char) -> bool {
         true
     } else if t == 'O' && r == 'Ö' {
         true
-    } else if t == 's' && r == 'ß' {
-        true
     } else if t == 'u' && r == 'ü' {
         true
     } else if t == 'a' && r == 'ä' {
@@ -28,11 +26,11 @@ pub fn compare(t: char, r: char) -> bool {
     } else if t == 'o' && r == 'Ö' {
         true
     } else if t == '"' && r == '«' {
-        return true;
+        true
     } else if t == '"' && r == '»' {
-        return true;
+        true
     } else if t == '-' && r == '–' {
-        return true;
+        true
     } else {
         false
     }

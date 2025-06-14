@@ -34,7 +34,7 @@ impl Article {
 
         Article {
             translated: "false".to_string(),
-            title: format!("{} || {}", title, subtitle),
+            title: format!("{title} || {subtitle}"),
             paragraphs,
         }
     }
@@ -46,10 +46,10 @@ pub fn extract_article(
     access_info: &String,
 ) -> anyhow::Result<Article> {
     println!("-------------------------------");
-    println!("processing site  {}", site);
+    println!("processing site {site}");
     let response = client.get(site);
     let response = response
-        .header("Cookie", format!("accessInfo={}", access_info))
+        .header("Cookie", format!("accessInfo={access_info}"))
         .header(
             "User-Agent",
             "Mozilla/5.0 (X11; Linux x86_64; rv:129.0) Gecko/20100101 Firefox/129.0",
@@ -75,12 +75,10 @@ pub fn extract_article(
         .filter_map(|fragment| {
             if fragment.value().is_text() {
                 Some(fragment)
+            } else if fragment.has_children() {
+                Some(fragment.first_child().unwrap())
             } else {
-                if fragment.has_children() {
-                    Some(fragment.first_child().unwrap())
-                } else {
-                    None
-                }
+                None
             }
         })
         .map(|item| item.value().as_text().unwrap())
@@ -96,12 +94,10 @@ pub fn extract_article(
                 .filter_map(|fragment| {
                     if fragment.value().is_text() {
                         Some(fragment)
+                    } else if fragment.has_children() {
+                        Some(fragment.first_child().unwrap())
                     } else {
-                        if fragment.has_children() {
-                            Some(fragment.first_child().unwrap())
-                        } else {
-                            None
-                        }
+                        None
                     }
                 })
                 //.map(|item| {
@@ -110,7 +106,7 @@ pub fn extract_article(
                 //})
                 .filter_map(|item| item.value().as_text())
                 .map(|item| item.to_string())
-                .map(|item| clean(item))
+                .map(clean)
                 .collect::<String>()
         })
         .collect::<Vec<String>>();

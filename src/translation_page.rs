@@ -227,7 +227,7 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
                 </div>
             })
         } else {
-            Either::Right(view! {})
+            Either::Right(())
         }
     };
     view! { <div class="w-screen lg:w-3/4 flex flex-col ">{views}</div> }

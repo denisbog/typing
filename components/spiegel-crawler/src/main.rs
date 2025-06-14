@@ -35,8 +35,7 @@ async fn main() -> Result<()> {
     let ids = response.join(",");
 
     let response = client.get(format!(
-        "https://www.spiegel.de/services/sitesearch/fetch?ids={}",
-        ids
+        "https://www.spiegel.de/services/sitesearch/fetch?ids={ids}"
     ));
     let response = response
         .header("Cookie", format!("userInfo={}", args.user_info))

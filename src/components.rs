@@ -421,7 +421,7 @@ pub fn Sentance(
                 </div>
             })
         } else {
-            Either::Right(view! {})
+            Either::Right(())
         }
     };
 
@@ -693,7 +693,7 @@ pub fn Sentance(
                                                 if pair {
                                                     Either::Left(pair_button())
                                                 } else {
-                                                    Either::Right(view! {})
+                                                    Either::Right(())
                                                 }
                                             }}
 
@@ -707,7 +707,7 @@ pub fn Sentance(
                                                         return delete_button(clicked_highlight).into_any();
                                                     }
                                                 }
-                                                view! {}.into_any()
+                                               ().into_any()
                                             }}
 
                                         </div>
@@ -778,7 +778,7 @@ pub fn Sentance(
                                         if pair {
                                             Either::Left(pair_button())
                                         } else {
-                                            Either::Right(view! {})
+                                            Either::Right(())
                                         }
                                     }}
 
@@ -792,7 +792,7 @@ pub fn Sentance(
                                                 return delete_button(clicked_highlight).into_any();
                                             }
                                         }
-                                        view! {}.into_any()
+                                ().into_any()
                                     }}
 
                                 </div>

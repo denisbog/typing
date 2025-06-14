@@ -10,14 +10,13 @@ mod types;
 mod utils;
 
 pub mod app;
-pub mod error_template;
 pub mod translation;
 
 pub mod application_types;
 pub mod persistance;
 pub mod translation_page;
 
-pub const BUTTON_CLASS: &'static str =
+pub const BUTTON_CLASS: &str =
     "size-fit text-md m-2 p-2 shadow-md rounded bg-gray-300 cursor-pointer text-nowrap whitespace-nowrap";
 
 #[cfg(feature = "ssr")]
@@ -77,14 +76,13 @@ pub async fn get_user_info(hash: HashMap<String, String>) -> UserInfo {
 
 pub fn parse_hash(hash: String) -> HashMap<String, String> {
     let hash = &hash[1..];
-    let hash =
-        hash.split("&")
-            .into_iter()
-            .fold(HashMap::<String, String>::new(), |mut acc, item| {
-                let parts: Vec<&str> = item.split("=").collect();
-                acc.insert(parts[0].to_string(), parts[1].to_string());
-                acc
-            });
+    let hash = hash
+        .split("&")
+        .fold(HashMap::<String, String>::new(), |mut acc, item| {
+            let parts: Vec<&str> = item.split("=").collect();
+            acc.insert(parts[0].to_string(), parts[1].to_string());
+            acc
+        });
     hash
 }
 

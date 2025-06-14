@@ -1,16 +1,10 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-
 use anyhow::Error as E;
-use aws_sdk_dynamodb::types::{AttributeValue, AttributeValueUpdate};
 use candle_transformers::models::marian;
 use clap::Parser;
 
 use candle_core::{DType, Tensor};
 use candle_nn::VarBuilder;
 
-use futures::lock::Mutex;
-use serde_dynamo::from_items;
 use tokenizers::Tokenizer;
 
 #[derive(Parser)]
@@ -86,10 +80,10 @@ impl Translator {
         let config = opus_mt_de_en();
 
         let tokenizer =
-            Tokenizer::from_file(&std::path::PathBuf::from(args.tokenizer)).map_err(E::msg)?;
+            Tokenizer::from_file(std::path::PathBuf::from(args.tokenizer)).map_err(E::msg)?;
 
         let tokenizer_dec =
-            Tokenizer::from_file(&std::path::PathBuf::from(args.tokenizer_dec)).map_err(E::msg)?;
+            Tokenizer::from_file(std::path::PathBuf::from(args.tokenizer_dec)).map_err(E::msg)?;
 
         let device = device(args.cpu)?;
         let vb = {
@@ -183,7 +177,7 @@ async fn main() -> anyhow::Result<()> {
         .unwrap();
 
     let mut items: Vec<Article> = from_items(response.items.unwrap()).unwrap();
-    println!("items {:?}", items);
+    println!("items {items:?}");
     let items: Vec<&mut Article> = futures::future::join_all(items.iter_mut().map(|item| async {
         let paragraphs: Vec<String> = item
             .paragraphs
