@@ -231,9 +231,7 @@ pub fn App() -> impl IntoView {
                                                         data=translation_post
                                                         set_data=set_translation_post
                                                     />
-                                                    <div>
-                                                        {input_popup_component(set_translation_post)}
-                                                    </div>
+                                                    <div>{input_popup_component(set_translation_post)}</div>
                                                 }
                                             })
                                     }}

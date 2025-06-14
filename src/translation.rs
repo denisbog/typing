@@ -1,12 +1,13 @@
 use leptos::prelude::*;
 use leptos::{logging, server};
+use server_fn::codec::Json;
 
 use crate::{
     application_types::{Article, Data},
     persistance::Persistance,
 };
 
-#[server(FetchData, "/store")]
+#[server(FetchData, "/store", input = Json)]
 pub async fn get_data(id: String) -> Result<Data, ServerFnError> {
     logging::log!("fetching data for id {}", id);
     use crate::persistance::Persistance;
@@ -14,7 +15,7 @@ pub async fn get_data(id: String) -> Result<Data, ServerFnError> {
     Ok(Data { articles })
 }
 
-#[server(StoreArticle, "/store")]
+#[server(StoreArticle, "/store", input = Json)]
 pub async fn store_article(article: Article) -> Result<(), ServerFnError> {
     let mut article = article;
     article.created_at = std::time::SystemTime::now()
@@ -26,13 +27,13 @@ pub async fn store_article(article: Article) -> Result<(), ServerFnError> {
     Ok(())
 }
 
-#[server(DeleteArticle, "/store")]
+#[server(DeleteArticle, "/store", input = Json)]
 pub async fn delete_article(article: Article) -> Result<(), ServerFnError> {
     use crate::persistance::Persistance;
     crate::get_db().await.delete_item_for_user(article).await;
     Ok(())
 }
-#[server(StorePairs, "/store")]
+#[server(StorePairs, "/store", input = Json)]
 pub async fn store_pairs(article: Article) -> Result<(), ServerFnError> {
     crate::get_db()
         .await

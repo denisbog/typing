@@ -8,12 +8,10 @@ use crate::{application_types::Data, components::Sentance};
 use leptos::either::Either;
 use leptos::logging::log;
 use leptos::task::spawn_local;
-use leptos_router::hooks::use_navigate;
 use leptos_router::hooks::use_params;
 use leptos_router::params::Params;
 
 use leptos::prelude::*;
-use leptos_meta::*;
 
 #[derive(Params, PartialEq)]
 pub struct ArticleParams {
@@ -33,8 +31,11 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                 view! {
                     <div class="flex p-2 snap-start">
                         <div class="flex flex-col w-full">
-                            <a class="w-full" href=format!("/article/{}", index)>
-                                {item.title}
+                            <a class="flex w-full flex-row" href=format!("/article/{}", index)>
+                                <span class="flex p-1 m-1 bg-yellow-100 min-w-[40px] font-mono text-gray-500 rounded shadow-md justify-center">
+                                    {item.paragraphs.len()}
+                                </span>
+                                <span class="flex">{item.title}</span>
                             </a>
                             <div class="grid grid-cols-2 lg:grid-cols-8 gap-4">
                                 {item
@@ -53,35 +54,36 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                                                 .map(str::to_string)
                                                 .collect::<Vec<String>>();
                                             Either::Left(
-                                                    paragraph
-                                                        .pairs
-                                                        .clone()
-                                                        .unwrap()
-                                                        .iter()
-                                                        .map(|pair| {
-                                                            let pair_original = pair
-                                                                .original
-                                                                .iter()
-                                                                .map(|index| { words_original[*index].clone() })
-                                                                .map(|word| {
-                                                                    view! { <div class="flex p-1 italic">{word}</div> }
-                                                                })
-                                                                .collect_view();
-                                                            let pair_translated = pair
-                                                                .translation
-                                                                .iter()
-                                                                .map(|index| { words_translation[*index].clone() })
-                                                                .map(|word| {
-                                                                    view! { <div class="flex p-1 italic">{word}</div> }
-                                                                })
-                                                                .collect_view();
-                                                            view! {
-                                                                <div class="flex justify-end text-gray-500">
-                                                                    {pair_original}
-                                                                </div>
-                                                                <div class="flex text-green-700">{pair_translated}</div>
-                                                            }
-                                                        }).collect_view()
+                                                paragraph
+                                                    .pairs
+                                                    .clone()
+                                                    .unwrap()
+                                                    .iter()
+                                                    .map(|pair| {
+                                                        let pair_original = pair
+                                                            .original
+                                                            .iter()
+                                                            .map(|index| { words_original[*index].clone() })
+                                                            .map(|word| {
+                                                                view! { <div class="flex p-1 italic">{word}</div> }
+                                                            })
+                                                            .collect_view();
+                                                        let pair_translated = pair
+                                                            .translation
+                                                            .iter()
+                                                            .map(|index| { words_translation[*index].clone() })
+                                                            .map(|word| {
+                                                                view! { <div class="flex p-1 italic">{word}</div> }
+                                                            })
+                                                            .collect_view();
+                                                        view! {
+                                                            <div class="flex justify-end text-gray-500">
+                                                                {pair_original}
+                                                            </div>
+                                                            <div class="flex text-green-700">{pair_translated}</div>
+                                                        }
+                                                    })
+                                                    .collect_view(),
                                             )
                                         } else {
                                             Either::Right(view! { "no translation available" })
@@ -220,9 +222,7 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
                 <div class="fixed bottom-2 p-2 text-gray-500 bg-gray-100 shadow-md cursor-default flex">
                     "jump: "
                     <div class="pl-1 underline cursor-pointer" on:click=move |_| on_back(pairs)>
-                    <a href = "/">
-                        home
-                    </a>
+                        <a href="/">home</a>
                     </div> {link}
                 </div>
             })

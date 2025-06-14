@@ -647,6 +647,14 @@ pub fn Sentance(
                                                         // <div class="relative text-blue-900 underline">
                                                         // {c.reference_char}
                                                         // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
+
+                                                        // <div class="relative text-blue-900 underline">
+                                                        // {c.reference_char}
+                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
+
+                                                        // <div class="relative text-blue-900 underline">
+                                                        // {c.reference_char}
+                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
                                                         // </div>
 
                                                         <div class=class>{c.reference_char}</div>
