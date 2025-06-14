@@ -53,7 +53,6 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                                                 .map(str::to_string)
                                                 .collect::<Vec<String>>();
                                             Either::Left(
-                                                view! {
                                                     paragraph
                                                         .pairs
                                                         .clone()
@@ -67,7 +66,7 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                                                                 .map(|word| {
                                                                     view! { <div class="flex p-1 italic">{word}</div> }
                                                                 })
-                                                                .collect();
+                                                                .collect_view();
                                                             let pair_translated = pair
                                                                 .translation
                                                                 .iter()
@@ -75,15 +74,14 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                                                                 .map(|word| {
                                                                     view! { <div class="flex p-1 italic">{word}</div> }
                                                                 })
-                                                                .collect();
+                                                                .collect_view();
                                                             view! {
                                                                 <div class="flex justify-end text-gray-500">
                                                                     {pair_original}
                                                                 </div>
                                                                 <div class="flex text-green-700">{pair_translated}</div>
                                                             }
-                                                        })
-                                                },
+                                                        }).collect_view()
                                             )
                                         } else {
                                             Either::Right(view! { "no translation available" })
