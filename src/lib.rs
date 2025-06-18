@@ -17,7 +17,7 @@ pub mod persistance;
 pub mod translation_page;
 
 pub const BUTTON_CLASS: &str =
-    "size-fit text-md m-2 p-2 shadow-md rounded bg-gray-300 cursor-pointer text-nowrap whitespace-nowrap";
+    "size-fit text-md m-2 p-2 shadow-md rounded bg-zinc-900 cursor-pointer text-nowrap whitespace-nowrap";
 
 #[cfg(feature = "ssr")]
 #[derive(Clone, Debug)]

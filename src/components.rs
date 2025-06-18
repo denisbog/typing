@@ -467,7 +467,7 @@ pub fn Sentance(
         <div class="flex flex-col justify-center min-h-lvh lg:h-min snap-start parent" id=index + 1>
             <div class=class>
                 <div
-                    class="lg:p-2 flex flex-wrap lg:text-2xl text-blue-800 font-mono focus:outline-none"
+                    class="lg:p-2 flex flex-wrap lg:text-3xl font-mono focus:outline-none"
                     tabindex=1
                     on:keydown=move |event| {
                         let key = event.key_code();
@@ -584,9 +584,9 @@ pub fn Sentance(
                                                         if compare(typed_char, c.reference_char) {
                                                             let class = move || {
                                                                 if store.get().word_index == word_index {
-                                                                    "text-gray-900 underline"
+                                                                    "text-gray-700 underline"
                                                                 } else {
-                                                                    "text-gray-900"
+                                                                    "text-gray-700"
                                                                 }
                                                             };
                                                             return view! { <div class=class>{c.reference_char}</div> }
@@ -596,7 +596,7 @@ pub fn Sentance(
                                                                 // <div class="relative text-blue-900 underline">
                                                                 // {c.reference_char}
                                                                 // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
-                                                                <div class="text-red-800 italic underline">
+                                                                <div class="text-red-400 italic underline">
                                                                     <p>{c.typed_char}</p>
                                                                 </div>
                                                             }

@@ -38,7 +38,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <HydrationScripts options/>
                 <MetaTags/>
             </head>
-            <body class="h-screen bg-gray-400 text-gray-900"></body>
+            <body class="h-screen bg-zinc-950 text-gray-400"></body>
         </html>
     }
 }
@@ -76,11 +76,11 @@ pub fn App() -> impl IntoView {
     let input_popup_component = move |set_translation_post: WriteSignal<Data>| {
         if input_popup.get() {
             Either::Left(view! {
-                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity">
+                <div class="fixed inset-0 bg-zinc-950 bg-opacity-75 transition-opacity">
                     <div class="fixed inset-1 z-10 w-screen overflow-y-auto">
                         <div class="flex min-h-full items-end justify-center text-center sm:items-center sm:p-0 lg:p-5">
-                            <div class="flex relative transform overflow-hidden bg-gray-100 shadow-xl transition-all w-full h-full">
-                                <div class="flex flex-1 flex-col bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                            <div class="flex relative transform overflow-hidden shadow-xl transition-all w-full h-full">
+                                <div class="flex flex-1 flex-col px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
                                     <textarea
                                         class="h-80"
                                         placeholder="type here your text"
@@ -92,7 +92,7 @@ pub fn App() -> impl IntoView {
                                     </textarea>
                                     <div class="p-2">
                                         <input
-                                            class="p-2 m-1 shadow-md rounded bg-green-100"
+                                            class=BUTTON_CLASS
                                             type="button"
                                             value="Add article"
                                             on:click=move |_event| {
@@ -122,7 +122,7 @@ pub fn App() -> impl IntoView {
                                                 set_input_popup.set(false);
                                             }
 
-                                            class="p-2 m-1 shadow-md rounded bg-gray-100 text-gray-700"
+                                            class=BUTTON_CLASS
                                             type="button"
                                             value="Close"
                                         />
@@ -178,7 +178,7 @@ pub fn App() -> impl IntoView {
                             view! {
                                 <div
                                     id="top"
-                                    class="p-3 pt-7 text-xl lg:text-3xl font-bold text-gray-100 font-mono w-screen justify-center flex snap-start"
+                                    class="p-3 pt-7 text-xl lg:text-3xl font-bold font-mono w-screen justify-center flex snap-start"
                                 >
                                     <a href="/">
                                         <div>Tippen!</div>

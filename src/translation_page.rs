@@ -32,7 +32,7 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                     <div class="flex p-2 snap-start">
                         <div class="flex flex-col w-full">
                             <a class="flex w-full flex-row" href=format!("/article/{}", index)>
-                                <span class="flex p-1 m-1 bg-yellow-100 min-w-[40px] font-mono text-gray-500 rounded shadow-md justify-center">
+                                <span class="flex p-1 m-1 bg-zinc-900 min-w-[40px] font-mono text-gray-500 rounded shadow-md justify-center">
                                     {item.paragraphs.len()}
                                 </span>
                                 <span class="flex">{item.title}</span>
@@ -166,69 +166,67 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
         });
     };
 
-    let views = move || {
-        if let Some(article) = data.get().articles.get(article_id) {
-            let mut article_pairs = TypePairs::new();
-            article
-                .clone()
-                .paragraphs
-                .into_iter()
-                .enumerate()
-                .for_each(|(index, paragraph)| {
-                    if paragraph.pairs.is_some() {
-                        let associations = paragraph
-                            .pairs
-                            .unwrap()
-                            .into_iter()
-                            .map(|pair| Association {
-                                start_position: pair.original[0],
-                                original: pair.original.into_iter().collect(),
-                                translation: pair.translation.into_iter().collect(),
-                            })
-                            .collect();
+    let views =
+        move || {
+            if let Some(article) = data.get().articles.get(article_id) {
+                let mut article_pairs = TypePairs::new();
+                article.clone().paragraphs.into_iter().enumerate().for_each(
+                    |(index, paragraph)| {
+                        if paragraph.pairs.is_some() {
+                            let associations = paragraph
+                                .pairs
+                                .unwrap()
+                                .into_iter()
+                                .map(|pair| Association {
+                                    start_position: pair.original[0],
+                                    original: pair.original.into_iter().collect(),
+                                    translation: pair.translation.into_iter().collect(),
+                                })
+                                .collect();
 
-                        log!("inserted associations: {:?}", associations);
-                        article_pairs.insert(index, associations);
-                    }
-                });
+                            log!("inserted associations: {:?}", associations);
+                            article_pairs.insert(index, associations);
+                        }
+                    },
+                );
 
-            let (pairs, set_pairs) = signal(article_pairs);
+                let (pairs, set_pairs) = signal(article_pairs);
 
-            let total = article.paragraphs.len();
-            let link = article
-                .paragraphs
-                .clone()
-                .into_iter()
-                .enumerate()
-                .map(|(index, _item)| {
-                    view! {
-                        <a class="pl-1" href=format!("#{}", index + 1)>
-                            {index + 1}
-                        </a>
-                    }
+                let total = article.paragraphs.len();
+                let link = article
+                    .paragraphs
+                    .clone()
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, _item)| {
+                        view! {
+                            <a class="pl-1" href=format!("#{}", index + 1)>
+                                {index + 1}
+                            </a>
+                        }
+                    })
+                    .collect_view();
+                let paragraphs = article
+                    .paragraphs
+                    .clone()
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, item)| {
+                        view! { <Sentance paragraph=item index total pairs set_pairs/> }
+                    })
+                    .collect_view();
+                Either::Left(view! {
+                    {paragraphs}
+                    <div class="fixed bottom-2 p-2 bg-zinc-900 shadow-md cursor-default flex">
+                        "jump: "
+                        <div class="pl-1 underline cursor-pointer" on:click=move |_| on_back(pairs)>
+                            <a href="/">home</a>
+                        </div> {link}
+                    </div>
                 })
-                .collect_view();
-            let paragraphs = article
-                .paragraphs
-                .clone()
-                .into_iter()
-                .enumerate()
-                .map(|(index, item)| {
-                    view! { <Sentance paragraph=item index total pairs set_pairs/> }
-                })
-                .collect_view();
-            Either::Left(view! {
-                {paragraphs}
-                <div class="fixed bottom-2 p-2 text-gray-500 bg-gray-100 shadow-md cursor-default flex">
-                    "jump: "
-                    <div class="pl-1 underline cursor-pointer" on:click=move |_| on_back(pairs)>
-                        <a href="/">home</a>
-                    </div> {link}
-                </div>
-            })
-        } else {
-            Either::Right(())
-        }
-    };
+            } else {
+                Either::Right(())
+            }
+        };
     view! { <div class="w-screen lg:w-3/4 flex flex-col ">{views}</div> }
 }
