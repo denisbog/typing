@@ -3,6 +3,7 @@ use std::hash::Hash;
 
 use leptos::either::Either;
 use leptos::logging::log;
+use leptos::logging::warn;
 use leptos::prelude::*;
 use serde::Deserialize;
 use serde::Serialize;
@@ -455,7 +456,42 @@ pub fn Sentance(
     } else {
         vec![]
     };
+
+    #[derive(Clone)]
+    struct TypingStat {
+        pub timer: wasm_timer::Instant,
+        pub chars: usize,
+    }
+
+    impl TypingStat {
+        pub fn new() -> Self {
+            TypingStat {
+                chars: 0,
+                timer: wasm_timer::Instant::now(),
+            }
+        }
+        pub fn tick(&mut self) {
+            self.chars += 1;
+        }
+
+        pub fn untick(&mut self) {
+            if self.chars > 0 {
+                self.chars -= 1;
+            } else {
+                warn!("trying to decrement 0 position");
+            }
+        }
+        pub fn get_wpm(&self) -> f32 {
+            if self.chars > 0 {
+                self.chars as f32 / 5.0 / self.timer.elapsed().as_secs_f32() * 60.0
+            } else {
+                0.0
+            }
+        }
+    }
+
     let (store, set_store) = signal(TypeState::from_str(&paragraph.original));
+    let (typing, set_typing) = signal(Option::<TypingStat>::None);
     let class = move || {
         if sentace_state.get().enable_selection {
             "outline-dashed p-2 cursor-default"
@@ -479,8 +515,24 @@ pub fn Sentance(
                                     word.char_index -= 1;
                                     let temp = word.data.get_mut(word.char_index).unwrap();
                                     temp.backspace();
+                                    set_typing
+                                        .update(|typing| {
+                                            typing
+                                                .as_mut()
+                                                .map(|typing| {
+                                                    typing.untick();
+                                                });
+                                        });
                                 } else if local_store.word_index > 0 {
                                     local_store.word_index -= 1;
+                                    set_typing
+                                        .update(|typing| {
+                                            typing
+                                                .as_mut()
+                                                .map(|typing| {
+                                                    typing.untick();
+                                                });
+                                        });
                                 }
                             } else if local_store.word_index > 0 {
                                 local_store.word_index -= 1;
@@ -490,10 +542,19 @@ pub fn Sentance(
                             event.prevent_default();
                             local_store.word_index += 1;
                             set_store.set(local_store);
+                            set_typing
+                                .update(|typing| {
+                                    typing
+                                        .as_mut()
+                                        .map(|typing| {
+                                            typing.tick();
+                                        });
+                                });
                         }
                     }
 
                     on:focus=move |_event| {
+                        set_typing.set(Some(TypingStat::new()));
                         if !sentace_state.get().enable_selection {
                             set_store.update(|store| store.focus = true)
                         }
@@ -535,6 +596,23 @@ pub fn Sentance(
                                             .unwrap()
                                             .typed(char::from_u32(key).unwrap());
                                         word.char_index += 1;
+                                        set_typing
+                                            .update(|typing| {
+                                                typing
+                                                    .as_mut()
+                                                    .map(|typing| {
+                                                        typing.tick();
+                                                    });
+                                            });
+                                        typing
+                                            .get()
+                                            .map(|typing| {
+                                                log!("wps {}", typing.get_wpm());
+                                                log!(
+                                                    "timmings chars: {}, timer: {}", typing.chars, typing.timer
+                                                    .elapsed().as_secs_f32()
+                                                );
+                                            });
                                         set_store.set(local_store);
                                     }
                                 }
@@ -655,6 +733,34 @@ pub fn Sentance(
                                                         // <div class="relative text-blue-900 underline">
                                                         // {c.reference_char}
                                                         // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
+
+                                                        // <div class="relative text-blue-900 underline">
+                                                        // {c.reference_char}
+                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
+
+                                                        // <div class="relative text-blue-900 underline">
+                                                        // {c.reference_char}
+                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
+
+                                                        // <div class="relative text-blue-900 underline">
+                                                        // {c.reference_char}
+                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
+
+                                                        // <div class="relative text-blue-900 underline">
+                                                        // {c.reference_char}
+                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
+
+                                                        // <div class="relative text-blue-900 underline">
+                                                        // {c.reference_char}
+                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
+
+                                                        // <div class="relative text-blue-900 underline">
+                                                        // {c.reference_char}
+                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
+
+                                                        // <div class="relative text-blue-900 underline">
+                                                        // {c.reference_char}
+                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
                                                         // </div>
 
                                                         <div class=class>{c.reference_char}</div>
@@ -707,7 +813,7 @@ pub fn Sentance(
                                                         return delete_button(clicked_highlight).into_any();
                                                     }
                                                 }
-                                               ().into_any()
+                                                ().into_any()
                                             }}
 
                                         </div>
@@ -717,6 +823,18 @@ pub fn Sentance(
                         }
                     }
 
+                </div>
+                <div class="pr-2 flex flex-col items-end">
+                    WPM:
+                    {move || {
+                        typing
+                            .read()
+                            .as_ref()
+                            .map_or_else(
+                                || "not in focus".to_string(),
+                                |typing| format!("{:.2} ", typing.get_wpm()),
+                            )
+                    }}
                 </div>
                 <div class="px-2 lg:px-5 lg:p-3 flex flex-wrap text-gray-500 italic cursor-default">
 
@@ -792,7 +910,7 @@ pub fn Sentance(
                                                 return delete_button(clicked_highlight).into_any();
                                             }
                                         }
-                                ().into_any()
+                                        ().into_any()
                                     }}
 
                                 </div>

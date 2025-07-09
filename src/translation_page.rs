@@ -37,7 +37,7 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                                 </span>
                                 <span class="flex">{item.title}</span>
                             </a>
-                            <div class="grid grid-cols-2 lg:grid-cols-8 gap-4">
+                            <div class="grid grid-cols-2 lg:grid-cols-8">
                                 {item
                                     .paragraphs
                                     .iter()
