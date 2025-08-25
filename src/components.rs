@@ -393,13 +393,13 @@ pub fn Sentance(
     set_pairs: WriteSignal<TypePairs>,
 ) -> impl IntoView {
     let mut typing_state = TypingState::default();
-    if let Some(pairs_for_paragraph) = pairs.get().get(&index) {
+    if let Some(pairs_for_paragraph) = pairs.read().get(&index) {
         typing_state.set_initial_pairs(pairs_for_paragraph.clone());
     }
     let (sentace_state, set_sentace_state) = signal(typing_state);
 
     let pair_button = move || {
-        if sentace_state.get().pair_enabled() {
+        if sentace_state.read().pair_enabled() {
             Either::Left(view! {
                 <div class="snap-start">
                     <div
@@ -493,7 +493,7 @@ pub fn Sentance(
     let (store, set_store) = signal(TypeState::from_str(&paragraph.original));
     let (typing, set_typing) = signal(Option::<TypingStat>::None);
     let class = move || {
-        if sentace_state.get().enable_selection {
+        if sentace_state.read().enable_selection {
             "p-2 cursor-default"
         } else {
             "p-2"
@@ -555,7 +555,7 @@ pub fn Sentance(
 
                     on:focus=move |_event| {
                         set_typing.set(Some(TypingStat::new()));
-                        if !sentace_state.get().enable_selection {
+                        if !sentace_state.read().enable_selection {
                             set_store.update(|store| store.focus = true)
                         }
                     }
@@ -588,7 +588,8 @@ pub fn Sentance(
                                             });
                                     });
                                 typing
-                                    .get()
+                                    .read()
+                                    .as_ref()
                                     .map(|typing| {
                                         log!("wpm {}", typing.get_wpm());
                                         log!(
@@ -615,14 +616,14 @@ pub fn Sentance(
                                 children=move |(word_index, c)| {
                                     let class = move || TypingState::get_style_for_word_state(
                                         sentace_state
-                                            .get()
+                                            .read()
                                             .get_state_for_word(word_index, EvaluationFor::Original),
                                     );
                                     view! {
                                         <div
                                             class=class
                                             on:click=move |_| {
-                                                if sentace_state.get().enable_selection {
+                                                if sentace_state.read().enable_selection {
                                                     set_sentace_state
                                                         .update(|state| {
                                                             state
@@ -642,7 +643,7 @@ pub fn Sentance(
                                                     if let Some(typed_char) = c.typed_char {
                                                         if compare(typed_char, c.reference_char) {
                                                             let class = move || {
-                                                                if store.get().word_index == word_index {
+                                                                if store.read().word_index == word_index {
                                                                     "text-gray-700 underline"
                                                                 } else {
                                                                     "text-gray-700"
@@ -652,9 +653,6 @@ pub fn Sentance(
                                                                 .into_any();
                                                         } else {
                                                             return view! {
-                                                                // <div class="relative text-blue-900 underline">
-                                                                // {c.reference_char}
-                                                                // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
                                                                 <div class="text-red-400 italic underline">
                                                                     <p>{c.typed_char}</p>
                                                                 </div>
@@ -663,23 +661,22 @@ pub fn Sentance(
                                                         }
                                                     }
                                                     let class = move || {
-                                                        if store.get().word_index == word_index && store.get().focus
+                                                        if store.read().word_index == word_index
+                                                            && store.read().focus
                                                         {
                                                             "underline"
                                                         } else {
                                                             ""
                                                         }
                                                     };
-                                                    view! {
-                                                        <div class=class>{c.reference_char}</div>
-                                                    }
+                                                    view! { <div class=class>{c.reference_char}</div> }
                                                         .into_any()
                                                 }
                                             />
 
                                             {move || {
                                                 if let Some(index) = sentace_state
-                                                    .get()
+                                                    .read()
                                                     .get_pair_index_for_word_if_any(
                                                         word_index,
                                                         EvaluationFor::Original,
@@ -698,7 +695,7 @@ pub fn Sentance(
                                             }}
 
                                             {move || {
-                                                let pair = match sentace_state.get().clicked {
+                                                let pair = match sentace_state.read().clicked {
                                                     Clicked::Original(clicked_word_index) => {
                                                         clicked_word_index == word_index
                                                     }
@@ -715,7 +712,7 @@ pub fn Sentance(
                                                 if let Clicked::SelectedOriginal(
                                                     clicked_highlight,
                                                     clicked_highligth_word_index,
-                                                ) = sentace_state.get().clicked
+                                                ) = sentace_state.read().clicked
                                                 {
                                                     if clicked_highligth_word_index == word_index {
                                                         return delete_button(clicked_highlight).into_any();
@@ -753,14 +750,14 @@ pub fn Sentance(
                         children=move |(word_index, item)| {
                             let class = move || TypingState::get_style_for_word_state(
                                 sentace_state
-                                    .get()
+                                    .read()
                                     .get_state_for_word(word_index, EvaluationFor::Translation),
                             );
                             view! {
                                 <div
                                     class=class
                                     on:click=move |_| {
-                                        if sentace_state.get().enable_selection {
+                                        if sentace_state.read().enable_selection {
                                             set_sentace_state
                                                 .update(|state| {
                                                     state
@@ -777,7 +774,7 @@ pub fn Sentance(
 
                                     {move || {
                                         if let Some(index) = sentace_state
-                                            .get()
+                                            .read()
                                             .get_pair_index_for_word_if_any(
                                                 word_index,
                                                 EvaluationFor::Translation,
@@ -796,7 +793,7 @@ pub fn Sentance(
                                     }}
 
                                     {move || {
-                                        let pair = match sentace_state.get().clicked {
+                                        let pair = match sentace_state.read().clicked {
                                             Clicked::Translation(clicked_word_index) => {
                                                 clicked_word_index == word_index
                                             }
@@ -813,7 +810,7 @@ pub fn Sentance(
                                         if let Clicked::SelectedTranslation(
                                             clicked_highlight,
                                             clicked_highligth_word_index,
-                                        ) = sentace_state.get().clicked
+                                        ) = sentace_state.read().clicked
                                         {
                                             if clicked_highligth_word_index == word_index {
                                                 return delete_button(clicked_highlight).into_any();
@@ -832,7 +829,7 @@ pub fn Sentance(
 
             {
                 let label = move || {
-                    if sentace_state.get().enable_selection {
+                    if sentace_state.read().enable_selection {
                         "click to enable typing"
                     } else {
                         "click to enable pairing"
