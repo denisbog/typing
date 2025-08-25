@@ -22,18 +22,18 @@ serde.workspace = true
 serde.features = ["derive"]
 serde_json.workspace = true
 
-aws-config = { version = "1.8.0", features = ["behavior-version-latest"]}
-aws-sdk-dynamodb = {version = "1.80.0" }
+aws-config = { version = "1.8.5", features = ["behavior-version-latest"]}
+aws-sdk-dynamodb = {version = "1.90.0" }
 serde_dynamo = {version="4.2.14", features = ["aws-sdk-dynamodb+1"]}
 
-anyhow = {version = "1.0.98"}
+anyhow = {version = "1.0.99"}
 bindgen_cuda = { version="0.1.5", optional=true }
 candle-core = { version = "0.9.1", features = ["cuda"] }
 candle-nn = { version = "0.9.1", features = ["cuda"] }
 candle-transformers = { version = "0.9.1", features = ["cuda"] }
-clap = { version = "4.5.40", features = ["derive"] }
+clap = { version = "4.5.45", features = ["derive"] }
 hf-hub = { version = "0.4.3" }
-tokenizers = { version = "0.21.1" }
+tokenizers = { version = "0.21.4" }
 
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 futures = { version = "0.3.31" }

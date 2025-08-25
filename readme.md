@@ -1,18 +1,24 @@
 ### run
+
 ```bash
 trunk serve --open
 ```
+
 ### update styles
+
 ```bash
 npx tailwindcss -i ./input.css -o ./public/typing.css --watch
 ```
+
 ### format letptos code
+
 ```bash
 leptosfmt .
 ```
+
 ### run translation server
 
-using https://huggingface.co/docs/transformers/model_doc/marian
+using `https://huggingface.co/docs/transformers/model_doc/marian`
 
 #### dependencies
 
@@ -39,13 +45,15 @@ python translate_server.py
 ```bash
 time cargo r --bin translate --release --features=translation
 ```
+
 ### translate with rust ML
 
 ```bash
 time PATH=$PATH:/usr/local/cuda-12.5/bin/ cargo run --release --features translation --bin translation-tool --  --tokenizer tokenizer-marian-base-de.json --tokenizer-dec tokenizer-marian-base-en.json
 time NVCC_CCBIN=gcc-13 PATH=$PATH:/usr/local/cuda/bin cargo run --release --features translation --bin translation-tool
 ```
-### nvim init.lua config:
+
+### nvim init.lua config
 
 ```lua
       local servers = {
@@ -98,4 +106,5 @@ cargo lambda deploy --include target/site --enable-function-url --binary-name=ty
 ## translation
 ```bash
 NVCC_CCBIN=gcc-14 PATH=$PATH:/usr/local/cuda/bin cargo r --release --package translation-tool
+NVCC_CCBIN=gcc-14 PATH=$PATH:/usr/local/cuda/bin cargo r --release --package spiegel-crawler --bin spiegel-crawler -- --userInfo  <userInfo> --accessInfo <accessInfo> --userId <userId>
 ```
