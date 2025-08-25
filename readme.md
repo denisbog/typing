@@ -13,7 +13,7 @@ npx tailwindcss -i ./input.css -o ./public/typing.css --watch
 ### format letptos code
 
 ```bash
-leptosfmt .
+leptosfmt src/
 ```
 
 ### run translation server
@@ -101,6 +101,7 @@ passing additinal feature `aws`, LEPTOS_OUTPUT_NAME=`typing` should match the ma
 ```bash
 cargo leptos watch --release
 RUSTFLAGS="-Zlinker-features=-lld" LEPTOS_OUTPUT_NAME=typing cargo lambda build --no-default-features --features=ssr,lambda --release
+LEPTOS_OUTPUT_NAME=typing cargo lambda build --no-default-features --features=ssr,lambda --release
 cargo lambda deploy --include target/site --enable-function-url --binary-name=typing
 
 ## translation

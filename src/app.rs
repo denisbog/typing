@@ -27,7 +27,7 @@ use leptos_meta::*;
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     provide_meta_context();
     view! {
-        <!DOCTYPE html>
+        <!DOCTYPE html> 
         <html lang="en" class="snap-y snap-y-mandatory">
             <head>
                 <meta charset="utf-8"/>

@@ -494,9 +494,9 @@ pub fn Sentance(
     let (typing, set_typing) = signal(Option::<TypingStat>::None);
     let class = move || {
         if sentace_state.get().enable_selection {
-            "outline-dashed p-2 cursor-default"
+            "p-2 cursor-default"
         } else {
-            "outline-dashed p-2"
+            "p-2"
         }
     };
     view! {
@@ -564,62 +564,43 @@ pub fn Sentance(
 
                     on:keypress=move |event| {
                         let key = event.key_code();
-                        match key {
-                            (64..=93)
-                            | (97..=122)
-                            | 34
-                            | 39
-                            | 44
-                            | 45
-                            | 46
-                            | 58
-                            | 59
-                            | (48..=57)
-                            | 40
-                            | 41
-                            | 63 => {
-                                let mut local_store = store.get();
-                                if local_store.word_index < local_store.data.len() {
-                                    log!("current index {}", local_store.word_index);
-                                    log!(
-                                        "current word index {}", local_store.data.get(local_store
-                                        .word_index).unwrap().char_index
-                                    );
-                                    let word = local_store
-                                        .data
-                                        .get_mut(local_store.word_index)
-                                        .unwrap();
-                                    if word.char_index < word.data.len() {
-                                        log!("inserting {}", char::from_u32(key).unwrap());
-                                        word.data
-                                            .get_mut(word.char_index)
-                                            .unwrap()
-                                            .typed(char::from_u32(key).unwrap());
-                                        word.char_index += 1;
-                                        set_typing
-                                            .update(|typing| {
-                                                typing
-                                                    .as_mut()
-                                                    .map(|typing| {
-                                                        typing.tick();
-                                                    });
-                                            });
+                        let mut local_store = store.get();
+                        if local_store.word_index < local_store.data.len() {
+                            log!("current index {}", local_store.word_index);
+                            log!(
+                                "current word index {}", local_store.data.get(local_store
+                                .word_index).unwrap().char_index
+                            );
+                            let word = local_store.data.get_mut(local_store.word_index).unwrap();
+                            if word.char_index < word.data.len() {
+                                log!("inserting {}", char::from_u32(key).unwrap());
+                                word.data
+                                    .get_mut(word.char_index)
+                                    .unwrap()
+                                    .typed(char::from_u32(key).unwrap());
+                                word.char_index += 1;
+                                set_typing
+                                    .update(|typing| {
                                         typing
-                                            .get()
+                                            .as_mut()
                                             .map(|typing| {
-                                                log!("wps {}", typing.get_wpm());
-                                                log!(
-                                                    "timmings chars: {}, timer: {}", typing.chars, typing.timer
-                                                    .elapsed().as_secs_f32()
-                                                );
+                                                typing.tick();
                                             });
-                                        set_store.set(local_store);
-                                    }
-                                }
+                                    });
+                                typing
+                                    .get()
+                                    .map(|typing| {
+                                        log!("wpm {}", typing.get_wpm());
+                                        log!(
+                                            "timmings chars: {}, timer: {}", typing.chars, typing.timer
+                                            .elapsed().as_secs_f32()
+                                        );
+                                    });
+                                set_store.set(local_store);
                             }
-                            _ => {}
-                        };
+                        }
                         log!("keypress {:?}", & key);
+                        event.prevent_default();
                     }
                 >
 
@@ -690,79 +671,6 @@ pub fn Sentance(
                                                         }
                                                     };
                                                     view! {
-                                                        // <div class="relative text-blue-900 underline">
-                                                        // {c.reference_char}
-                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
-
-                                                        // <div class="relative text-blue-900 underline">
-                                                        // {c.reference_char}
-                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
-
-                                                        // <div class="relative text-blue-900 underline">
-                                                        // {c.reference_char}
-                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
-
-                                                        // <div class="relative text-blue-900 underline">
-                                                        // {c.reference_char}
-                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
-
-                                                        // <div class="relative text-blue-900 underline">
-                                                        // {c.reference_char}
-                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
-
-                                                        // <div class="relative text-blue-900 underline">
-                                                        // {c.reference_char}
-                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
-
-                                                        // <div class="relative text-blue-900 underline">
-                                                        // {c.reference_char}
-                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
-
-                                                        // <div class="relative text-blue-900 underline">
-                                                        // {c.reference_char}
-                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
-
-                                                        // <div class="relative text-blue-900 underline">
-                                                        // {c.reference_char}
-                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
-
-                                                        // <div class="relative text-blue-900 underline">
-                                                        // {c.reference_char}
-                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
-
-                                                        // <div class="relative text-blue-900 underline">
-                                                        // {c.reference_char}
-                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
-
-                                                        // <div class="relative text-blue-900 underline">
-                                                        // {c.reference_char}
-                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
-
-                                                        // <div class="relative text-blue-900 underline">
-                                                        // {c.reference_char}
-                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
-
-                                                        // <div class="relative text-blue-900 underline">
-                                                        // {c.reference_char}
-                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
-
-                                                        // <div class="relative text-blue-900 underline">
-                                                        // {c.reference_char}
-                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
-
-                                                        // <div class="relative text-blue-900 underline">
-                                                        // {c.reference_char}
-                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
-
-                                                        // <div class="relative text-blue-900 underline">
-                                                        // {c.reference_char}
-                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
-
-                                                        // <div class="relative text-blue-900 underline">
-                                                        // {c.reference_char}
-                                                        // <div class="absolute -top-0 -right-0 text-red-900 italic underline">
-                                                        // </div>
-
                                                         <div class=class>{c.reference_char}</div>
                                                     }
                                                         .into_any()
@@ -835,6 +743,7 @@ pub fn Sentance(
                                 |typing| format!("{:.2} ", typing.get_wpm()),
                             )
                     }}
+
                 </div>
                 <div class="px-2 lg:px-5 lg:p-3 flex flex-wrap text-gray-500 italic cursor-default">
 
