@@ -1,10 +1,14 @@
-use std::collections::BTreeSet;
-use std::hash::Hash;
+use std::ops::Sub;
+use std::time::Duration;
+use std::{collections::BTreeSet, hash::Hash};
 
 use leptos::either::Either;
+use leptos::html::Div;
 use leptos::logging::log;
 use leptos::logging::warn;
 use leptos::prelude::*;
+use leptos_animation::{easing, AnimatedSignal, AnimationTarget};
+use leptos_animation::{AnimationContext, AnimationMode};
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -384,6 +388,23 @@ impl TypingState {
         self.enable_selection = !self.enable_selection;
     }
 }
+
+#[derive(Clone)]
+struct EffectPosition {
+    x: f64,
+    y: f64,
+}
+
+impl Sub for EffectPosition {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        EffectPosition {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        }
+    }
+}
 #[component]
 pub fn Sentance(
     paragraph: Paragraph,
@@ -499,6 +520,44 @@ pub fn Sentance(
             "p-2"
         }
     };
+
+    let div_ref = NodeRef::<Div>::new();
+    let (coordinates, set_coordinates) = signal(EffectPosition { x: 0.0, y: 0.0 });
+    Effect::new(move |_| {
+        if let Some(div) = div_ref.get() {
+            // Cast NodeRef to web_sys::Element
+            let element = div;
+            // Get bounding client rect
+            let rect = element.get_bounding_client_rect();
+            let x = rect.x();
+            let y = rect.y();
+            // Get scroll offsets for document coordinates
+            let doc_x = x + window().scroll_x().unwrap_or(0.0);
+            let doc_y = y + window().scroll_y().unwrap_or(0.0);
+            log!("position {doc_x} {doc_y}");
+            set_coordinates.set(EffectPosition { x: doc_x, y: doc_y });
+        }
+    });
+
+    AnimationContext::provide();
+
+    let animated_value = AnimatedSignal::new(
+        move || AnimationTarget::<EffectPosition> {
+            target: coordinates.get().into(),
+            duration: Duration::from_secs_f64(0.25),
+            easing: easing::CUBIC_OUT,
+            mode: AnimationMode::Start,
+        },
+        |from, to, progress| EffectPosition {
+            x: (to.x - from.x) * progress + from.x,
+            y: (to.y - from.y) * progress + from.y,
+        },
+    );
+    let caret_position = move || {
+        let temp = animated_value.read();
+        format!("left: {}px; top:{}px", temp.x, temp.y)
+    };
+
     view! {
         <div class="flex flex-col justify-center min-h-lvh lg:h-min snap-start parent" id=index + 1>
             <div class=class>
@@ -605,6 +664,11 @@ pub fn Sentance(
                     }
                 >
 
+                    <div class="absolute animate-blink" style=caret_position>
+                        <span class="text-xl lg:text-3xl font-extrabold font-mono text-yellow-500 font-bold">
+                            _
+                        </span>
+                    </div>
                     <div class="pr-2">{index + 1} {"/"} {total} {")"}</div>
 
                     {
@@ -635,13 +699,20 @@ pub fn Sentance(
 
                                             <For
                                                 each=move || c.clone().data.into_iter().enumerate()
-                                                key=|(index, c)| {
-                                                    format!("{}-{}", index, c.typed_char.unwrap_or('~'))
+                                                key=move |(index, c)| {
+                                                    let current_word_index = store.read().word_index
+                                                        == word_index;
+                                                    format!(
+                                                        "{}-{}-{}",
+                                                        index,
+                                                        c.typed_char.unwrap_or('~'),
+                                                        current_word_index,
+                                                    )
                                                 }
 
-                                                children=move |(_index, c)| {
+                                                children=move |(char_index, c)| {
                                                     if let Some(typed_char) = c.typed_char {
-                                                        if compare(typed_char, c.reference_char) {
+                                                        let out = if compare(typed_char, c.reference_char) {
                                                             let class = move || {
                                                                 if store.read().word_index == word_index {
                                                                     "text-gray-700 underline"
@@ -649,16 +720,17 @@ pub fn Sentance(
                                                                     "text-gray-700"
                                                                 }
                                                             };
-                                                            return view! { <div class=class>{c.reference_char}</div> }
-                                                                .into_any();
+                                                            view! { <div class=class>{c.reference_char}</div> }
+                                                                .into_any()
                                                         } else {
-                                                            return view! {
+                                                            view! {
                                                                 <div class="text-red-400 italic underline">
                                                                     <p>{c.typed_char}</p>
                                                                 </div>
                                                             }
-                                                                .into_any();
-                                                        }
+                                                                .into_any()
+                                                        };
+                                                        return out;
                                                     }
                                                     let class = move || {
                                                         if store.read().word_index == word_index
@@ -669,8 +741,30 @@ pub fn Sentance(
                                                             ""
                                                         }
                                                     };
-                                                    view! { <div class=class>{c.reference_char}</div> }
-                                                        .into_any()
+                                                    let local_store = store.get();
+                                                    let word_state = local_store
+                                                        .data
+                                                        .get(local_store.word_index)
+                                                        .unwrap();
+                                                    if store.read().word_index == word_index
+                                                        && store.read().focus
+                                                        && (word_state.char_index == char_index || char_index == 0)
+                                                    {
+                                                        log!("current char index: {}", word_state.char_index);
+                                                        view! {
+                                                            <div class=class node_ref=div_ref>
+                                                                {c.reference_char}
+                                                            </div>
+                                                        }
+                                                            .into_any()
+                                                    } else {
+                                                        log!(
+                                                            "current char index: {} - render default", word_state
+                                                            .char_index
+                                                        );
+                                                        view! { <div class=class>{c.reference_char}</div> }
+                                                            .into_any()
+                                                    }
                                                 }
                                             />
 
