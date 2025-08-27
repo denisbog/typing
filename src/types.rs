@@ -23,12 +23,12 @@ impl CharState {
 #[derive(Clone)]
 pub struct WordState {
     pub char_index: usize,
-    pub data: Vec<CharState>,
+    pub characters: Vec<CharState>,
 }
 #[derive(Clone)]
 pub struct TypeState {
     pub word_index: usize,
-    pub data: Vec<WordState>,
+    pub words: Vec<WordState>,
     pub focus: bool,
 }
 
@@ -36,11 +36,11 @@ impl TypeState {
     pub fn from_str(value: &str) -> Self {
         TypeState {
             word_index: 0,
-            data: value
+            words: value
                 .split(' ')
                 .map(|part| WordState {
                     char_index: 0,
-                    data: part
+                    characters: part
                         .chars()
                         .enumerate()
                         .map(|(index, reference_char)| CharState::new(index, reference_char))

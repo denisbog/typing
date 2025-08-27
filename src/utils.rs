@@ -1,5 +1,7 @@
 pub fn compare(t: char, r: char) -> bool {
-    if t == r.to_lowercase().next().unwrap() {
+    if t.is_whitespace() && t.is_whitespace() == r.is_whitespace() {
+        true
+    } else if t == r.to_lowercase().next().unwrap() {
         true
     } else if t == r {
         true

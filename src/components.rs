@@ -249,7 +249,6 @@ impl TypingState {
     }
 
     fn get_state_for_word(&self, index: usize, evaluation_for: EvaluationFor) -> WordState {
-        log!("get state for word");
         match evaluation_for {
             EvaluationFor::Original => {
                 if let Clicked::SelectedOriginal(clicked_selected_index, clicked_index) =
@@ -534,7 +533,6 @@ pub fn Sentance(
             // Get scroll offsets for document coordinates
             let doc_x = x + window().scroll_x().unwrap_or(0.0);
             let doc_y = y + window().scroll_y().unwrap_or(0.0);
-            log!("position {doc_x} {doc_y}");
             set_coordinates.set(EffectPosition { x: doc_x, y: doc_y });
         }
     });
@@ -567,12 +565,11 @@ pub fn Sentance(
                     on:keydown=move |event| {
                         let key = event.key_code();
                         let mut local_store = store.get_untracked();
-                        log!("key down {} {}", key, local_store.word_index);
                         if key == 8 {
-                            if let Some(word) = local_store.data.get_mut(local_store.word_index) {
+                            if let Some(word) = local_store.words.get_mut(local_store.word_index) {
                                 if word.char_index > 0 {
                                     word.char_index -= 1;
-                                    let temp = word.data.get_mut(word.char_index).unwrap();
+                                    let temp = word.characters.get_mut(word.char_index).unwrap();
                                     temp.backspace();
                                     set_typing
                                         .update(|typing| {
@@ -597,18 +594,22 @@ pub fn Sentance(
                                 local_store.word_index -= 1;
                             }
                             set_store.set(local_store);
-                        } else if (key == 32) && local_store.word_index < local_store.data.len() {
-                            event.prevent_default();
-                            local_store.word_index += 1;
-                            set_store.set(local_store);
-                            set_typing
-                                .update(|typing| {
-                                    typing
-                                        .as_mut()
-                                        .map(|typing| {
-                                            typing.tick();
+                        } else if key == 32 && local_store.word_index < local_store.words.len() - 1 {
+                            if let Some(word) = local_store.words.get_mut(local_store.word_index) {
+                                if word.char_index == word.characters.len() {
+                                    event.prevent_default();
+                                    local_store.word_index += 1;
+                                    set_store.set(local_store);
+                                    set_typing
+                                        .update(|typing| {
+                                            typing
+                                                .as_mut()
+                                                .map(|typing| {
+                                                    typing.tick();
+                                                });
                                         });
-                                });
+                                }
+                            }
                         }
                     }
 
@@ -624,16 +625,10 @@ pub fn Sentance(
                     on:keypress=move |event| {
                         let key = event.key_code();
                         let mut local_store = store.get();
-                        if local_store.word_index < local_store.data.len() {
-                            log!("current index {}", local_store.word_index);
-                            log!(
-                                "current word index {}", local_store.data.get(local_store
-                                .word_index).unwrap().char_index
-                            );
-                            let word = local_store.data.get_mut(local_store.word_index).unwrap();
-                            if word.char_index < word.data.len() {
-                                log!("inserting {}", char::from_u32(key).unwrap());
-                                word.data
+                        if local_store.word_index < local_store.words.len() {
+                            let word = local_store.words.get_mut(local_store.word_index).unwrap();
+                            if word.char_index < word.characters.len() {
+                                word.characters
                                     .get_mut(word.char_index)
                                     .unwrap()
                                     .typed(char::from_u32(key).unwrap());
@@ -650,7 +645,6 @@ pub fn Sentance(
                                     .read()
                                     .as_ref()
                                     .map(|typing| {
-                                        log!("wpm {}", typing.get_wpm());
                                         log!(
                                             "timmings chars: {}, timer: {}", typing.chars, typing.timer
                                             .elapsed().as_secs_f32()
@@ -659,7 +653,6 @@ pub fn Sentance(
                                 set_store.set(local_store);
                             }
                         }
-                        log!("keypress {:?}", & key);
                         event.prevent_default();
                     }
                 >
@@ -674,10 +667,14 @@ pub fn Sentance(
                     {
                         view! {
                             <For
-                                each=move || store.get().data.into_iter().enumerate()
-                                key=move |(index, c)| { format!("{}-{}", index, c.char_index) }
+                                each=move || store.get().words.into_iter().enumerate()
+                                key=move |(index, w)| {
+                                    let current_word_index = store.read().word_index == *index
+                                        && store.read().focus;
+                                    format!("{}-{}-{}", index, w.char_index, current_word_index)
+                                }
 
-                                children=move |(word_index, c)| {
+                                children=move |(word_index, w)| {
                                     let class = move || TypingState::get_style_for_word_state(
                                         sentace_state
                                             .read()
@@ -698,41 +695,24 @@ pub fn Sentance(
                                         >
 
                                             <For
-                                                each=move || c.clone().data.into_iter().enumerate()
-                                                key=move |(index, c)| {
-                                                    let current_word_index = store.read().word_index
-                                                        == word_index;
-                                                    format!(
-                                                        "{}-{}-{}",
-                                                        index,
-                                                        c.typed_char.unwrap_or('~'),
-                                                        current_word_index,
-                                                    )
+                                                each=move || w.clone().characters.into_iter().enumerate()
+                                                key=move |(index, _c)| {
+                                                    format!("{}", index)
                                                 }
 
                                                 children=move |(char_index, c)| {
-                                                    if let Some(typed_char) = c.typed_char {
-                                                        let out = if compare(typed_char, c.reference_char) {
-                                                            let class = move || {
-                                                                if store.read().word_index == word_index {
-                                                                    "text-gray-700 underline"
-                                                                } else {
-                                                                    "text-gray-700"
-                                                                }
-                                                            };
-                                                            view! { <div class=class>{c.reference_char}</div> }
-                                                                .into_any()
-                                                        } else {
-                                                            view! {
-                                                                <div class="text-red-400 italic underline">
-                                                                    <p>{c.typed_char}</p>
-                                                                </div>
+                                                    let class = if let Some(typed_char) = c.typed_char {
+                                                        log!("compare {} with {}", typed_char, c.reference_char);
+                                                        if compare(typed_char, c.reference_char) {
+                                                            if store.read().word_index == word_index {
+                                                                "text-gray-700 underline"
+                                                            } else {
+                                                                "text-gray-700"
                                                             }
-                                                                .into_any()
-                                                        };
-                                                        return out;
-                                                    }
-                                                    let class = move || {
+                                                        } else {
+                                                            "text-red-400 italic underline"
+                                                        }
+                                                    } else {
                                                         if store.read().word_index == word_index
                                                             && store.read().focus
                                                         {
@@ -743,14 +723,15 @@ pub fn Sentance(
                                                     };
                                                     let local_store = store.get();
                                                     let word_state = local_store
-                                                        .data
+                                                        .words
                                                         .get(local_store.word_index)
                                                         .unwrap();
                                                     if store.read().word_index == word_index
                                                         && store.read().focus
-                                                        && (word_state.char_index == char_index || char_index == 0)
+                                                        && (word_state.char_index == char_index || char_index == 0
+                                                            || (word_state.characters.len() == word_state.char_index
+                                                                && (char_index + 1) == word_state.char_index))
                                                     {
-                                                        log!("current char index: {}", word_state.char_index);
                                                         view! {
                                                             <div class=class node_ref=div_ref>
                                                                 {c.reference_char}
@@ -758,10 +739,6 @@ pub fn Sentance(
                                                         }
                                                             .into_any()
                                                     } else {
-                                                        log!(
-                                                            "current char index: {} - render default", word_state
-                                                            .char_index
-                                                        );
                                                         view! { <div class=class>{c.reference_char}</div> }
                                                             .into_any()
                                                     }
