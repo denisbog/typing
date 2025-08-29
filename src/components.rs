@@ -368,7 +368,7 @@ impl TypingState {
 
     fn get_style_for_word_state(word_state: WordState) -> &'static str {
         match word_state {
-            WordState::Pair => "relative flex p-1 lg:mt-1 bg-blue-100",
+            WordState::Pair => "relative flex p-1 lg:mt-1 bg-gray-900",
             WordState::Highlighted => "relative flex p-1 lg:mt-1 bg-red-100",
             WordState::HighlightedPair => "relative flex p-1 lg:mt-1 bg-blue-200",
             WordState::Clicked => "relative flex p-1 lg:mt-1 underline",
@@ -657,7 +657,7 @@ pub fn Sentance(
                     }
                 >
 
-                    <div class="absolute animate-blink" style=caret_position>
+                    <div class="absolute animate-blink z-20" style=caret_position>
                         <span class="text-xl lg:text-3xl font-extrabold font-mono text-yellow-500 font-bold">
                             _
                         </span>
@@ -755,8 +755,8 @@ pub fn Sentance(
                                                 {
                                                     Either::Left(
                                                         view! {
-                                                            <div class="absolute -top-2 lg:-top-4 right-1 text-red-600 italic text-xs lg:text-md bg-blue-200 shadow-md rounded px-1 border-solid-1 font-sans">
-                                                                {index}
+                                                            <div class="absolute -top-2 lg:-top-3 right-1 text-gray-600 italic text-xs lg:text-md bg-gray-900 shadow-md rounded px-1 border-solid-1 font-sans">
+                                                                {index + 1}
                                                             </div>
                                                         },
                                                     )
@@ -853,8 +853,8 @@ pub fn Sentance(
                                         {
                                             Either::Left(
                                                 view! {
-                                                    <div class="absolute -top-2 lg:-top-4 right-1 text-red-600 italic text-xs lg:text-md bg-blue-200 shadow-md rounded px-1 border-solid-1 font-sans">
-                                                        {index}
+                                                    <div class="absolute -top-2 lg:-top-3 right-1 text-gray-600 italic text-xs lg:text-md bg-gray-900 shadow-md rounded px-1 border-solid-1 font-sans">
+                                                        {index + 1}
                                                     </div>
                                                 },
                                             )
