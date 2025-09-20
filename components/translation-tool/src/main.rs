@@ -187,11 +187,9 @@ async fn main() -> anyhow::Result<()> {
 
         let translations: Vec<String> =
             futures::future::join_all(paragraphs.iter().map(|paragraph| async {
-                translator
-                    .lock()
-                    .await
-                    .translate(paragraph.clone())
-                    .unwrap()
+                translator.lock().await.translate(paragraph.clone()).expect(
+                    format!("failed to traslate {}, {}", item.user_id, item.created_at,).as_str(),
+                )
             }))
             .await;
         item.paragraphs = paragraphs

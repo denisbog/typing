@@ -41,7 +41,7 @@ impl AwsPersistance {
 #[cfg(feature = "ssr")]
 impl Persistance for AwsPersistance {
     async fn get_items_for_user(&self, user_id: &str) -> Vec<Article> {
-        let response = self
+        let mut response = self
             .client
             .query()
             .table_name("translation")
@@ -50,7 +50,21 @@ impl Persistance for AwsPersistance {
             .send()
             .await
             .unwrap();
-        from_items(response.items.unwrap()).unwrap()
+        let mut items = from_items(response.items.unwrap()).unwrap();
+        while response.last_evaluated_key.is_some() {
+            response = self
+                .client
+                .query()
+                .table_name("translation")
+                .key_condition_expression("user_id = :user_id")
+                .expression_attribute_values(":user_id", AttributeValue::S(user_id.to_string()))
+                .set_exclusive_start_key(response.last_evaluated_key)
+                .send()
+                .await
+                .unwrap();
+            items.extend(from_items(response.items.unwrap()).unwrap());
+        }
+        items
     }
 
     async fn put_item_for_user(&self, item: Article) {
