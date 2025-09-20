@@ -388,22 +388,6 @@ impl TypingState {
     }
 }
 
-#[derive(Clone)]
-struct EffectPosition {
-    x: f64,
-    y: f64,
-}
-
-impl Sub for EffectPosition {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        EffectPosition {
-            x: self.x - rhs.x,
-            y: self.y - rhs.y,
-        }
-    }
-}
 #[component]
 pub fn Sentance(
     paragraph: Paragraph,
@@ -411,6 +395,7 @@ pub fn Sentance(
     total: usize,
     pairs: ReadSignal<TypePairs>,
     set_pairs: WriteSignal<TypePairs>,
+    div_ref: NodeRef<Div>,
 ) -> impl IntoView {
     let mut typing_state = TypingState::default();
     if let Some(pairs_for_paragraph) = pairs.read().get(&index) {
@@ -520,42 +505,6 @@ pub fn Sentance(
         }
     };
 
-    let div_ref = NodeRef::<Div>::new();
-    let (coordinates, set_coordinates) = signal(EffectPosition { x: 0.0, y: 0.0 });
-    Effect::new(move |_| {
-        if let Some(div) = div_ref.get() {
-            // Cast NodeRef to web_sys::Element
-            let element = div;
-            // Get bounding client rect
-            let rect = element.get_bounding_client_rect();
-            let x = rect.x();
-            let y = rect.y();
-            // Get scroll offsets for document coordinates
-            let doc_x = x + window().scroll_x().unwrap_or(0.0);
-            let doc_y = y + window().scroll_y().unwrap_or(0.0);
-            set_coordinates.set(EffectPosition { x: doc_x, y: doc_y });
-        }
-    });
-
-    AnimationContext::provide();
-
-    let animated_value = AnimatedSignal::new(
-        move || AnimationTarget::<EffectPosition> {
-            target: coordinates.get().into(),
-            duration: Duration::from_secs_f64(0.25),
-            easing: easing::CUBIC_OUT,
-            mode: AnimationMode::Start,
-        },
-        |from, to, progress| EffectPosition {
-            x: (to.x - from.x) * progress + from.x,
-            y: (to.y - from.y) * progress + from.y,
-        },
-    );
-    let caret_position = move || {
-        let temp = animated_value.read();
-        format!("left: {}px; top:{}px", temp.x, temp.y)
-    };
-
     view! {
         <div class="flex flex-col justify-center min-h-lvh lg:h-min snap-start parent" id=index + 1>
             <div class=class>
@@ -657,11 +606,6 @@ pub fn Sentance(
                     }
                 >
 
-                    <div class="absolute animate-blink z-20" style=caret_position>
-                        <span class="text-xl lg:text-3xl font-extrabold font-mono text-yellow-500 font-bold">
-                            _
-                        </span>
-                    </div>
                     <div class="pr-2">{index + 1} {"/"} {total} {")"}</div>
 
                     {
