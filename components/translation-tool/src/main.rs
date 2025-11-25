@@ -4,9 +4,8 @@ use clap::Parser;
 
 use candle_core::{DType, Tensor};
 use candle_nn::VarBuilder;
-
+use futures::StreamExt;
 use tokenizers::Tokenizer;
-
 #[derive(Parser)]
 pub struct Args {
     #[arg(long, default_value = "false")]
@@ -163,7 +162,7 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let translator = Arc::new(Mutex::new(Translator::init(args)?));
 
-    println!("translating");
+    println!("fetch items from dynamodb");
     let config = aws_config::load_from_env().await;
     let client = aws_sdk_dynamodb::Client::new(&config);
     let response = client
@@ -176,67 +175,72 @@ async fn main() -> anyhow::Result<()> {
         .await
         .unwrap();
 
-    let mut items: Vec<Article> = from_items(response.items.unwrap()).unwrap();
-    println!("items {items:?}");
-    let items: Vec<&mut Article> = futures::future::join_all(items.iter_mut().map(|item| async {
-        let paragraphs: Vec<String> = item
-            .paragraphs
-            .iter()
-            .map(|paragraph| paragraph.original.clone())
-            .collect();
+    let items: Vec<Article> = from_items(response.items.unwrap()).unwrap();
 
-        let translations: Vec<String> =
-            futures::future::join_all(paragraphs.iter().map(|paragraph| async {
-                translator.lock().await.translate(paragraph.clone()).expect(
-                    format!("failed to traslate {}, {}", item.user_id, item.created_at,).as_str(),
+    futures::stream::iter(items)
+        .map(|mut item| async {
+            let paragraphs: Vec<String> = item
+                .paragraphs
+                .iter()
+                .map(|paragraph| paragraph.original.clone())
+                .collect();
+            println!("translating: {} {}", item.user_id, item.created_at);
+            let translations: Vec<String> =
+                futures::future::join_all(paragraphs.iter().map(|paragraph| async {
+                    translator.lock().await.translate(paragraph.clone()).expect(
+                        format!("failed to traslate {}, {}", item.user_id, item.created_at,)
+                            .as_str(),
+                    )
+                }))
+                .await;
+            item.paragraphs = paragraphs
+                .into_iter()
+                .zip(translations.into_iter())
+                .map(|(original, translation)| Paragraph {
+                    original,
+                    translation: Some(translation),
+                })
+                .collect();
+            item
+        })
+        .map(|item| async {
+            let item = item.await;
+            let mut key = HashMap::new();
+            key.insert(
+                "user_id".to_string(),
+                AttributeValue::S(item.user_id.clone()),
+            );
+            key.insert(
+                "created_at".to_string(),
+                AttributeValue::N(item.created_at.to_string()),
+            );
+
+            let temp: HashMap<String, AttributeValue> =
+                serde_dynamo::to_item(item.clone()).unwrap();
+
+            client
+                .update_item()
+                .table_name("translation")
+                .set_key(Some(key))
+                .attribute_updates(
+                    "translated",
+                    AttributeValueUpdate::builder()
+                        .value(AttributeValue::S("true".to_string()))
+                        .build(),
                 )
-            }))
-            .await;
-        item.paragraphs = paragraphs
-            .into_iter()
-            .zip(translations.into_iter())
-            .map(|(original, translation)| Paragraph {
-                original,
-                translation: Some(translation),
-            })
-            .collect();
-        item
-    }))
-    .await;
-
-    futures::future::join_all(items.into_iter().map(|item| async {
-        let mut key = HashMap::new();
-        key.insert(
-            "user_id".to_string(),
-            AttributeValue::S(item.user_id.clone()),
-        );
-        key.insert(
-            "created_at".to_string(),
-            AttributeValue::N(item.created_at.to_string()),
-        );
-
-        let temp: HashMap<String, AttributeValue> = serde_dynamo::to_item(item).unwrap();
-
-        client
-            .update_item()
-            .table_name("translation")
-            .set_key(Some(key))
-            .attribute_updates(
-                "translated",
-                AttributeValueUpdate::builder()
-                    .value(AttributeValue::S("true".to_string()))
-                    .build(),
-            )
-            .attribute_updates(
-                "paragraphs",
-                AttributeValueUpdate::builder()
-                    .value(temp.get("paragraphs").unwrap().clone())
-                    .build(),
-            )
-            .send()
-            .await
-            .unwrap();
-    }))
-    .await;
+                .attribute_updates(
+                    "paragraphs",
+                    AttributeValueUpdate::builder()
+                        .value(temp.get("paragraphs").unwrap().clone())
+                        .build(),
+                )
+                .send()
+                .await
+                .unwrap();
+            println!("stored: {} {}", item.user_id, item.created_at);
+        })
+        .buffered(1)
+        .count()
+        .await;
     Ok(())
 }

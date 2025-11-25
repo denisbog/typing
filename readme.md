@@ -108,4 +108,26 @@ cargo lambda deploy --include target/site --enable-function-url --binary-name=ty
 ```bash
 NVCC_CCBIN=gcc-14 PATH=$PATH:/usr/local/cuda/bin cargo r --release --package translation-tool
 NVCC_CCBIN=gcc-14 PATH=$PATH:/usr/local/cuda/bin cargo r --release --package spiegel-crawler --bin spiegel-crawler -- --userInfo  <userInfo> --accessInfo <accessInfo> --userId <userId>
+NVCC_CCBIN=gcc-14 PATH=$PATH:/usr/local/cuda-12/bin cargo r --release --package translation-tool
+sudo dkms install --force nvidia/580.105.08 -k $(uname -r)
+```
+
+
+## delete from command line
+
+```sh
+aws dynamodb delete-item --table-name translation --key file://id.json
+```
+
+id.json
+
+```json
+{
+  "user_id": {
+    "S": "e4e8e4c8-c0e1-7060-0062-*****"
+  },
+  "created_at": {
+    "N": "1764090714075"
+  }
+}
 ```
