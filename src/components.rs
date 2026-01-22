@@ -499,9 +499,9 @@ pub fn Sentance(
     let (typing, set_typing) = signal(Option::<TypingStat>::None);
     let class = move || {
         if sentace_state.read().enable_selection {
-            "p-2 cursor-default"
+            "p-2 flex cursor-default"
         } else {
-            "p-2"
+            "p-2 flex"
         }
     };
 
@@ -543,7 +543,8 @@ pub fn Sentance(
                                 local_store.word_index -= 1;
                             }
                             set_store.set(local_store);
-                        } else if key == 32 && local_store.word_index < local_store.words.len() - 1 {
+                        } else if key == 32 && local_store.word_index < local_store.words.len() - 1
+                        {
                             if let Some(word) = local_store.words.get_mut(local_store.word_index) {
                                 if word.char_index == word.characters.len() {
                                     event.prevent_default();
@@ -640,9 +641,7 @@ pub fn Sentance(
 
                                             <For
                                                 each=move || w.clone().characters.into_iter().enumerate()
-                                                key=move |(index, _c)| {
-                                                    format!("{}", index)
-                                                }
+                                                key=move |(index, _c)| { format!("{}", index) }
 
                                                 children=move |(char_index, c)| {
                                                     let class = if let Some(typed_char) = c.typed_char {
@@ -744,19 +743,6 @@ pub fn Sentance(
                     }
 
                 </div>
-                <div class="pr-2 flex flex-col items-end">
-                    WPM:
-                    {move || {
-                        typing
-                            .read()
-                            .as_ref()
-                            .map_or_else(
-                                || "not in focus".to_string(),
-                                |typing| format!("{:.2} ", typing.get_wpm()),
-                            )
-                    }}
-
-                </div>
                 <div class="px-2 lg:px-5 lg:p-3 flex flex-wrap text-gray-500 italic cursor-default">
 
                     <For
@@ -851,17 +837,32 @@ pub fn Sentance(
                     }
                 };
                 view! {
-                    <div
-                        class=BUTTON_CLASS
-                        on:click=move |_event| {
-                            set_sentace_state
-                                .update(|state| {
-                                    state.toogle_enable_pair();
-                                });
-                        }
-                    >
+                    <div class="flex items-center">
+                        <div
+                            class=BUTTON_CLASS
+                            on:click=move |_event| {
+                                set_sentace_state
+                                    .update(|state| {
+                                        state.toogle_enable_pair();
+                                    });
+                            }
+                        >
 
-                        {label}
+                            {label}
+                        </div>
+                        <div>
+
+                            {move || {
+                                typing
+                                    .read()
+                                    .as_ref()
+                                    .map_or_else(
+                                        || "not in focus".to_string(),
+                                        |typing| format!("{:.2} ", typing.get_wpm()),
+                                    )
+                            }}
+                            (wpm)
+                        </div>
                     </div>
                 }
             }
