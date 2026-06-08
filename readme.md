@@ -110,6 +110,9 @@ NVCC_CCBIN=gcc-14 PATH=$PATH:/usr/local/cuda/bin cargo r --release --package tra
 NVCC_CCBIN=gcc-14 PATH=$PATH:/usr/local/cuda/bin cargo r --release --package spiegel-crawler --bin spiegel-crawler -- --userInfo  <userInfo> --accessInfo <accessInfo> --userId <userId>
 NVCC_CCBIN=gcc-14 PATH=$PATH:/usr/local/cuda-12/bin cargo r --release --package translation-tool
 sudo dkms install --force nvidia/580.105.08 -k $(uname -r)
+PATH=$PATH:/usr/local/cuda/bin cargo r --release --package translation-tool
+sudo ln -sf /usr/lib64/libcuda.so.1 /usr/lib/libcuda.so.1
+sudo ln -sf /usr/lib64/libcuda.so.1 /usr/lib/libcuda.so
 ```
 
 
