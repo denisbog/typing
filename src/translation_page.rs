@@ -7,7 +7,7 @@ use crate::translation::delete_article;
 use crate::translation::store_pairs;
 use crate::TypePairs;
 use crate::BUTTON_CLASS;
-use crate::{application_types::Data, components::Sentance};
+use crate::{application_types::{Data}, components::Sentance};
 use leptos::either::Either;
 use leptos::html::Div;
 use leptos::logging::log;
@@ -21,6 +21,21 @@ use leptos_router::hooks::use_params;
 use leptos_router::params::Params;
 
 use leptos::prelude::*;
+use leptos::wasm_bindgen::JsCast;
+use leptos::web_sys;
+use serde_json::Value;
+use crate::application_types::Article;
+
+#[cfg(feature = "hydrate")]
+use std::cell::RefCell;
+#[cfg(feature = "hydrate")]
+use std::rc::Rc;
+#[cfg(feature = "hydrate")]
+use wasm_bindgen::{closure::Closure, JsValue};
+#[cfg(feature = "hydrate")]
+use wasm_bindgen_futures::JsFuture;
+#[cfg(feature = "hydrate")]
+use web_sys::HtmlAudioElement;
 
 #[derive(Params, PartialEq)]
 pub struct ArticleParams {
@@ -42,6 +57,239 @@ impl Sub for EffectPosition {
             y: self.y - rhs.y,
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SpeechCursor {
+    pub paragraph: usize,
+    pub word: usize,
+}
+
+#[cfg(feature = "hydrate")]
+#[derive(Clone, Debug)]
+struct SpeechCue {
+    word_index: usize,
+    start: f64,
+    end: f64,
+}
+
+#[cfg(feature = "hydrate")]
+fn trim_trailing_slash(value: &str) -> String {
+    value.trim_end_matches('/').to_string()
+}
+
+#[cfg(feature = "hydrate")]
+fn paragraph_base_url(base: &str, paragraph_index: usize) -> String {
+    format!("{}/paragraph-{paragraph_index:03}", trim_trailing_slash(base))
+}
+
+#[cfg(feature = "hydrate")]
+async fn fetch_text(url: &str) -> Result<String, JsValue> {
+    let window = web_sys::window().ok_or_else(|| JsValue::from_str("window unavailable"))?;
+    let response = JsFuture::from(window.fetch_with_str(url)).await?;
+    let response: web_sys::Response = response.dyn_into()?;
+    let text = JsFuture::from(response.text()?).await?;
+    text.as_string().ok_or_else(|| JsValue::from_str("missing response text"))
+}
+
+#[cfg(feature = "hydrate")]
+fn push_speech_cue(cues: &mut Vec<SpeechCue>, word_index: usize, start: f64, end: f64) {
+    cues.push(SpeechCue {
+        word_index,
+        start,
+        end,
+    });
+}
+
+#[cfg(feature = "hydrate")]
+fn parse_cue_entry(entry: &Value, word_index: &mut usize, cues: &mut Vec<SpeechCue>) {
+    if let Some(words) = entry.get("words").and_then(Value::as_array) {
+        words.iter().for_each(|word| parse_cue_entry(word, word_index, cues));
+        return;
+    }
+
+    let start = entry.get("start").and_then(Value::as_f64);
+    let end = entry.get("end").and_then(Value::as_f64).or_else(|| {
+        entry
+            .get("duration")
+            .and_then(Value::as_f64)
+            .and_then(|duration| start.map(|start| start + duration))
+    });
+
+    let text = entry
+        .get("word")
+        .or_else(|| entry.get("text"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .unwrap_or("");
+
+    if text.is_empty() {
+        return;
+    }
+
+    let words = text
+        .split_whitespace()
+        .filter(|item| !item.is_empty())
+        .collect::<Vec<_>>();
+
+    if words.is_empty() {
+        return;
+    }
+
+    let inferred_start = start.unwrap_or(*word_index as f64 * 0.35);
+    let inferred_end = end.unwrap_or(inferred_start + (words.len() as f64 * 0.35).max(0.15));
+    let duration = (inferred_end - inferred_start).max(0.05);
+    let step = duration / words.len() as f64;
+
+    words.iter().enumerate().for_each(|(offset, _word)| {
+        push_speech_cue(
+            cues,
+            *word_index,
+            inferred_start + (offset as f64 * step),
+            inferred_start + ((offset as f64 + 1.0) * step),
+        );
+        *word_index += 1;
+    });
+}
+
+#[cfg(feature = "hydrate")]
+fn build_speech_cues(value: Value) -> Vec<SpeechCue> {
+    let entries = match value {
+        Value::Array(entries) => entries,
+        Value::Object(mut map) => {
+            for key in ["segments", "words", "items"] {
+                if let Some(Value::Array(entries)) = map.remove(key) {
+                    return entries
+                        .iter()
+                        .fold((Vec::new(), 0usize), |(mut cues, mut word_index), entry| {
+                            parse_cue_entry(entry, &mut word_index, &mut cues);
+                            (cues, word_index)
+                        })
+                        .0;
+                }
+            }
+            vec![Value::Object(map)]
+        }
+        _ => vec![],
+    };
+
+    entries
+        .iter()
+        .fold((Vec::new(), 0usize), |(mut cues, mut word_index), entry| {
+            parse_cue_entry(entry, &mut word_index, &mut cues);
+            (cues, word_index)
+        })
+        .0
+}
+
+#[cfg(feature = "hydrate")]
+fn active_speech_cursor(cues: &[SpeechCue], current_time: f64, paragraph: usize) -> Option<SpeechCursor> {
+    cues.iter()
+        .rev()
+        .find(|cue| current_time >= cue.start && current_time <= cue.end)
+        .or_else(|| cues.iter().rev().find(|cue| current_time >= cue.start))
+        .map(|cue| SpeechCursor {
+            paragraph,
+            word: cue.word_index,
+        })
+}
+
+#[cfg(feature = "hydrate")]
+async fn start_paragraph_audio(
+    article: Article,
+    base_directory: String,
+    paragraph_index: usize,
+    set_speech_cursor: WriteSignal<Option<SpeechCursor>>,
+    set_audio_is_playing: WriteSignal<bool>,
+    set_audio_current_paragraph: WriteSignal<Option<usize>>,
+    audio_handle: Rc<RefCell<Option<HtmlAudioElement>>>,
+) -> Result<(), JsValue> {
+    if paragraph_index >= article.paragraphs.len() {
+        set_speech_cursor.set(None);
+        set_audio_is_playing.set(false);
+        return Ok(());
+    }
+    let paragraph_url = paragraph_base_url(&base_directory, paragraph_index + 1);
+    let audio_url = format!("{}/output.mp3", paragraph_url);
+    let transcription_url = format!("{}/transcription.json", paragraph_url);
+    let transcription_text = fetch_text(&transcription_url).await?;
+    let transcription_json: Value = serde_json::from_str(&transcription_text).unwrap_or(Value::Null);
+    let cues = build_speech_cues(transcription_json);
+
+    if let Some(previous) = audio_handle.borrow_mut().take() {
+        let _ = previous.pause();
+        // previous.set_src("");
+    }
+
+    let audio = HtmlAudioElement::new()?;
+    audio.set_preload("auto");
+    audio.set_src(&audio_url);
+    *audio_handle.borrow_mut() = Some(audio.clone());
+    set_audio_is_playing.set(true);
+    set_audio_current_paragraph.set(Some(paragraph_index));
+
+    let paragraph_for_cursor = paragraph_index;
+    let cues_for_timeupdate = cues.clone();
+    let audio_for_timeupdate = audio.clone();
+    let set_speech_cursor_for_timeupdate = set_speech_cursor;
+    let ontimeupdate = Closure::wrap(Box::new(move || {
+        let cursor = active_speech_cursor(
+            &cues_for_timeupdate,
+            audio_for_timeupdate.current_time(),
+            paragraph_for_cursor,
+        );
+        set_speech_cursor_for_timeupdate.set(cursor);
+    }) as Box<dyn FnMut()>);
+    audio.set_ontimeupdate(Some(ontimeupdate.as_ref().unchecked_ref()));
+    ontimeupdate.forget();
+
+    let article_for_end = article.clone();
+    let base_for_end = base_directory.clone();
+    let set_speech_cursor_for_end = set_speech_cursor;
+    let set_audio_is_playing_for_end = set_audio_is_playing;
+    let set_audio_current_paragraph_for_end = set_audio_current_paragraph;
+    let audio_handle_for_end = audio_handle.clone();
+    let onended = Closure::wrap(Box::new(move || {
+        let next_paragraph = paragraph_index + 1;
+        if next_paragraph < article_for_end.paragraphs.len() {
+            let article = article_for_end.clone();
+            let base = base_for_end.clone();
+            let set_speech_cursor = set_speech_cursor_for_end;
+            let set_audio_is_playing = set_audio_is_playing_for_end;
+            let set_audio_current_paragraph = set_audio_current_paragraph_for_end;
+            let audio_handle = audio_handle_for_end.clone();
+            spawn_local(async move {
+                let _ = start_paragraph_audio(
+                    article,
+                    base,
+                    next_paragraph,
+                    set_speech_cursor,
+                    set_audio_is_playing,
+                    set_audio_current_paragraph,
+                    audio_handle,
+                )
+                .await;
+            });
+        } else {
+            set_speech_cursor_for_end.set(None);
+            set_audio_is_playing_for_end.set(false);
+            set_audio_current_paragraph.set(None);
+            if let Some(current) = audio_handle.borrow_mut().take() {
+                current.pause().ok();
+                // current.set_src("");
+            }
+        }
+    }) as Box<dyn FnMut()>);
+    audio.set_onended(Some(onended.as_ref().unchecked_ref()));
+    onended.forget();
+// audio.play().unwrap();
+    if JsFuture::from(audio.play()?).await.is_err() {
+        // set_audio_is_playing.set(false);
+        // set_audio_current_paragraph.set(None);
+        // set_speech_cursor.set(None);
+        return Err(JsValue::from_str("audio playback failed"));
+    }
+    Ok(())
 }
 
 #[component]
@@ -196,15 +444,16 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
 
     let div_ref = NodeRef::<Div>::new();
     let (coordinates, set_coordinates) = signal(EffectPosition { x: 0.0, y: 0.0 });
+    let (speech_cursor, set_speech_cursor) = signal(Option::<SpeechCursor>::None);
+    let (audio_is_playing, set_audio_is_playing) = signal(false);
+    let (audio_current_paragraph, set_audio_current_paragraph) = signal(Option::<usize>::None);
+
     Effect::new(move |_| {
         if let Some(div) = div_ref.get() {
-            // Cast NodeRef to web_sys::Element
             let element = div;
-            // Get bounding client rect
             let rect = element.get_bounding_client_rect();
             let x = rect.x();
             let y = rect.y();
-            // Get scroll offsets for document coordinates
             let doc_x = x + window().scroll_x().unwrap_or(0.0);
             let doc_y = y + window().scroll_y().unwrap_or(0.0);
             set_coordinates.set(EffectPosition { x: doc_x, y: doc_y });
@@ -269,18 +518,80 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
                     }
                 })
                 .collect_view();
+            let has_audio_directory = article.audio_directory.is_some();
+            let audio_directory = article.audio_directory.clone().unwrap_or_default();
+            let audio_directory_for_audio = audio_directory.clone();
+            #[cfg(feature = "hydrate")]
+            let on_audio_click = if has_audio_directory {
+                let article_for_audio = article.clone();
+                let current_audio = Rc::new(RefCell::new(None::<HtmlAudioElement>));
+                Some(UnsyncCallback::new(move |paragraph_index: usize| {
+                    let active_paragraph = audio_current_paragraph.get_untracked();
+                    if active_paragraph == Some(paragraph_index) {
+                        if let Some(audio) = current_audio.borrow().as_ref() {
+                            if audio_is_playing.get_untracked() {
+                                audio.pause().ok();
+                                set_audio_is_playing.set(false);
+                            } else {
+                                audio.play().ok();
+                                set_audio_is_playing.set(true);
+                            }
+                        }
+                        // set_audio_current_paragraph.set(None);
+                        // set_speech_cursor.set(None);
+                    } else {
+                        let article = article_for_audio.clone();
+                        let directory = audio_directory_for_audio.clone();
+                        let set_speech_cursor = set_speech_cursor;
+                        let set_audio_is_playing = set_audio_is_playing;
+                        let set_audio_current_paragraph = set_audio_current_paragraph;
+                        let audio_handle = current_audio.clone();
+                        spawn_local(async move {
+                            let _ = start_paragraph_audio(
+                                article,
+                                directory,
+                                paragraph_index,
+                                set_speech_cursor,
+                                set_audio_is_playing,
+                                set_audio_current_paragraph,
+                                audio_handle,
+                            )
+                            .await;
+                        });
+                    }
+                }))
+            } else {
+                None
+            };
+            #[cfg(not(feature = "hydrate"))]
+            let on_audio_click: Option<UnsyncCallback<usize>> = None;
             let paragraphs = article
                 .paragraphs
                 .clone()
                 .into_iter()
                 .enumerate()
                 .map(|(index, item)| {
-                    view! { <Sentance paragraph=item index total pairs set_pairs div_ref/> }
+                    view! {
+                        <Sentance
+                            paragraph=item
+                            index
+                            total
+                            pairs
+                            set_pairs
+                            div_ref
+                            speech_cursor
+                            audio_directory=if has_audio_directory { Some(audio_directory.clone()) } else { None }
+                            on_audio_click=on_audio_click.clone()
+                            audio_current_paragraph=audio_current_paragraph
+                            audio_is_playing=audio_is_playing
+                        />
+                    }
                 })
                 .collect_view();
+
             Either::Left(view! {
                 {paragraphs}
-                <div class="fixed bottom-2 p-2 bg-zinc-900 shadow-md cursor-default flex">
+                <div class="fixed bottom-2 p-2 bg-zinc-900 shadow-md cursor-default flex flex-wrap">
                     "jump: "
                     <div class="pl-1 underline cursor-pointer" on:click=move |_| on_back(pairs)>
                         <a href="/">home</a>

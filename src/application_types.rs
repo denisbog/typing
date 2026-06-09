@@ -11,6 +11,7 @@ pub struct Article {
     pub created_at: u64,
     pub translated: String,
     pub title: String,
+    pub audio_directory: Option<String>,
     pub paragraphs: Vec<Paragraph>,
 }
 
@@ -31,6 +32,7 @@ impl Article {
             created_at: 0,
             translated: "false".to_string(),
             title,
+            audio_directory: None,
             paragraphs,
         }
     }
@@ -50,6 +52,7 @@ impl Article {
             created_at: 0,
             translated: "false".to_string(),
             title,
+            audio_directory: None,
             paragraphs,
         }
     }

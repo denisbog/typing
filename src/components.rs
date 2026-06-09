@@ -396,6 +396,11 @@ pub fn Sentance(
     pairs: ReadSignal<TypePairs>,
     set_pairs: WriteSignal<TypePairs>,
     div_ref: NodeRef<Div>,
+    speech_cursor: ReadSignal<Option<crate::translation_page::SpeechCursor>>,
+    audio_directory: Option<String>,
+    on_audio_click: Option<UnsyncCallback<usize>>,
+    audio_current_paragraph: ReadSignal<Option<usize>>,
+    audio_is_playing: ReadSignal<bool>,
 ) -> impl IntoView {
     let mut typing_state = TypingState::default();
     if let Some(pairs_for_paragraph) = pairs.read().get(&index) {
@@ -620,11 +625,26 @@ pub fn Sentance(
                                 }
 
                                 children=move |(word_index, w)| {
-                                    let class = move || TypingState::get_style_for_word_state(
-                                        sentace_state
-                                            .read()
-                                            .get_state_for_word(word_index, EvaluationFor::Original),
-                                    );
+                                    let speech_active = move || {
+                                        speech_cursor
+                                            .get()
+                                            .is_some_and(|cursor| {
+                                                cursor.paragraph == index
+                                                    && cursor.word == word_index
+                                            })
+                                    };
+                                    let class = move || {
+                                        let mut class = TypingState::get_style_for_word_state(
+                                            sentace_state
+                                                .read()
+                                                .get_state_for_word(word_index, EvaluationFor::Original),
+                                        )
+                                        .to_string();
+                                        if speech_active() {
+                                            class.push_str(" underline decoration-blue-400 decoration-2");
+                                        }
+                                        class
+                                    };
                                     view! {
                                         <div
                                             class=class
@@ -669,12 +689,12 @@ pub fn Sentance(
                                                         .words
                                                         .get(local_store.word_index)
                                                         .unwrap();
-                                                    if store.read().word_index == word_index
+                                                    let typing_cursor_active = store.read().word_index == word_index
                                                         && store.read().focus
                                                         && (word_state.char_index == char_index || char_index == 0
                                                             || (word_state.characters.len() == word_state.char_index
-                                                                && (char_index + 1) == word_state.char_index))
-                                                    {
+                                                                && (char_index + 1) == word_state.char_index));
+                                                    if typing_cursor_active {
                                                         view! {
                                                             <div class=class node_ref=div_ref>
                                                                 {c.reference_char}
@@ -836,6 +856,19 @@ pub fn Sentance(
                         "click to enable pairing"
                     }
                 };
+                let audio_disabled = audio_directory.is_none() || on_audio_click.is_none();
+                let audio_click = on_audio_click.clone();
+                let audio_label = move || {
+                    if audio_current_paragraph.get() == Some(index) {
+                        if audio_is_playing.get() {
+                            "Pause audio"
+                        } else {
+                            "Resume audio"
+                        }
+                    } else {
+                        "Play audio"
+                    }
+                };
                 view! {
                     <div class="flex items-center">
                         <div
@@ -850,6 +883,23 @@ pub fn Sentance(
 
                             {label}
                         </div>
+                        <button
+                            class=move || {
+                                if audio_disabled {
+                                    format!("{} opacity-50 cursor-not-allowed", BUTTON_CLASS)
+                                } else {
+                                    BUTTON_CLASS.to_string()
+                                }
+                            }
+                            disabled=move || audio_disabled
+                            on:click=move |_| {
+                                if let Some(on_audio_click) = audio_click.clone() {
+                                    on_audio_click.run(index);
+                                }
+                            }
+                        >
+                            {audio_label}
+                        </button>
                         <div>
 
                             {move || {
