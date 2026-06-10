@@ -55,6 +55,10 @@ pub fn App() -> impl IntoView {
 
     let (translation_post, set_translation_post) = signal(Data::default());
     let (input_popup, set_input_popup) = signal(false);
+    #[cfg(feature = "hydrate")]
+    let current_audio = StoredValue::new_local(None::<web_sys::HtmlAudioElement>);
+    #[cfg(feature = "hydrate")]
+    provide_context(current_audio);
     let resource = Resource::new(
         move || session_id,
         |session| async move {

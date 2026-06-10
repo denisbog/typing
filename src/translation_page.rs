@@ -27,10 +27,6 @@ use serde_json::Value;
 use crate::application_types::Article;
 
 #[cfg(feature = "hydrate")]
-use std::cell::RefCell;
-#[cfg(feature = "hydrate")]
-use std::rc::Rc;
-#[cfg(feature = "hydrate")]
 use wasm_bindgen::{closure::Closure, JsValue};
 #[cfg(feature = "hydrate")]
 use wasm_bindgen_futures::JsFuture;
@@ -195,15 +191,18 @@ fn active_speech_cursor(cues: &[SpeechCue], current_time: f64, paragraph: usize)
 }
 
 #[cfg(feature = "hydrate")]
-async fn start_paragraph_audio(
+async fn start_paragraph_audio<A>(
     article: Article,
     base_directory: String,
     paragraph_index: usize,
     set_speech_cursor: WriteSignal<Option<SpeechCursor>>,
     set_audio_is_playing: WriteSignal<bool>,
     set_audio_current_paragraph: WriteSignal<Option<usize>>,
-    audio_handle: Rc<RefCell<Option<HtmlAudioElement>>>,
-) -> Result<(), JsValue> {
+    set_audio_handle: A,
+) -> Result<(), JsValue>
+where
+    A: GetValue<Value = Option<HtmlAudioElement>> + SetValue<Value = Option<HtmlAudioElement>> + Copy + 'static,
+{
     if paragraph_index >= article.paragraphs.len() {
         set_speech_cursor.set(None);
         set_audio_is_playing.set(false);
@@ -216,15 +215,16 @@ async fn start_paragraph_audio(
     let transcription_json: Value = serde_json::from_str(&transcription_text).unwrap_or(Value::Null);
     let cues = build_speech_cues(transcription_json);
 
-    if let Some(previous) = audio_handle.borrow_mut().take() {
+    if let Some(previous) = set_audio_handle.get_value() {
         let _ = previous.pause();
         // previous.set_src("");
     }
+    set_audio_handle.set_value(None);
 
     let audio = HtmlAudioElement::new()?;
     audio.set_preload("auto");
     audio.set_src(&audio_url);
-    *audio_handle.borrow_mut() = Some(audio.clone());
+    set_audio_handle.set_value(Some(audio.clone()));
     set_audio_is_playing.set(true);
     set_audio_current_paragraph.set(Some(paragraph_index));
 
@@ -248,7 +248,7 @@ async fn start_paragraph_audio(
     let set_speech_cursor_for_end = set_speech_cursor;
     let set_audio_is_playing_for_end = set_audio_is_playing;
     let set_audio_current_paragraph_for_end = set_audio_current_paragraph;
-    let audio_handle_for_end = audio_handle.clone();
+    let set_audio_handle_for_end = set_audio_handle;
     let onended = Closure::wrap(Box::new(move || {
         let next_paragraph = paragraph_index + 1;
         if next_paragraph < article_for_end.paragraphs.len() {
@@ -257,7 +257,7 @@ async fn start_paragraph_audio(
             let set_speech_cursor = set_speech_cursor_for_end;
             let set_audio_is_playing = set_audio_is_playing_for_end;
             let set_audio_current_paragraph = set_audio_current_paragraph_for_end;
-            let audio_handle = audio_handle_for_end.clone();
+            let set_audio_handle = set_audio_handle_for_end;
             spawn_local(async move {
                 let _ = start_paragraph_audio(
                     article,
@@ -266,7 +266,7 @@ async fn start_paragraph_audio(
                     set_speech_cursor,
                     set_audio_is_playing,
                     set_audio_current_paragraph,
-                    audio_handle,
+                    set_audio_handle,
                 )
                 .await;
             });
@@ -274,10 +274,11 @@ async fn start_paragraph_audio(
             set_speech_cursor_for_end.set(None);
             set_audio_is_playing_for_end.set(false);
             set_audio_current_paragraph.set(None);
-            if let Some(current) = audio_handle.borrow_mut().take() {
+            if let Some(current) = set_audio_handle.get_value() {
                 current.pause().ok();
                 // current.set_src("");
             }
+            set_audio_handle.set_value(None);
         }
     }) as Box<dyn FnMut()>);
     audio.set_onended(Some(onended.as_ref().unchecked_ref()));
@@ -522,13 +523,15 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
             let audio_directory = article.audio_directory.clone().unwrap_or_default();
             let audio_directory_for_audio = audio_directory.clone();
             #[cfg(feature = "hydrate")]
+            let current_audio = use_context::<StoredValue<Option<HtmlAudioElement>, LocalStorage>>()
+                .expect("missing current_audio context");
+            #[cfg(feature = "hydrate")]
             let on_audio_click = if has_audio_directory {
                 let article_for_audio = article.clone();
-                let current_audio = Rc::new(RefCell::new(None::<HtmlAudioElement>));
                 Some(UnsyncCallback::new(move |paragraph_index: usize| {
                     let active_paragraph = audio_current_paragraph.get_untracked();
                     if active_paragraph == Some(paragraph_index) {
-                        if let Some(audio) = current_audio.borrow().as_ref() {
+                        if let Some(audio) = current_audio.get_value() {
                             if audio_is_playing.get_untracked() {
                                 audio.pause().ok();
                                 set_audio_is_playing.set(false);
@@ -545,7 +548,7 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
                         let set_speech_cursor = set_speech_cursor;
                         let set_audio_is_playing = set_audio_is_playing;
                         let set_audio_current_paragraph = set_audio_current_paragraph;
-                        let audio_handle = current_audio.clone();
+                        let set_audio_handle = current_audio;
                         spawn_local(async move {
                             let _ = start_paragraph_audio(
                                 article,
@@ -554,7 +557,7 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
                                 set_speech_cursor,
                                 set_audio_is_playing,
                                 set_audio_current_paragraph,
-                                audio_handle,
+                                set_audio_handle,
                             )
                             .await;
                         });
