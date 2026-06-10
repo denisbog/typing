@@ -57,11 +57,26 @@ fn PlaybackPanel() -> impl IntoView {
             when=move || playback.article_title.get().is_some()
             fallback=move || view! { <div class="hidden"></div> }
         >
-            <div class="fixed bottom-2 right-2 p-3 bg-zinc-900 shadow-md rounded flex gap-2">
-                <div class="text-sm flex">
+            <div class="fixed bottom-2 right-2 p-3 bg-zinc-900 shadow-md rounded flex gap-2 items-center">
+                <div class="text-sm flex flex-col">
                     <div>{move || playback.article_title.get().unwrap_or_default()}</div>
                     <div>{move || playback.paragraph.get().map(|item| format!("#{}", item + 1)).unwrap_or_default()}</div>
                 </div>
+                <Show
+                    when=move || playback.article_index.get().is_some() && playback.paragraph.get().is_some()
+                    fallback=move || view! { <div class="hidden"></div> }
+                >
+                    <a
+                        class=BUTTON_CLASS
+                        href=move || format!(
+                            "/article/{}#{}",
+                            playback.article_index.get().unwrap(),
+                            playback.paragraph.get().unwrap() + 1
+                        )
+                    >
+                        "Go to article"
+                    </a>
+                </Show>
                 <div
                     class=BUTTON_CLASS
                     on:click=move |_| {
