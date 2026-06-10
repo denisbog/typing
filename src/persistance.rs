@@ -48,7 +48,7 @@ impl Persistance for AwsPersistance {
             .send()
             .await
             .unwrap();
-        let mut items = from_items(response.items.unwrap()).unwrap();
+        let mut items: Vec<Article> = from_items(response.items.unwrap()).unwrap();
         while response.last_evaluated_key.is_some() {
             response = self
                 .client
