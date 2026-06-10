@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
 #[cfg(feature = "ssr")]
-use aws_sdk_dynamodb::types::AttributeValueUpdate;
-#[cfg(feature = "ssr")]
 use aws_sdk_dynamodb::{types::AttributeValue, Client};
 #[cfg(feature = "ssr")]
 use serde_dynamo::from_items;
@@ -64,7 +62,7 @@ impl Persistance for AwsPersistance {
                 .unwrap();
             items.extend(from_items(response.items.unwrap()).unwrap());
         }
-        items
+        items.into_iter().filter(|item| item.translated != "deleted").collect()
     }
 
     async fn put_item_for_user(&self, item: Article) {
@@ -85,9 +83,11 @@ impl Persistance for AwsPersistance {
             AttributeValue::N(item.created_at.to_string()),
         );
         self.client
-            .delete_item()
+            .update_item()
             .table_name("translation")
             .set_key(Some(key))
+            .update_expression("SET translated = :deleted")
+            .expression_attribute_values(":deleted", AttributeValue::S("deleted".to_string()))
             .send()
             .await
             .unwrap();
