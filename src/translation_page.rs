@@ -69,6 +69,8 @@ pub struct PlaybackState {
     pub set_is_playing: WriteSignal<bool>,
     pub article_title: ReadSignal<Option<String>>,
     pub set_article_title: WriteSignal<Option<String>>,
+    pub article_index: ReadSignal<Option<usize>>,
+    pub set_article_index: WriteSignal<Option<usize>>,
     pub paragraph: ReadSignal<Option<usize>>,
     pub set_paragraph: WriteSignal<Option<usize>>,
     pub speech_cursor: ReadSignal<Option<SpeechCursor>>,
@@ -207,6 +209,7 @@ fn active_speech_cursor(cues: &[SpeechCue], current_time: f64, paragraph: usize)
 #[cfg(feature = "hydrate")]
 async fn start_paragraph_audio(
     article: Article,
+    article_index: usize,
     base_directory: String,
     paragraph_index: usize,
     playback: PlaybackState,
@@ -235,6 +238,7 @@ async fn start_paragraph_audio(
     playback.audio.set_value(Some(audio.clone()));
     playback.set_is_playing.set(true);
     playback.set_article_title.set(Some(article.title.clone()));
+    playback.set_article_index.set(Some(article_index));
     playback.set_paragraph.set(Some(paragraph_index));
 
     let paragraph_for_cursor = paragraph_index;
@@ -262,12 +266,13 @@ async fn start_paragraph_audio(
             let base = base_for_end.clone();
             let playback = playback_for_end;
             spawn_local(async move {
-                let _ = start_paragraph_audio(article, base, next_paragraph, playback).await;
+                let _ = start_paragraph_audio(article, article_index, base, next_paragraph, playback).await;
             });
         } else {
             playback_for_end.set_speech_cursor.set(None);
             playback_for_end.set_is_playing.set(false);
             playback_for_end.set_article_title.set(None);
+            playback_for_end.set_article_index.set(None);
             playback_for_end.set_paragraph.set(None);
             if let Some(current) = playback_for_end.audio.get_value() {
                 current.pause().ok();
@@ -445,11 +450,15 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
     #[cfg(feature = "hydrate")]
     let speech_cursor = playback.speech_cursor;
     #[cfg(feature = "hydrate")]
+    let audio_current_article = playback.article_index;
+    #[cfg(feature = "hydrate")]
     let audio_current_paragraph = playback.paragraph;
     #[cfg(feature = "hydrate")]
     let audio_is_playing = playback.is_playing;
     #[cfg(not(feature = "hydrate"))]
     let (speech_cursor, _set_speech_cursor) = signal(Option::<SpeechCursor>::None);
+    #[cfg(not(feature = "hydrate"))]
+    let (audio_current_article, _set_audio_current_article) = signal(Option::<usize>::None);
     #[cfg(not(feature = "hydrate"))]
     let (audio_current_paragraph, _set_audio_current_paragraph) = signal(Option::<usize>::None);
     #[cfg(not(feature = "hydrate"))]
@@ -532,8 +541,9 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
             let on_audio_click = if has_audio_directory {
                 let article_for_audio = article.clone();
                 Some(UnsyncCallback::new(move |paragraph_index: usize| {
+                    let active_article = playback.article_index.get();
                     let active_paragraph = playback.paragraph.get();
-                    if active_paragraph == Some(paragraph_index) {
+                    if active_article == Some(article_id) && active_paragraph == Some(paragraph_index) {
                         if let Some(audio) = playback.audio.get_value() {
                             if playback.is_playing.get() {
                                 audio.pause().ok();
@@ -550,7 +560,7 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
                         let directory = audio_directory_for_audio.clone();
                         let playback = playback;
                         spawn_local(async move {
-                            let _ = start_paragraph_audio(article, directory, paragraph_index, playback).await;
+                            let _ = start_paragraph_audio(article, article_id, directory, paragraph_index, playback).await;
                         });
                     }
                 }))
@@ -568,6 +578,7 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
                     view! {
                         <Sentance
                             paragraph=item
+                            article_index=article_id
                             index
                             total
                             pairs
@@ -576,6 +587,7 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
                             speech_cursor
                             audio_directory=if has_audio_directory { Some(audio_directory.clone()) } else { None }
                             on_audio_click=on_audio_click.clone()
+                            audio_current_article
                             audio_current_paragraph
                             audio_is_playing
                         />

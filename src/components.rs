@@ -408,6 +408,7 @@ impl TypingState {
 #[component]
 pub fn Sentance(
     paragraph: Paragraph,
+    article_index: usize,
     index: usize,
     total: usize,
     pairs: ReadSignal<TypePairs>,
@@ -416,6 +417,7 @@ pub fn Sentance(
     speech_cursor: ReadSignal<Option<crate::translation_page::SpeechCursor>>,
     audio_directory: Option<String>,
     on_audio_click: Option<UnsyncCallback<usize>>,
+    audio_current_article: ReadSignal<Option<usize>>,
     audio_current_paragraph: ReadSignal<Option<usize>>,
     audio_is_playing: ReadSignal<bool>,
 ) -> impl IntoView {
@@ -644,12 +646,13 @@ pub fn Sentance(
 
                                 children=move |(word_index, w)| {
                                     let speech_active = move || {
-                                        speech_cursor
-                                            .get()
-                                            .is_some_and(|cursor| {
-                                                cursor.paragraph == index
-                                                    && cursor.word == word_index
-                                            })
+                                        audio_current_article.get() == Some(article_index)
+                                            && speech_cursor
+                                                .get()
+                                                .is_some_and(|cursor| {
+                                                    cursor.paragraph == index
+                                                        && cursor.word == word_index
+                                                })
                                     };
                                     let class = move || {
                                         let mut class = TypingState::get_style_for_word_state(
@@ -877,7 +880,9 @@ pub fn Sentance(
                 let audio_disabled = audio_directory.is_none() || on_audio_click.is_none();
                 let audio_click = on_audio_click.clone();
                 let audio_label = move || {
-                    if audio_current_paragraph.get() == Some(index) {
+                    if audio_current_article.get() == Some(article_index)
+                        && audio_current_paragraph.get() == Some(index)
+                    {
                         if audio_is_playing.get() {
                             "Pause audio"
                         } else {

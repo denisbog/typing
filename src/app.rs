@@ -103,6 +103,7 @@ pub fn App() -> impl IntoView {
     let (input_popup, set_input_popup) = signal(false);
     let (audio_is_playing, set_audio_is_playing) = signal(false);
     let (audio_article_title, set_audio_article_title) = signal(Option::<String>::None);
+    let (audio_article_index, set_audio_article_index) = signal(Option::<usize>::None);
     let (audio_paragraph, set_audio_paragraph) = signal(Option::<usize>::None);
     let (audio_speech_cursor, set_audio_speech_cursor) = signal(Option::<crate::translation_page::SpeechCursor>::None);
     #[cfg(feature = "hydrate")]
@@ -113,6 +114,8 @@ pub fn App() -> impl IntoView {
             set_is_playing: set_audio_is_playing,
             article_title: audio_article_title,
             set_article_title: set_audio_article_title,
+            article_index: audio_article_index,
+            set_article_index: set_audio_article_index,
             paragraph: audio_paragraph,
             set_paragraph: set_audio_paragraph,
             speech_cursor: audio_speech_cursor,
