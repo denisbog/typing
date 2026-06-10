@@ -62,6 +62,20 @@ pub struct SpeechCursor {
 }
 
 #[cfg(feature = "hydrate")]
+#[derive(Clone, Copy)]
+pub struct PlaybackState {
+    pub audio: StoredValue<Option<HtmlAudioElement>, LocalStorage>,
+    pub is_playing: ReadSignal<bool>,
+    pub set_is_playing: WriteSignal<bool>,
+    pub article_title: ReadSignal<Option<String>>,
+    pub set_article_title: WriteSignal<Option<String>>,
+    pub paragraph: ReadSignal<Option<usize>>,
+    pub set_paragraph: WriteSignal<Option<usize>>,
+    pub speech_cursor: ReadSignal<Option<SpeechCursor>>,
+    pub set_speech_cursor: WriteSignal<Option<SpeechCursor>>,
+}
+
+#[cfg(feature = "hydrate")]
 #[derive(Clone, Debug)]
 struct SpeechCue {
     word_index: usize,
@@ -191,21 +205,15 @@ fn active_speech_cursor(cues: &[SpeechCue], current_time: f64, paragraph: usize)
 }
 
 #[cfg(feature = "hydrate")]
-async fn start_paragraph_audio<A>(
+async fn start_paragraph_audio(
     article: Article,
     base_directory: String,
     paragraph_index: usize,
-    set_speech_cursor: WriteSignal<Option<SpeechCursor>>,
-    set_audio_is_playing: WriteSignal<bool>,
-    set_audio_current_paragraph: WriteSignal<Option<usize>>,
-    set_audio_handle: A,
-) -> Result<(), JsValue>
-where
-    A: GetValue<Value = Option<HtmlAudioElement>> + SetValue<Value = Option<HtmlAudioElement>> + Copy + 'static,
-{
+    playback: PlaybackState,
+) -> Result<(), JsValue> {
     if paragraph_index >= article.paragraphs.len() {
-        set_speech_cursor.set(None);
-        set_audio_is_playing.set(false);
+        playback.set_speech_cursor.set(None);
+        playback.set_is_playing.set(false);
         return Ok(());
     }
     let paragraph_url = paragraph_base_url(&base_directory, paragraph_index + 1);
@@ -215,79 +223,66 @@ where
     let transcription_json: Value = serde_json::from_str(&transcription_text).unwrap_or(Value::Null);
     let cues = build_speech_cues(transcription_json);
 
-    if let Some(previous) = set_audio_handle.get_value() {
+    if let Some(previous) = playback.audio.get_value() {
         let _ = previous.pause();
         // previous.set_src("");
     }
-    set_audio_handle.set_value(None);
+    playback.audio.set_value(None);
 
     let audio = HtmlAudioElement::new()?;
     audio.set_preload("auto");
     audio.set_src(&audio_url);
-    set_audio_handle.set_value(Some(audio.clone()));
-    set_audio_is_playing.set(true);
-    set_audio_current_paragraph.set(Some(paragraph_index));
+    playback.audio.set_value(Some(audio.clone()));
+    playback.set_is_playing.set(true);
+    playback.set_article_title.set(Some(article.title.clone()));
+    playback.set_paragraph.set(Some(paragraph_index));
 
     let paragraph_for_cursor = paragraph_index;
     let cues_for_timeupdate = cues.clone();
     let audio_for_timeupdate = audio.clone();
-    let set_speech_cursor_for_timeupdate = set_speech_cursor;
+    let playback_for_timeupdate = playback;
     let ontimeupdate = Closure::wrap(Box::new(move || {
         let cursor = active_speech_cursor(
             &cues_for_timeupdate,
             audio_for_timeupdate.current_time(),
             paragraph_for_cursor,
         );
-        set_speech_cursor_for_timeupdate.set(cursor);
+        playback_for_timeupdate.set_speech_cursor.set(cursor);
     }) as Box<dyn FnMut()>);
     audio.set_ontimeupdate(Some(ontimeupdate.as_ref().unchecked_ref()));
     ontimeupdate.forget();
 
     let article_for_end = article.clone();
     let base_for_end = base_directory.clone();
-    let set_speech_cursor_for_end = set_speech_cursor;
-    let set_audio_is_playing_for_end = set_audio_is_playing;
-    let set_audio_current_paragraph_for_end = set_audio_current_paragraph;
-    let set_audio_handle_for_end = set_audio_handle;
+    let playback_for_end = playback;
     let onended = Closure::wrap(Box::new(move || {
         let next_paragraph = paragraph_index + 1;
         if next_paragraph < article_for_end.paragraphs.len() {
             let article = article_for_end.clone();
             let base = base_for_end.clone();
-            let set_speech_cursor = set_speech_cursor_for_end;
-            let set_audio_is_playing = set_audio_is_playing_for_end;
-            let set_audio_current_paragraph = set_audio_current_paragraph_for_end;
-            let set_audio_handle = set_audio_handle_for_end;
+            let playback = playback_for_end;
             spawn_local(async move {
-                let _ = start_paragraph_audio(
-                    article,
-                    base,
-                    next_paragraph,
-                    set_speech_cursor,
-                    set_audio_is_playing,
-                    set_audio_current_paragraph,
-                    set_audio_handle,
-                )
-                .await;
+                let _ = start_paragraph_audio(article, base, next_paragraph, playback).await;
             });
         } else {
-            set_speech_cursor_for_end.set(None);
-            set_audio_is_playing_for_end.set(false);
-            set_audio_current_paragraph.set(None);
-            if let Some(current) = set_audio_handle.get_value() {
+            playback_for_end.set_speech_cursor.set(None);
+            playback_for_end.set_is_playing.set(false);
+            playback_for_end.set_article_title.set(None);
+            playback_for_end.set_paragraph.set(None);
+            if let Some(current) = playback_for_end.audio.get_value() {
                 current.pause().ok();
                 // current.set_src("");
             }
-            set_audio_handle.set_value(None);
+            playback_for_end.audio.set_value(None);
         }
     }) as Box<dyn FnMut()>);
     audio.set_onended(Some(onended.as_ref().unchecked_ref()));
     onended.forget();
 // audio.play().unwrap();
     if JsFuture::from(audio.play()?).await.is_err() {
-        // set_audio_is_playing.set(false);
-        // set_audio_current_paragraph.set(None);
-        // set_speech_cursor.set(None);
+        // playback.set_is_playing.set(false);
+        // playback.set_paragraph.set(None);
+        // playback.set_speech_cursor.set(None);
         return Err(JsValue::from_str("audio playback failed"));
     }
     Ok(())
@@ -445,9 +440,20 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
 
     let div_ref = NodeRef::<Div>::new();
     let (coordinates, set_coordinates) = signal(EffectPosition { x: 0.0, y: 0.0 });
-    let (speech_cursor, set_speech_cursor) = signal(Option::<SpeechCursor>::None);
-    let (audio_is_playing, set_audio_is_playing) = signal(false);
-    let (audio_current_paragraph, set_audio_current_paragraph) = signal(Option::<usize>::None);
+    #[cfg(feature = "hydrate")]
+    let playback = use_context::<PlaybackState>().expect("missing playback context");
+    #[cfg(feature = "hydrate")]
+    let speech_cursor = playback.speech_cursor;
+    #[cfg(feature = "hydrate")]
+    let audio_current_paragraph = playback.paragraph;
+    #[cfg(feature = "hydrate")]
+    let audio_is_playing = playback.is_playing;
+    #[cfg(not(feature = "hydrate"))]
+    let (speech_cursor, _set_speech_cursor) = signal(Option::<SpeechCursor>::None);
+    #[cfg(not(feature = "hydrate"))]
+    let (audio_current_paragraph, _set_audio_current_paragraph) = signal(Option::<usize>::None);
+    #[cfg(not(feature = "hydrate"))]
+    let (audio_is_playing, _set_audio_is_playing) = signal(false);
 
     Effect::new(move |_| {
         if let Some(div) = div_ref.get() {
@@ -523,43 +529,28 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
             let audio_directory = article.audio_directory.clone().unwrap_or_default();
             let audio_directory_for_audio = audio_directory.clone();
             #[cfg(feature = "hydrate")]
-            let current_audio = use_context::<StoredValue<Option<HtmlAudioElement>, LocalStorage>>()
-                .expect("missing current_audio context");
-            #[cfg(feature = "hydrate")]
             let on_audio_click = if has_audio_directory {
                 let article_for_audio = article.clone();
                 Some(UnsyncCallback::new(move |paragraph_index: usize| {
-                    let active_paragraph = audio_current_paragraph.get_untracked();
+                    let active_paragraph = playback.paragraph.get();
                     if active_paragraph == Some(paragraph_index) {
-                        if let Some(audio) = current_audio.get_value() {
-                            if audio_is_playing.get_untracked() {
+                        if let Some(audio) = playback.audio.get_value() {
+                            if playback.is_playing.get() {
                                 audio.pause().ok();
-                                set_audio_is_playing.set(false);
+                                playback.set_is_playing.set(false);
                             } else {
                                 audio.play().ok();
-                                set_audio_is_playing.set(true);
+                                playback.set_is_playing.set(true);
                             }
                         }
-                        // set_audio_current_paragraph.set(None);
+                        // playback.set_paragraph.set(None);
                         // set_speech_cursor.set(None);
                     } else {
                         let article = article_for_audio.clone();
                         let directory = audio_directory_for_audio.clone();
-                        let set_speech_cursor = set_speech_cursor;
-                        let set_audio_is_playing = set_audio_is_playing;
-                        let set_audio_current_paragraph = set_audio_current_paragraph;
-                        let set_audio_handle = current_audio;
+                        let playback = playback;
                         spawn_local(async move {
-                            let _ = start_paragraph_audio(
-                                article,
-                                directory,
-                                paragraph_index,
-                                set_speech_cursor,
-                                set_audio_is_playing,
-                                set_audio_current_paragraph,
-                                set_audio_handle,
-                            )
-                            .await;
+                            let _ = start_paragraph_audio(article, directory, paragraph_index, playback).await;
                         });
                     }
                 }))
@@ -585,8 +576,8 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
                             speech_cursor
                             audio_directory=if has_audio_directory { Some(audio_directory.clone()) } else { None }
                             on_audio_click=on_audio_click.clone()
-                            audio_current_paragraph=audio_current_paragraph
-                            audio_is_playing=audio_is_playing
+                            audio_current_paragraph
+                            audio_is_playing
                         />
                     }
                 })
@@ -610,5 +601,9 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
             Either::Right(())
         }
     };
-    view! { <div class="w-screen lg:w-3/4 flex flex-col ">{views}</div> }
+    view! {
+        <div class="w-screen lg:w-3/4 flex flex-col">
+            {views}
+        </div>
+    }
 }

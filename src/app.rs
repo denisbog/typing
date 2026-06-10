@@ -11,6 +11,8 @@ use leptos_use::UseCookieOptions;
 use crate::get_user_info;
 use crate::parse_hash;
 use crate::translation_page::TranslationPage;
+#[cfg(feature = "hydrate")]
+use crate::translation_page::PlaybackState;
 use crate::{
     application_types::{Article, Data},
     translation::{get_data, store_article},
@@ -20,6 +22,9 @@ use crate::{
 use cookie::SameSite;
 use leptos_router::components::{Route, Router, Routes};
 use leptos_router::hooks::use_location;
+
+#[cfg(feature = "hydrate")]
+use web_sys::HtmlAudioElement;
 
 use leptos::prelude::*;
 use leptos_meta::*;
@@ -43,6 +48,47 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
     }
 }
 
+#[cfg(feature = "hydrate")]
+#[component]
+fn PlaybackPanel() -> impl IntoView {
+    let playback = use_context::<PlaybackState>().expect("missing playback context");
+    view! {
+        <Show
+            when=move || playback.article_title.get().is_some()
+            fallback=move || view! { <div class="hidden"></div> }
+        >
+            <div class="fixed bottom-2 right-2 p-3 bg-zinc-900 shadow-md rounded flex gap-2">
+                <div class="text-sm flex">
+                    <div>{move || playback.article_title.get().unwrap_or_default()}</div>
+                    <div>{move || playback.paragraph.get().map(|item| format!("#{}", item + 1)).unwrap_or_default()}</div>
+                </div>
+                <div
+                    class=BUTTON_CLASS
+                    on:click=move |_| {
+                        if playback.is_playing.get() {
+                            if let Some(audio) = playback.audio.get_value() {
+                                audio.pause().ok();
+                            }
+                            playback.set_is_playing.set(false);
+                        } else if let Some(audio) = playback.audio.get_value() {
+                            audio.play().ok();
+                            playback.set_is_playing.set(true);
+                        }
+                    }
+                >
+                    {move || if playback.is_playing.get() { "Pause" } else { "Resume" }}
+                </div>
+            </div>
+        </Show>
+    }
+}
+
+#[cfg(not(feature = "hydrate"))]
+#[component]
+fn PlaybackPanel() -> impl IntoView {
+    view! { <div class="hidden"></div> }
+}
+
 #[component]
 pub fn App() -> impl IntoView {
     let (translation_input, set_translation_input) = signal("".to_string());
@@ -55,10 +101,26 @@ pub fn App() -> impl IntoView {
 
     let (translation_post, set_translation_post) = signal(Data::default());
     let (input_popup, set_input_popup) = signal(false);
+    let (audio_is_playing, set_audio_is_playing) = signal(false);
+    let (audio_article_title, set_audio_article_title) = signal(Option::<String>::None);
+    let (audio_paragraph, set_audio_paragraph) = signal(Option::<usize>::None);
+    let (audio_speech_cursor, set_audio_speech_cursor) = signal(Option::<crate::translation_page::SpeechCursor>::None);
     #[cfg(feature = "hydrate")]
-    let current_audio = StoredValue::new_local(None::<web_sys::HtmlAudioElement>);
-    #[cfg(feature = "hydrate")]
-    provide_context(current_audio);
+    let playback = {
+        let playback = PlaybackState {
+            audio: StoredValue::new_local(None::<HtmlAudioElement>),
+            is_playing: audio_is_playing,
+            set_is_playing: set_audio_is_playing,
+            article_title: audio_article_title,
+            set_article_title: set_audio_article_title,
+            paragraph: audio_paragraph,
+            set_paragraph: set_audio_paragraph,
+            speech_cursor: audio_speech_cursor,
+            set_speech_cursor: set_audio_speech_cursor,
+        };
+        provide_context(playback);
+        playback
+    };
     let resource = Resource::new(
         move || session_id,
         |session| async move {
@@ -235,6 +297,7 @@ pub fn App() -> impl IntoView {
                                                         data=translation_post
                                                         set_data=set_translation_post
                                                     />
+                                                    <PlaybackPanel/>
                                                     <div>{input_popup_component(set_translation_post)}</div>
                                                 }
                                             })
