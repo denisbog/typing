@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 #[cfg(feature = "ssr")]
-use aws_sdk_dynamodb::{types::AttributeValue, Client};
+use aws_sdk_dynamodb::{types::AttributeValue, types::AttributeValueUpdate, Client};
 #[cfg(feature = "ssr")]
 use serde_dynamo::from_items;
 
