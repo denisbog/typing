@@ -7,6 +7,8 @@ use leptos::html::Div;
 use leptos::logging::log;
 use leptos::logging::warn;
 use leptos::prelude::*;
+#[cfg(feature = "hydrate")]
+use leptos::task::spawn_local;
 use leptos_animation::{easing, AnimatedSignal, AnimationTarget};
 use leptos_animation::{AnimationContext, AnimationMode};
 use serde::Deserialize;
@@ -19,6 +21,21 @@ use crate::TypePairs;
 use core::hash::Hasher;
 
 use crate::BUTTON_CLASS;
+
+#[cfg(feature = "hydrate")]
+use leptos::web_sys;
+#[cfg(feature = "hydrate")]
+use wasm_bindgen::JsValue;
+#[cfg(feature = "hydrate")]
+use wasm_bindgen_futures::JsFuture;
+
+#[cfg(feature = "hydrate")]
+async fn copy_to_clipboard(text: String) -> Result<(), JsValue> {
+    let window = web_sys::window().ok_or_else(|| JsValue::from_str("window unavailable"))?;
+    let clipboard = window.navigator().clipboard();
+    JsFuture::from(clipboard.write_text(&text)).await?;
+    Ok(())
+}
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Association {
@@ -502,6 +519,7 @@ pub fn Sentance(
 
     let (store, set_store) = signal(TypeState::from_str(&paragraph.original));
     let (typing, set_typing) = signal(Option::<TypingStat>::None);
+    let (copy_notice, _set_copy_notice) = signal(false);
     let class = move || {
         if sentace_state.read().enable_selection {
             "p-2 flex cursor-default"
@@ -869,8 +887,37 @@ pub fn Sentance(
                         "Play audio"
                     }
                 };
+                #[cfg(feature = "hydrate")]
+                let copy_original = move || {
+                    view! {
+                        <button
+                            class=BUTTON_CLASS
+                            title="Copy the original paragraph text"
+                            disabled=move || copy_notice.get()
+                            on:click=move |_| {
+                                let text = paragraph.original.clone();
+                                _set_copy_notice.set(true);
+                                spawn_local(async move {
+                                    let _ = copy_to_clipboard(text).await;
+                                    let _ = wasm_timer::Delay::new(Duration::from_millis(1500)).await;
+                                    _set_copy_notice.set(false);
+                                });
+                            }
+                        >
+                            {move || if copy_notice.get() { "Copied to clipboard" } else { "Copy original" }}
+                        </button>
+                    }
+                };
+                #[cfg(not(feature = "hydrate"))]
+                let copy_original = || {
+                    view! {
+                        <button class=BUTTON_CLASS disabled=true title="Copy the original paragraph text">
+                            "Copy original"
+                        </button>
+                    }
+                };
                 view! {
-                    <div class="flex items-center">
+                    <div class="flex items-center flex-wrap gap-2">
                         <div
                             class=BUTTON_CLASS
                             on:click=move |_event| {
@@ -900,6 +947,7 @@ pub fn Sentance(
                         >
                             {audio_label}
                         </button>
+                        {copy_original()}
                         <div>
 
                             {move || {
