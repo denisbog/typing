@@ -77,6 +77,10 @@ pub struct PlaybackState {
     pub set_speech_cursor: WriteSignal<Option<SpeechCursor>>,
 }
 
+#[cfg(not(feature = "hydrate"))]
+#[derive(Clone, Copy)]
+pub struct PlaybackState;
+
 #[cfg(feature = "hydrate")]
 #[derive(Clone, Debug)]
 struct SpeechCue {
@@ -414,7 +418,11 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
 }
 
 #[component]
-pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl IntoView {
+pub fn ArticlePage(
+    data: ReadSignal<Data>,
+    set_data: WriteSignal<Data>,
+    playback: PlaybackState,
+) -> impl IntoView {
     let params = use_params::<ArticleParams>();
     let article_id = params.with(|param| param.as_ref().unwrap().id).unwrap();
     log!("render article");
@@ -445,8 +453,6 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
 
     let div_ref = NodeRef::<Div>::new();
     let (coordinates, set_coordinates) = signal(EffectPosition { x: 0.0, y: 0.0 });
-    #[cfg(feature = "hydrate")]
-    let playback = use_context::<PlaybackState>().expect("missing playback context");
     #[cfg(feature = "hydrate")]
     let speech_cursor = playback.speech_cursor;
     #[cfg(feature = "hydrate")]
