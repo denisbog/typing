@@ -420,6 +420,12 @@ pub fn Sentance(
     audio_current_article: ReadSignal<Option<usize>>,
     audio_current_paragraph: ReadSignal<Option<usize>>,
     audio_is_playing: ReadSignal<bool>,
+    typing_speed_paragraph: ReadSignal<Option<usize>>,
+    set_typing_speed_paragraph: WriteSignal<Option<usize>>,
+    typing_speed_samples: ReadSignal<Vec<f32>>,
+    set_typing_speed_samples: WriteSignal<Vec<f32>>,
+    completed_typing_speeds: ReadSignal<Vec<Option<f32>>>,
+    set_completed_typing_speeds: WriteSignal<Vec<Option<f32>>>,
 ) -> impl IntoView {
     let mut typing_state = TypingState::default();
     if let Some(pairs_for_paragraph) = pairs.read().get(&index) {
@@ -522,6 +528,22 @@ pub fn Sentance(
     let (store, set_store) = signal(TypeState::from_str(&paragraph.original));
     let (typing, set_typing) = signal(Option::<TypingStat>::None);
     let (copy_notice, _set_copy_notice) = signal(false);
+    let record_current_speed = move || {
+        if let Some(typing) = typing.read().as_ref() {
+            set_typing_speed_samples.update(|samples| samples.push(typing.get_wpm()));
+        }
+    };
+    let commit_current_speed = move || {
+        let final_wpm = typing.read().as_ref().map_or(0.0, |typing| typing.get_wpm());
+        set_completed_typing_speeds.update(|speeds| {
+            if index < speeds.len() {
+                speeds[index] = Some(final_wpm);
+            }
+        });
+        set_typing_speed_paragraph.set(None);
+        set_typing_speed_samples.set(Vec::new());
+        set_typing.set(None);
+    };
     let class = move || {
         if sentace_state.read().enable_selection {
             "p-2 flex cursor-default"
@@ -568,6 +590,7 @@ pub fn Sentance(
                                 local_store.word_index -= 1;
                             }
                             set_store.set(local_store);
+                            record_current_speed();
                         } else if key == 32 && local_store.word_index < local_store.words.len() - 1
                         {
                             if let Some(word) = local_store.words.get_mut(local_store.word_index) {
@@ -575,6 +598,7 @@ pub fn Sentance(
                                     event.prevent_default();
                                     local_store.word_index += 1;
                                     set_store.set(local_store);
+                                    record_current_speed();
                                     set_typing
                                         .update(|typing| {
                                             typing
@@ -590,12 +614,17 @@ pub fn Sentance(
 
                     on:focus=move |_event| {
                         set_typing.set(Some(TypingStat::new()));
+                        set_typing_speed_paragraph.set(Some(index));
+                        set_typing_speed_samples.set(vec![0.0]);
                         if !sentace_state.read().enable_selection {
                             set_store.update(|store| store.focus = true)
                         }
                     }
 
-                    on:focusout=move |_event| { set_store.update(|store| store.focus = false) }
+                    on:focusout=move |_event| {
+                        set_store.update(|store| store.focus = false);
+                        commit_current_speed();
+                    }
 
                     on:keypress=move |event| {
                         let key = event.key_code();
@@ -626,6 +655,7 @@ pub fn Sentance(
                                         );
                                     });
                                 set_store.set(local_store);
+                                record_current_speed();
                             }
                         }
                         event.prevent_default();
@@ -971,5 +1001,92 @@ pub fn Sentance(
             }
 
         </div>
+    }
+}
+
+#[component]
+pub fn TypingSpeedPanel(
+    typing_speed_paragraph: ReadSignal<Option<usize>>,
+    typing_speed_samples: ReadSignal<Vec<f32>>,
+    completed_typing_speeds: ReadSignal<Vec<Option<f32>>>,
+) -> impl IntoView {
+    let current_speed = move || typing_speed_samples.get().last().copied().unwrap_or(0.0);
+    let average_previous = move || {
+        let paragraph_index = typing_speed_paragraph.get()?;
+        let speeds = completed_typing_speeds.get();
+        let previous: Vec<f32> = speeds.iter().take(paragraph_index).flatten().copied().collect();
+        if previous.is_empty() {
+            None
+        } else {
+            Some(previous.iter().sum::<f32>() / previous.len() as f32)
+        }
+    };
+    let chart_max_speed = move || {
+        let samples = typing_speed_samples.get();
+        let samples_max = samples.iter().copied().fold(1.0_f32, |acc, item| acc.max(item));
+        let baseline = average_previous().map(|avg| avg + 10.0).unwrap_or(0.0);
+        samples_max.max(baseline).max(1.0)
+    };
+    let chart_points = move || {
+        let samples = typing_speed_samples.get();
+        if samples.is_empty() {
+            return String::new();
+        }
+        let width = 240.0;
+        let height = 100.0;
+        let max_speed = chart_max_speed();
+        let last_index = samples.len().saturating_sub(1).max(1) as f32;
+        samples
+            .iter()
+            .enumerate()
+            .map(|(index, speed)| {
+                let x = (index as f32 / last_index) * width;
+                let y = height - ((speed / max_speed) * height);
+                format!("{x:.2},{y:.2}")
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    let average_line_y = move || {
+        average_previous().map(|avg| {
+            let height = 100.0;
+            let y = height - (((avg) / chart_max_speed()) * height);
+            y.clamp(0.0, height)
+        })
+    };
+
+    view! {
+        <Show
+            when=move || typing_speed_paragraph.get().is_some() && !typing_speed_samples.get().is_empty()
+            fallback=move || view! { <div class="hidden"></div> }
+        >
+            <div class="fixed top-2 right-2 z-30 rounded-lg bg-zinc-900/95 shadow-lg border border-zinc-700">
+                <div class="relative w-full">
+                    <svg viewBox="0 0 240 100" class="w-full h-24 block overflow-visible">
+                        <rect x="0" y="0" width="240" height="100" rx="8" class="fill-zinc-950 stroke-zinc-700" stroke-width="1"/>
+                        <Show when=move || average_line_y().is_some() fallback=move || view! { <div class="hidden"></div> }>
+                            <line
+                                x1="0"
+                                x2="240"
+                                y1=move || average_line_y().unwrap_or(0.0)
+                                y2=move || average_line_y().unwrap_or(0.0)
+                                stroke="#9ca3af"
+                                stroke-width="1"
+                                stroke-dasharray="4 4"
+                            />
+                        </Show>
+                        <polyline fill="none" stroke="#60a5fa" stroke-width="2" points=chart_points/>
+                    </svg>
+                    <div class="absolute inset-0 pointer-events-none text-[10px] text-gray-300 p-2">
+                        <div class="absolute bottom-1 left-2 rounded bg-zinc-950/70 px-2">
+                            {move || format!("{:.1} WPM", current_speed())}
+                        </div>
+                        <div class="absolute bottom-1 right-2 rounded bg-zinc-950/70 px-2">
+                            {move || average_previous().map(|avg| format!("avg prev {:.1} WPM", avg)).unwrap_or_else(|| "avg prev —".to_string())}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </Show>
     }
 }

@@ -7,7 +7,7 @@ use crate::translation::delete_article;
 use crate::translation::store_pairs;
 use crate::TypePairs;
 use crate::BUTTON_CLASS;
-use crate::{application_types::{Data}, components::Sentance};
+use crate::{application_types::{Data}, components::{Sentance, TypingSpeedPanel}};
 use leptos::either::Either;
 use leptos::html::Div;
 use leptos::logging::log;
@@ -521,6 +521,11 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
             let (pairs, set_pairs) = signal(article_pairs);
 
             let total = article.paragraphs.len();
+            let (typing_speed_paragraph, set_typing_speed_paragraph) =
+                signal(Option::<usize>::None);
+            let (typing_speed_samples, set_typing_speed_samples) = signal(Vec::<f32>::new());
+            let (completed_typing_speeds, set_completed_typing_speeds) =
+                signal(vec![None; total]);
             let link = article
                 .paragraphs
                 .clone()
@@ -590,6 +595,12 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
                             audio_current_article
                             audio_current_paragraph
                             audio_is_playing
+                            typing_speed_paragraph
+                            set_typing_speed_paragraph
+                            typing_speed_samples
+                            set_typing_speed_samples
+                            completed_typing_speeds
+                            set_completed_typing_speeds
                         />
                     }
                 })
@@ -597,6 +608,11 @@ pub fn ArticlePage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl 
 
             Either::Left(view! {
                 {paragraphs}
+                <TypingSpeedPanel
+                    typing_speed_paragraph
+                    typing_speed_samples
+                    completed_typing_speeds
+                />
                 <div class="fixed bottom-2 p-2 bg-zinc-900 shadow-md cursor-default flex flex-wrap">
                     "jump: "
                     <div class="pl-1 underline cursor-pointer" on:click=move |_| on_back(pairs)>
