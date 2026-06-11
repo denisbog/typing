@@ -17,7 +17,7 @@ use leptos_animation::AnimatedSignal;
 use leptos_animation::AnimationContext;
 use leptos_animation::AnimationMode;
 use leptos_animation::AnimationTarget;
-use leptos_router::hooks::use_params;
+use leptos_router::hooks::{use_location, use_params};
 use leptos_router::params::Params;
 
 use leptos::prelude::*;
@@ -426,6 +426,8 @@ pub fn ArticlePage(
     let params = use_params::<ArticleParams>();
     let article_id = params.with(|param| param.as_ref().unwrap().id).unwrap();
     log!("render article");
+    #[cfg(feature = "hydrate")]
+    let location = use_location();
     let on_back = move |pairs: ReadSignal<TypePairs>| {
         log!("pairs updated");
         set_data.update(|state| {
@@ -479,6 +481,20 @@ pub fn ArticlePage(
             let doc_x = x + window().scroll_x().unwrap_or(0.0);
             let doc_y = y + window().scroll_y().unwrap_or(0.0);
             set_coordinates.set(EffectPosition { x: doc_x, y: doc_y });
+        }
+    });
+
+    #[cfg(feature = "hydrate")]
+    Effect::new(move |_| {
+        let hash = location.hash.get();
+        let hash = hash.trim_start_matches('#');
+        if hash.is_empty() {
+            return;
+        }
+        if let Some(document) = web_sys::window().and_then(|window| window.document()) {
+            if let Some(target) = document.get_element_by_id(hash) {
+                target.scroll_into_view();
+            }
         }
     });
 
