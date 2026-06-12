@@ -109,6 +109,18 @@ async fn fetch_text(url: &str) -> Result<String, JsValue> {
 }
 
 #[cfg(feature = "hydrate")]
+async fn url_exists(url: &str) -> Result<bool, JsValue> {
+    let window = web_sys::window().ok_or_else(|| JsValue::from_str("window unavailable"))?;
+    let mut init = web_sys::RequestInit::new();
+    init.method("HEAD");
+    init.mode(web_sys::RequestMode::Cors);
+    let request = web_sys::Request::new_with_str_and_init(url, &init)?;
+    let response = JsFuture::from(window.fetch_with_request(&request)).await?;
+    let response: web_sys::Response = response.dyn_into()?;
+    Ok(response.ok())
+}
+
+#[cfg(feature = "hydrate")]
 fn push_speech_cue(cues: &mut Vec<SpeechCue>, word_index: usize, start: f64, end: f64) {
     cues.push(SpeechCue {
         word_index,
@@ -225,6 +237,24 @@ async fn start_paragraph_audio(
     }
     let paragraph_url = paragraph_base_url(&base_directory, paragraph_index + 1);
     let audio_url = format!("{}/output.mp3", paragraph_url);
+    if !url_exists(&audio_url).await.unwrap_or(false) {
+        let next_paragraph = paragraph_index + 1;
+        if next_paragraph < article.paragraphs.len() {
+            let article = article.clone();
+            let base = base_directory.clone();
+            let playback = playback;
+            spawn_local(async move {
+                let _ = start_paragraph_audio(article, article_index, base, next_paragraph, playback).await;
+            });
+        } else {
+            playback.set_speech_cursor.set(None);
+            playback.set_is_playing.set(false);
+            playback.set_article_title.set(None);
+            playback.set_article_index.set(None);
+            playback.set_paragraph.set(None);
+        }
+        return Ok(());
+    }
     let transcription_url = format!("{}/transcription.json", paragraph_url);
     let transcription_text = fetch_text(&transcription_url).await?;
     let transcription_json: Value = serde_json::from_str(&transcription_text).unwrap_or(Value::Null);
