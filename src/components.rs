@@ -495,6 +495,8 @@ pub fn Sentance(
     #[derive(Clone)]
     struct TypingStat {
         pub timer: wasm_timer::Instant,
+        pub paused_at: Option<wasm_timer::Instant>,
+        pub paused_total: Duration,
         pub chars: usize,
     }
 
@@ -503,6 +505,8 @@ pub fn Sentance(
             TypingStat {
                 chars: 0,
                 timer: wasm_timer::Instant::now(),
+                paused_at: None,
+                paused_total: Duration::ZERO,
             }
         }
         pub fn tick(&mut self) {
@@ -516,9 +520,28 @@ pub fn Sentance(
                 warn!("trying to decrement 0 position");
             }
         }
+        pub fn pause(&mut self) {
+            if self.paused_at.is_none() {
+                self.paused_at = Some(wasm_timer::Instant::now());
+            }
+        }
+        pub fn resume(&mut self) {
+            if let Some(paused_at) = self.paused_at.take() {
+                self.paused_total += paused_at.elapsed();
+            }
+        }
+        pub fn get_elapsed(&self) -> Duration {
+            let mut elapsed = self.timer.elapsed();
+            elapsed = elapsed.saturating_sub(self.paused_total);
+            if let Some(paused_at) = self.paused_at {
+                elapsed = elapsed.saturating_sub(paused_at.elapsed());
+            }
+            elapsed
+        }
         pub fn get_wpm(&self) -> f32 {
-            if self.chars > 0 {
-                self.chars as f32 / 5.0 / self.timer.elapsed().as_secs_f32() * 60.0
+            let elapsed = self.get_elapsed().as_secs_f32();
+            if self.chars > 0 && elapsed > 0.0 {
+                self.chars as f32 / 5.0 / elapsed * 60.0
             } else {
                 0.0
             }
@@ -533,16 +556,31 @@ pub fn Sentance(
             set_typing_speed_samples.update(|samples| samples.push(typing.get_wpm()));
         }
     };
-    let commit_current_speed = move || {
+    let finalize_current_speed = move |paragraph_index: usize| {
         let final_wpm = typing.read().as_ref().map_or(0.0, |typing| typing.get_wpm());
         set_completed_typing_speeds.update(|speeds| {
-            if index < speeds.len() {
-                speeds[index] = Some(final_wpm);
+            if paragraph_index < speeds.len() {
+                speeds[paragraph_index] = Some(final_wpm);
             }
         });
-        set_typing_speed_paragraph.set(None);
-        set_typing_speed_samples.set(Vec::new());
-        set_typing.set(None);
+    };
+    let switch_to_paragraph = move |paragraph_index: usize| {
+        let current_paragraph = typing_speed_paragraph.get();
+        if current_paragraph != Some(paragraph_index) {
+            if let Some(previous_paragraph) = current_paragraph {
+                finalize_current_speed(previous_paragraph);
+            }
+            set_typing_speed_paragraph.set(Some(paragraph_index));
+            set_typing_speed_samples.set(vec![0.0]);
+            set_typing.set(Some(TypingStat::new()));
+        } else {
+            if typing.read().is_none() {
+                set_typing.set(Some(TypingStat::new()));
+            }
+            set_typing.update(|typing| {
+                typing.as_mut().map(|typing| typing.resume());
+            });
+        }
     };
     let class = move || {
         if sentace_state.read().enable_selection {
@@ -613,9 +651,7 @@ pub fn Sentance(
                     }
 
                     on:focus=move |_event| {
-                        set_typing.set(Some(TypingStat::new()));
-                        set_typing_speed_paragraph.set(Some(index));
-                        set_typing_speed_samples.set(vec![0.0]);
+                        switch_to_paragraph(index);
                         if !sentace_state.read().enable_selection {
                             set_store.update(|store| store.focus = true)
                         }
@@ -623,7 +659,9 @@ pub fn Sentance(
 
                     on:focusout=move |_event| {
                         set_store.update(|store| store.focus = false);
-                        commit_current_speed();
+                        set_typing.update(|typing| {
+                            typing.as_mut().map(|typing| typing.pause());
+                        });
                     }
 
                     on:keypress=move |event| {
