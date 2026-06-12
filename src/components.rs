@@ -567,9 +567,6 @@ pub fn Sentance(
     let switch_to_paragraph = move |paragraph_index: usize| {
         let current_paragraph = typing_speed_paragraph.get();
         if current_paragraph != Some(paragraph_index) {
-            if let Some(previous_paragraph) = current_paragraph {
-                finalize_current_speed(previous_paragraph);
-            }
             set_typing_speed_paragraph.set(Some(paragraph_index));
             set_typing_speed_samples.set(vec![0.0]);
             set_typing.set(Some(TypingStat::new()));
@@ -659,6 +656,7 @@ pub fn Sentance(
 
                     on:focusout=move |_event| {
                         set_store.update(|store| store.focus = false);
+                        finalize_current_speed(index);
                         set_typing.update(|typing| {
                             typing.as_mut().map(|typing| typing.pause());
                         });
