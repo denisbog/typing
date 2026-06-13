@@ -73,6 +73,8 @@ pub struct PlaybackState {
     pub set_article_index: WriteSignal<Option<usize>>,
     pub paragraph: ReadSignal<Option<usize>>,
     pub set_paragraph: WriteSignal<Option<usize>>,
+    pub selected_voice: ReadSignal<Option<String>>,
+    pub set_selected_voice: WriteSignal<Option<String>>,
     pub speech_cursor: ReadSignal<Option<SpeechCursor>>,
     pub set_speech_cursor: WriteSignal<Option<SpeechCursor>>,
 }
@@ -95,8 +97,15 @@ fn trim_trailing_slash(value: &str) -> String {
 }
 
 #[cfg(feature = "hydrate")]
-fn paragraph_base_url(base: &str, paragraph_index: usize) -> String {
-    format!("{}/paragraph-{paragraph_index:03}", trim_trailing_slash(base))
+fn paragraph_base_url(base: &str, paragraph_index: usize, voice: Option<&str>) -> String {
+    match voice {
+        Some(voice) => format!(
+            "{}/paragraph-{paragraph_index:03}/{}",
+            trim_trailing_slash(base),
+            voice
+        ),
+        None => format!("{}/paragraph-{paragraph_index:03}", trim_trailing_slash(base)),
+    }
 }
 
 #[cfg(feature = "hydrate")]
@@ -118,6 +127,24 @@ async fn url_exists(url: &str) -> Result<bool, JsValue> {
     let response = JsFuture::from(window.fetch_with_request(&request)).await?;
     let response: web_sys::Response = response.dyn_into()?;
     Ok(response.ok())
+}
+
+#[cfg(feature = "hydrate")]
+async fn fetch_available_voices(base_directory: &str) -> Result<Vec<String>, JsValue> {
+    let metadata_url = format!("{}/metadata.json", trim_trailing_slash(base_directory));
+    let metadata_text = fetch_text(&metadata_url).await?;
+    let metadata: Value = serde_json::from_str(&metadata_text).unwrap_or(Value::Null);
+    Ok(metadata
+        .get("voices")
+        .and_then(Value::as_array)
+        .map(|voices| {
+            voices
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect::<Vec<String>>()
+        })
+        .unwrap_or_default())
 }
 
 #[cfg(feature = "hydrate")]
@@ -229,13 +256,14 @@ async fn start_paragraph_audio(
     base_directory: String,
     paragraph_index: usize,
     playback: PlaybackState,
+    voice: Option<String>,
 ) -> Result<(), JsValue> {
     if paragraph_index >= article.paragraphs.len() {
         playback.set_speech_cursor.set(None);
         playback.set_is_playing.set(false);
         return Ok(());
     }
-    let paragraph_url = paragraph_base_url(&base_directory, paragraph_index + 1);
+    let paragraph_url = paragraph_base_url(&base_directory, paragraph_index + 1, voice.as_deref());
     let audio_url = format!("{}/output.mp3", paragraph_url);
     if !url_exists(&audio_url).await.unwrap_or(false) {
         let next_paragraph = paragraph_index + 1;
@@ -243,8 +271,9 @@ async fn start_paragraph_audio(
             let article = article.clone();
             let base = base_directory.clone();
             let playback = playback;
+            let voice = voice.clone();
             spawn_local(async move {
-                let _ = start_paragraph_audio(article, article_index, base, next_paragraph, playback).await;
+                let _ = start_paragraph_audio(article, article_index, base, next_paragraph, playback, voice).await;
             });
         } else {
             playback.set_speech_cursor.set(None);
@@ -299,8 +328,9 @@ async fn start_paragraph_audio(
             let article = article_for_end.clone();
             let base = base_for_end.clone();
             let playback = playback_for_end;
+            let voice = voice.clone();
             spawn_local(async move {
-                let _ = start_paragraph_audio(article, article_index, base, next_paragraph, playback).await;
+                let _ = start_paragraph_audio(article, article_index, base, next_paragraph, playback, voice).await;
             });
         } else {
             playback_for_end.set_speech_cursor.set(None);
@@ -594,6 +624,19 @@ pub fn ArticlePage(
             let has_audio_directory = article.audio_directory.is_some();
             let audio_directory = article.audio_directory.clone().unwrap_or_default();
             let audio_directory_for_audio = audio_directory.clone();
+            let audio_directory_for_voice_change = audio_directory.clone();
+            let article_for_voice = article.clone();
+            #[cfg(feature = "hydrate")]
+            let (available_voices, set_available_voices) = signal(Vec::<String>::new());
+            #[cfg(feature = "hydrate")]
+            if has_audio_directory {
+                let audio_directory_for_voices = audio_directory.clone();
+                spawn_local(async move {
+                    if let Ok(voices) = fetch_available_voices(&audio_directory_for_voices).await {
+                        set_available_voices.set(voices);
+                    }
+                });
+            }
             #[cfg(feature = "hydrate")]
             let on_audio_click = if has_audio_directory {
                 let article_for_audio = article.clone();
@@ -616,8 +659,17 @@ pub fn ArticlePage(
                         let article = article_for_audio.clone();
                         let directory = audio_directory_for_audio.clone();
                         let playback = playback;
+                        let voice = playback.selected_voice.get();
                         spawn_local(async move {
-                            let _ = start_paragraph_audio(article, article_id, directory, paragraph_index, playback).await;
+                            let _ = start_paragraph_audio(
+                                article,
+                                article_id,
+                                directory,
+                                paragraph_index,
+                                playback,
+                                voice,
+                            )
+                            .await;
                         });
                     }
                 }))
@@ -658,6 +710,74 @@ pub fn ArticlePage(
                 })
                 .collect_view();
 
+            #[cfg(feature = "hydrate")]
+            let voice_dropdown = if has_audio_directory {
+                view! {
+                    <select
+                        class="bg-zinc-950 text-gray-300 rounded px-2 py-1 border border-zinc-700"
+                        prop:value=move || playback.selected_voice.get().unwrap_or_else(|| "default".to_string())
+                        on:change=move |event| {
+                            let value = event_target_value(&event);
+                            let voice = if value == "default" { None } else { Some(value) };
+                            playback.set_selected_voice.set(voice.clone());
+
+                            if has_audio_directory
+                                && playback.article_index.get() == Some(article_id)
+                                && playback.paragraph.get().is_some()
+                            {
+                                let paragraph_index = playback.paragraph.get().unwrap();
+                                if let Some(audio) = playback.audio.get_value() {
+                                    audio.pause().ok();
+                                }
+                                playback.set_is_playing.set(false);
+                                playback.set_speech_cursor.set(None);
+
+                                let article = article_for_voice.clone();
+                                let directory = audio_directory_for_voice_change.clone();
+                                let playback = playback;
+                                spawn_local(async move {
+                                    let _ = start_paragraph_audio(
+                                        article,
+                                        article_id,
+                                        directory,
+                                        paragraph_index,
+                                        playback,
+                                        voice,
+                                    )
+                                    .await;
+                                });
+                            }
+                        }
+                    >
+                        <option value="default">"default"</option>
+                        {move || {
+                            available_voices
+                                .get()
+                                .into_iter()
+                                .map(|voice| {
+                                    let value = voice.clone();
+
+                                    // workaround for the selection issue, options are being
+                                    // rendered after the select value is set, we need to force the
+                                    // selction maker on the selected item
+                                    if playback.selected_voice.get().unwrap_or_else(|| "default".to_string()) == voice {
+                                        view! { <option value=value selected>{voice}</option> }.into_any()
+                                    }else {
+                                       view! { <option value=value>{voice}</option> }.into_any()
+                                    }
+                                    // view! { <option value=value>{voice}</option> }
+                                })
+                                .collect_view()
+                        }}
+                    </select>
+                }
+                .into_any()
+            } else {
+                view! { <div class="hidden"></div> }.into_any()
+            };
+            #[cfg(not(feature = "hydrate"))]
+            let voice_dropdown = view! { <div class="hidden"></div> }.into_any();
+
             Either::Left(view! {
                 {paragraphs}
                 <TypingSpeedPanel
@@ -665,7 +785,8 @@ pub fn ArticlePage(
                     typing_speed_samples
                     completed_typing_speeds
                 />
-                <div class="fixed bottom-2 p-2 bg-zinc-900 shadow-md cursor-default flex flex-wrap">
+                <div class="fixed bottom-2 p-2 bg-zinc-900 shadow-md cursor-default flex flex-wrap gap-2 items-center">
+                    {voice_dropdown}
                     "jump: "
                     <div class="pl-1 underline cursor-pointer" on:click=move |_| on_back(pairs)>
                         <a href="/">home</a>
