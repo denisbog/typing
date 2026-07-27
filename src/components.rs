@@ -596,7 +596,30 @@ pub fn Sentance(
                     on:keydown=move |event| {
                         let key = event.key_code();
                         let mut local_store = store.get_untracked();
-                        if key == 8 {
+                        if key == 8 && event.ctrl_key() {
+                            // Ctrl+Backspace moves the cursor to the beginning of the
+                            // current word without changing the typed text.
+                            if let Some(word) = local_store.words.get_mut(local_store.word_index) {
+                                let typed_characters = word
+                                    .characters
+                                    .iter()
+                                    .filter(|character| character.typed_char.is_some())
+                                    .count();
+                                word.char_index = 0;
+                                word.characters.iter_mut().for_each(|character| {
+                                    character.typed_char = None;
+                                });
+                                set_typing.update(|typing| {
+                                    if let Some(typing) = typing.as_mut() {
+                                        for _ in 0..typed_characters {
+                                            typing.untick();
+                                        }
+                                    }
+                                });
+                            }
+                            set_store.set(local_store);
+                            event.prevent_default();
+                        } else if key == 8 {
                             if let Some(word) = local_store.words.get_mut(local_store.word_index) {
                                 if word.char_index > 0 {
                                     word.char_index -= 1;
