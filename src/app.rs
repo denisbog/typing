@@ -121,9 +121,11 @@ pub fn App() -> impl IntoView {
     let (audio_paragraph, set_audio_paragraph) = signal(Option::<usize>::None);
     let (audio_selected_voice, set_audio_selected_voice) = signal(Option::<String>::None);
     let (audio_speech_cursor, set_audio_speech_cursor) = signal(Option::<crate::translation_page::SpeechCursor>::None);
+    let (audio_current_paragraph_only, set_audio_current_paragraph_only) = signal(false);
     #[cfg(feature = "hydrate")]
     let playback = PlaybackState {
         audio: StoredValue::new_local(None::<HtmlAudioElement>),
+        cue_starts: StoredValue::new_local(Vec::<f64>::new()),
         is_playing: audio_is_playing,
         set_is_playing: set_audio_is_playing,
         article_title: audio_article_title,
@@ -136,6 +138,8 @@ pub fn App() -> impl IntoView {
         set_selected_voice: set_audio_selected_voice,
         speech_cursor: audio_speech_cursor,
         set_speech_cursor: set_audio_speech_cursor,
+        current_paragraph_only: audio_current_paragraph_only,
+        set_current_paragraph_only: set_audio_current_paragraph_only,
     };
     #[cfg(not(feature = "hydrate"))]
     let playback = PlaybackState;

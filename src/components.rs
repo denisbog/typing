@@ -417,6 +417,8 @@ pub fn Sentance(
     speech_cursor: ReadSignal<Option<crate::translation_page::SpeechCursor>>,
     audio_directory: Option<String>,
     on_audio_click: Option<UnsyncCallback<usize>>,
+    on_replay_word: Option<UnsyncCallback<(usize, usize)>>,
+    on_current_paragraph: Option<UnsyncCallback<usize>>,
     audio_current_article: ReadSignal<Option<usize>>,
     audio_current_paragraph: ReadSignal<Option<usize>>,
     audio_is_playing: ReadSignal<bool>,
@@ -549,6 +551,8 @@ pub fn Sentance(
     }
 
     let (store, set_store) = signal(TypeState::from_str(&paragraph.original));
+    let replay_word = on_replay_word.clone();
+    let paragraph_changed = on_current_paragraph.clone();
     let (typing, set_typing) = signal(Option::<TypingStat>::None);
     let (copy_notice, _set_copy_notice) = signal(false);
     let record_current_speed = move || {
@@ -570,6 +574,9 @@ pub fn Sentance(
             set_typing_speed_paragraph.set(Some(paragraph_index));
             set_typing_speed_samples.set(vec![0.0]);
             set_typing.set(Some(TypingStat::new()));
+            if let Some(paragraph_changed) = paragraph_changed.clone() {
+                paragraph_changed.run(paragraph_index);
+            }
         } else {
             if typing.read().is_none() {
                 set_typing.set(Some(TypingStat::new()));
@@ -617,7 +624,11 @@ pub fn Sentance(
                                     }
                                 });
                             }
+                            let word_index = local_store.word_index;
                             set_store.set(local_store);
+                            if let Some(replay_word) = replay_word.clone() {
+                                replay_word.run((index, word_index));
+                            }
                             event.prevent_default();
                         } else if key == 8 {
                             if let Some(word) = local_store.words.get_mut(local_store.word_index) {

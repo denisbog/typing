@@ -65,6 +65,7 @@ pub struct SpeechCursor {
 #[derive(Clone, Copy)]
 pub struct PlaybackState {
     pub audio: StoredValue<Option<HtmlAudioElement>, LocalStorage>,
+    pub cue_starts: StoredValue<Vec<f64>, LocalStorage>,
     pub is_playing: ReadSignal<bool>,
     pub set_is_playing: WriteSignal<bool>,
     pub article_title: ReadSignal<Option<String>>,
@@ -77,6 +78,8 @@ pub struct PlaybackState {
     pub set_selected_voice: WriteSignal<Option<String>>,
     pub speech_cursor: ReadSignal<Option<SpeechCursor>>,
     pub set_speech_cursor: WriteSignal<Option<SpeechCursor>>,
+    pub current_paragraph_only: ReadSignal<bool>,
+    pub set_current_paragraph_only: WriteSignal<bool>,
 }
 
 #[cfg(not(feature = "hydrate"))]
@@ -267,7 +270,9 @@ async fn start_paragraph_audio(
     let audio_url = format!("{}/output.mp3", paragraph_url);
     if !url_exists(&audio_url).await.unwrap_or(false) {
         let next_paragraph = paragraph_index + 1;
-        if next_paragraph < article.paragraphs.len() {
+        if !playback.current_paragraph_only.get_untracked()
+            && next_paragraph < article.paragraphs.len()
+        {
             let article = article.clone();
             let base = base_directory.clone();
             let playback = playback;
@@ -288,6 +293,9 @@ async fn start_paragraph_audio(
     let transcription_text = fetch_text(&transcription_url).await?;
     let transcription_json: Value = serde_json::from_str(&transcription_text).unwrap_or(Value::Null);
     let cues = build_speech_cues(transcription_json);
+    playback
+        .cue_starts
+        .set_value(cues.iter().map(|cue| cue.start).collect());
 
     if let Some(previous) = playback.audio.get_value() {
         let _ = previous.pause();
@@ -323,8 +331,12 @@ async fn start_paragraph_audio(
     let base_for_end = base_directory.clone();
     let playback_for_end = playback;
     let onended = Closure::wrap(Box::new(move || {
+        playback_for_end.set_speech_cursor.set(None);
+        playback_for_end.set_is_playing.set(false);
         let next_paragraph = paragraph_index + 1;
-        if next_paragraph < article_for_end.paragraphs.len() {
+        if !playback_for_end.current_paragraph_only.get_untracked()
+            && next_paragraph < article_for_end.paragraphs.len()
+        {
             let article = article_for_end.clone();
             let base = base_for_end.clone();
             let playback = playback_for_end;
@@ -332,9 +344,7 @@ async fn start_paragraph_audio(
             spawn_local(async move {
                 let _ = start_paragraph_audio(article, article_index, base, next_paragraph, playback, voice).await;
             });
-        } else {
-            playback_for_end.set_speech_cursor.set(None);
-            playback_for_end.set_is_playing.set(false);
+        } else if !playback_for_end.current_paragraph_only.get_untracked() {
             playback_for_end.set_article_title.set(None);
             playback_for_end.set_article_index.set(None);
             playback_for_end.set_paragraph.set(None);
@@ -624,7 +634,9 @@ pub fn ArticlePage(
             let has_audio_directory = article.audio_directory.is_some();
             let audio_directory = article.audio_directory.clone().unwrap_or_default();
             let audio_directory_for_audio = audio_directory.clone();
+            let audio_directory_for_current = audio_directory.clone();
             let audio_directory_for_voice_change = audio_directory.clone();
+            let article_for_current = article.clone();
             let article_for_voice = article.clone();
             #[cfg(feature = "hydrate")]
             let (available_voices, set_available_voices) = signal(Vec::<String>::new());
@@ -678,6 +690,70 @@ pub fn ArticlePage(
             };
             #[cfg(not(feature = "hydrate"))]
             let on_audio_click: Option<UnsyncCallback<usize>> = None;
+            #[cfg(feature = "hydrate")]
+            let on_replay_word = if has_audio_directory {
+                Some(UnsyncCallback::new(move |(paragraph_index, word_index): (usize, usize)| {
+                    if playback.article_index.get_untracked() != Some(article_id)
+                        || playback.paragraph.get_untracked() != Some(paragraph_index)
+                    {
+                        return;
+                    }
+                    let Some(start) = playback.cue_starts.get_value().get(word_index).copied() else {
+                        return;
+                    };
+                    if let Some(audio) = playback.audio.get_value() {
+                        audio.set_current_time(start);
+                        if audio.play().is_ok() {
+                            playback.set_is_playing.set(true);
+                            playback.set_speech_cursor.set(Some(SpeechCursor {
+                                paragraph: paragraph_index,
+                                word: word_index,
+                            }));
+                        }
+                    }
+                }))
+            } else {
+                None
+            };
+            #[cfg(not(feature = "hydrate"))]
+            let on_replay_word: Option<UnsyncCallback<(usize, usize)>> = None;
+            #[cfg(feature = "hydrate")]
+            let on_current_paragraph = if has_audio_directory {
+                Some(UnsyncCallback::new(move |paragraph_index: usize| {
+                    if !playback.current_paragraph_only.get_untracked() {
+                        return;
+                    }
+                    if playback.article_index.get_untracked() == Some(article_id)
+                        && playback.paragraph.get_untracked() == Some(paragraph_index)
+                    {
+                        if let Some(audio) = playback.audio.get_value() {
+                            if audio.play().is_ok() {
+                                playback.set_is_playing.set(true);
+                            }
+                        }
+                        return;
+                    }
+
+                    let article = article_for_current.clone();
+                    let directory = audio_directory_for_current.clone();
+                    let voice = playback.selected_voice.get_untracked();
+                    spawn_local(async move {
+                        let _ = start_paragraph_audio(
+                            article,
+                            article_id,
+                            directory,
+                            paragraph_index,
+                            playback,
+                            voice,
+                        )
+                        .await;
+                    });
+                }))
+            } else {
+                None
+            };
+            #[cfg(not(feature = "hydrate"))]
+            let on_current_paragraph: Option<UnsyncCallback<usize>> = None;
             let paragraphs = article
                 .paragraphs
                 .clone()
@@ -696,6 +772,8 @@ pub fn ArticlePage(
                             speech_cursor
                             audio_directory=if has_audio_directory { Some(audio_directory.clone()) } else { None }
                             on_audio_click=on_audio_click.clone()
+                            on_replay_word=on_replay_word.clone()
+                            on_current_paragraph=on_current_paragraph.clone()
                             audio_current_article
                             audio_current_paragraph
                             audio_is_playing
@@ -777,6 +855,24 @@ pub fn ArticlePage(
             };
             #[cfg(not(feature = "hydrate"))]
             let voice_dropdown = view! { <div class="hidden"></div> }.into_any();
+            #[cfg(feature = "hydrate")]
+            let current_paragraph_toggle = view! {
+                <label class="flex items-center gap-1">
+                    <input
+                        type="checkbox"
+                        prop:checked=move || playback.current_paragraph_only.get()
+                        on:change=move |event| {
+                            playback
+                                .set_current_paragraph_only
+                                .set(event_target_checked(&event));
+                        }
+                    />
+                    "Current paragraph only"
+                </label>
+            }
+            .into_any();
+            #[cfg(not(feature = "hydrate"))]
+            let current_paragraph_toggle = view! { <div class="hidden"></div> }.into_any();
 
             Either::Left(view! {
                 {paragraphs}
@@ -787,6 +883,7 @@ pub fn ArticlePage(
                 />
                 <div class="fixed bottom-2 p-2 bg-zinc-900 shadow-md cursor-default flex flex-wrap gap-2 items-center">
                     {voice_dropdown}
+                    {current_paragraph_toggle}
                     "jump: "
                     <div class="pl-1 underline cursor-pointer" on:click=move |_| on_back(pairs)>
                         <a href="/">home</a>
