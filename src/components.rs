@@ -428,6 +428,7 @@ pub fn Sentance(
     set_typing_speed_samples: WriteSignal<Vec<f32>>,
     completed_typing_speeds: ReadSignal<Vec<Option<f32>>>,
     set_completed_typing_speeds: WriteSignal<Vec<Option<f32>>>,
+    set_mistyped_characters: WriteSignal<usize>,
 ) -> impl IntoView {
     let mut typing_state = TypingState::default();
     if let Some(pairs_for_paragraph) = pairs.read().get(&index) {
@@ -554,6 +555,7 @@ pub fn Sentance(
     let replay_word = on_replay_word.clone();
     let paragraph_changed = on_current_paragraph.clone();
     let (typing, set_typing) = signal(Option::<TypingStat>::None);
+    let (mistyped, set_mistyped) = signal(0usize);
     let (copy_notice, _set_copy_notice) = signal(false);
     let record_current_speed = move || {
         if let Some(typing) = typing.read().as_ref() {
@@ -574,6 +576,7 @@ pub fn Sentance(
             set_typing_speed_paragraph.set(Some(paragraph_index));
             set_typing_speed_samples.set(vec![0.0]);
             set_typing.set(Some(TypingStat::new()));
+            set_mistyped_characters.set(mistyped.get_untracked());
             if let Some(paragraph_changed) = paragraph_changed.clone() {
                 paragraph_changed.run(paragraph_index);
             }
@@ -702,10 +705,13 @@ pub fn Sentance(
                         if local_store.word_index < local_store.words.len() {
                             let word = local_store.words.get_mut(local_store.word_index).unwrap();
                             if word.char_index < word.characters.len() {
-                                word.characters
-                                    .get_mut(word.char_index)
-                                    .unwrap()
-                                    .typed(char::from_u32(key).unwrap());
+                                let typed_char = char::from_u32(key).unwrap();
+                                let character = word.characters.get_mut(word.char_index).unwrap();
+                                if !compare(typed_char, character.reference_char) {
+                                    set_mistyped.update(|count| *count += 1);
+                                    set_mistyped_characters.set(mistyped.get_untracked());
+                                }
+                                character.typed(typed_char);
                                 word.char_index += 1;
                                 set_typing
                                     .update(|typing| {
@@ -1079,6 +1085,7 @@ pub fn TypingSpeedPanel(
     typing_speed_paragraph: ReadSignal<Option<usize>>,
     typing_speed_samples: ReadSignal<Vec<f32>>,
     completed_typing_speeds: ReadSignal<Vec<Option<f32>>>,
+    mistyped_characters: ReadSignal<usize>,
 ) -> impl IntoView {
     let current_speed = move || typing_speed_samples.get().last().copied().unwrap_or(0.0);
     let average_previous = move || {
@@ -1150,6 +1157,9 @@ pub fn TypingSpeedPanel(
                     <div class="absolute inset-0 pointer-events-none text-[10px] text-gray-300 p-2">
                         <div class="absolute bottom-1 left-2 rounded bg-zinc-950/70 px-2">
                             {move || format!("{:.1} WPM", current_speed())}
+                        </div>
+                        <div class="absolute top-1 right-2 rounded bg-zinc-950/70 px-2 text-red-400">
+                            {move || format!("{} mistyped", mistyped_characters.get())}
                         </div>
                         <div class="absolute bottom-1 right-2 rounded bg-zinc-950/70 px-2">
                             {move || average_previous().map(|avg| format!("avg prev {:.1} WPM", avg)).unwrap_or_else(|| "avg prev —".to_string())}

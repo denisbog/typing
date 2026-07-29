@@ -618,6 +618,7 @@ pub fn ArticlePage(
             let (typing_speed_samples, set_typing_speed_samples) = signal(Vec::<f32>::new());
             let (completed_typing_speeds, set_completed_typing_speeds) =
                 signal(vec![None; total]);
+            let (mistyped_characters, set_mistyped_characters) = signal(0usize);
             let link = article
                 .paragraphs
                 .clone()
@@ -783,6 +784,7 @@ pub fn ArticlePage(
                             set_typing_speed_samples
                             completed_typing_speeds
                             set_completed_typing_speeds
+                            set_mistyped_characters
                         />
                     }
                 })
@@ -880,6 +882,7 @@ pub fn ArticlePage(
                     typing_speed_paragraph
                     typing_speed_samples
                     completed_typing_speeds
+                    mistyped_characters
                 />
                 <div class="fixed bottom-2 p-2 bg-zinc-900 shadow-md cursor-default flex flex-wrap gap-2 items-center">
                     {voice_dropdown}
