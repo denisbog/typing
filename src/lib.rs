@@ -18,8 +18,23 @@ pub mod application_types;
 pub mod persistance;
 pub mod translation_page;
 
-pub const BUTTON_CLASS: &str =
-    "size-fit text-md m-2 p-2 shadow-md rounded bg-zinc-900 cursor-pointer text-nowrap whitespace-nowrap";
+pub const BUTTON_CLASS: &str = "inline-flex items-center justify-center text-sm font-medium text-zinc-200 px-4 py-2 rounded-lg \
+     bg-zinc-800/80 border border-zinc-700/50 shadow-sm backdrop-blur \
+     hover:bg-indigo-600/80 hover:border-indigo-500/50 hover:text-white \
+     transition-all duration-150 cursor-pointer \
+     text-nowrap whitespace-nowrap select-none";
+
+pub const BUTTON_PRIMARY_CLASS: &str = "inline-flex items-center justify-center text-sm font-semibold text-white px-4 py-2 rounded-lg \
+     bg-gradient-to-r from-indigo-600 to-violet-600 shadow-lg shadow-indigo-500/25 \
+     hover:from-indigo-500 hover:to-violet-500 hover:shadow-indigo-500/40 \
+     transition-all duration-150 cursor-pointer \
+     text-nowrap whitespace-nowrap select-none";
+
+pub const BUTTON_DANGER_CLASS: &str = "inline-flex items-center justify-center text-sm font-medium text-rose-300 px-4 py-2 rounded-lg \
+     bg-rose-500/10 border border-rose-500/20 \
+     hover:bg-rose-500/20 hover:text-rose-200 \
+     transition-all duration-150 cursor-pointer \
+     text-nowrap whitespace-nowrap select-none";
 
 #[cfg(feature = "ssr")]
 #[derive(Clone, Debug)]

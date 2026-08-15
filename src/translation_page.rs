@@ -5,9 +5,9 @@ use crate::application_types::Pair;
 use crate::components::Association;
 use crate::translation::delete_article;
 use crate::translation::store_pairs;
+use crate::{application_types::{Data}, components::{Sentance, TypingSpeedPanel}, BUTTON_DANGER_CLASS};
 use crate::TypePairs;
 use crate::BUTTON_CLASS;
-use crate::{application_types::{Data}, components::{Sentance, TypingSpeedPanel}};
 use leptos::either::Either;
 use leptos::html::Div;
 use leptos::logging::log;
@@ -378,15 +378,15 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
             .enumerate()
             .map(move |(index, item)| {
                 view! {
-                    <div class="flex p-2 snap-start">
-                        <div class="flex flex-col w-full">
-                            <a class="flex w-full flex-row" href=format!("/article/{}", index)>
-                                <span class="flex p-1 m-1 bg-zinc-900 min-w-[40px] font-mono text-gray-500 rounded shadow-md justify-center">
+                    <div class="group flex flex-col gap-4 rounded-2xl border border-white/5 bg-white/[0.03] p-5 shadow-lg shadow-black/20 backdrop-blur transition-all duration-200 hover:border-indigo-500/30 hover:bg-white/[0.05] animate-fade-in">
+                        <div class="flex w-full flex-col gap-4">
+                            <a class="flex w-full flex-row items-center gap-3" href=format!("/article/{}", index)>
+                                <span class="flex h-9 min-w-[40px] items-center justify-center rounded-lg border border-indigo-500/20 bg-indigo-500/10 px-2 font-mono text-sm font-semibold text-indigo-300">
                                     {item.paragraphs.len()}
                                 </span>
-                                <span class="flex">{item.title}</span>
+                                <span class="flex text-lg font-semibold text-zinc-100 transition-colors group-hover:text-white">{item.title}</span>
                             </a>
-                            <div class="grid grid-cols-2 lg:grid-cols-8">
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-1 lg:grid-cols-8">
                                 {item
                                     .paragraphs
                                     .iter()
@@ -426,10 +426,10 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                                                             })
                                                             .collect_view();
                                                         view! {
-                                                            <div class="flex justify-end text-gray-500">
+                                                            <div class="flex justify-end text-zinc-500/80">
                                                                 {pair_original}
                                                             </div>
-                                                            <div class="flex text-green-700">{pair_translated}</div>
+                                                            <div class="flex text-emerald-400/90">{pair_translated}</div>
                                                         }
                                                     })
                                                     .collect_view(),
@@ -441,50 +441,52 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                                     .collect_view()}
                             </div>
                         </div>
-                        <div
-                            class=BUTTON_CLASS
-                            on:click=move |_event| {
-                                spawn_local(async move {
+                        <div class="flex flex-wrap gap-2 border-t border-white/5 pt-4">
+                            <div
+                                class=BUTTON_CLASS
+                                on:click=move |_event| {
+                                    spawn_local(async move {
+                                        let article_to_remove = data
+                                            .get_untracked()
+                                            .articles
+                                            .get(index)
+                                            .unwrap()
+                                            .clone();
+                                        let _ = store_pairs(article_to_remove).await;
+                                    });
+                                }
+                            >
+
+                                "Save Pairs"
+                            </div>
+                            <div
+                                class=BUTTON_DANGER_CLASS
+                                on:click=move |_event| {
                                     let article_to_remove = data
                                         .get_untracked()
                                         .articles
                                         .get(index)
                                         .unwrap()
                                         .clone();
-                                    let _ = store_pairs(article_to_remove).await;
-                                });
-                            }
-                        >
-
-                            Save Pairs
-                        </div>
-                        <div
-                            class=BUTTON_CLASS
-                            on:click=move |_event| {
-                                let article_to_remove = data
-                                    .get_untracked()
-                                    .articles
-                                    .get(index)
-                                    .unwrap()
-                                    .clone();
-                                spawn_local(async move {
-                                    delete_article(article_to_remove).await.unwrap();
-                                });
-                                set_data
-                                    .update(|item| {
-                                        item.articles.remove(index);
+                                    spawn_local(async move {
+                                        delete_article(article_to_remove).await.unwrap();
                                     });
-                            }
-                        >
+                                    set_data
+                                        .update(|item| {
+                                            item.articles.remove(index);
+                                        });
+                                }
+                            >
 
-                            Delete
+                                "Delete"
+                            </div>
                         </div>
                     </div>
                 }
             }).collect_view()
         }
     };
-    view! { <div class="w-screen lg:w-3/4 flex flex-col">{views}</div> }
+    view! { <div class="w-full flex flex-col gap-5">{views}</div> }
 }
 
 #[component]
@@ -626,7 +628,7 @@ pub fn ArticlePage(
                 .enumerate()
                 .map(|(index, _item)| {
                     view! {
-                        <a class="pl-1" href=format!("#{}", index + 1)>
+                        <a class="flex h-6 w-6 items-center justify-center rounded-md bg-white/5 font-mono text-xs text-zinc-400 transition-colors hover:bg-indigo-500/20 hover:text-indigo-300" href=format!("#{}", index + 1)>
                             {index + 1}
                         </a>
                     }
@@ -794,7 +796,7 @@ pub fn ArticlePage(
             let voice_dropdown = if has_audio_directory {
                 view! {
                     <select
-                        class="bg-zinc-950 text-gray-300 rounded px-2 py-1 border border-zinc-700"
+                        class="rounded-lg border border-zinc-700/80 bg-zinc-950/80 px-2 py-1.5 text-sm text-zinc-300 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                         prop:value=move || playback.selected_voice.get().unwrap_or_else(|| "default".to_string())
                         on:change=move |event| {
                             let value = event_target_value(&event);
@@ -859,8 +861,9 @@ pub fn ArticlePage(
             let voice_dropdown = view! { <div class="hidden"></div> }.into_any();
             #[cfg(feature = "hydrate")]
             let current_paragraph_toggle = view! {
-                <label class="flex items-center gap-1">
+                <label class="flex cursor-pointer items-center gap-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors">
                     <input
+                        class="h-4 w-4 accent-indigo-500"
                         type="checkbox"
                         prop:checked=move || playback.current_paragraph_only.get()
                         on:change=move |event| {
@@ -877,6 +880,13 @@ pub fn ArticlePage(
             let current_paragraph_toggle = view! { <div class="hidden"></div> }.into_any();
 
             Either::Left(view! {
+                <div class="sticky top-0 z-30 w-full border-b border-white/5 bg-[#08080d]/70 backdrop-blur-xl animate-fade-in">
+                    <div class="mx-auto flex w-full max-w-4xl items-center justify-between gap-4 px-4 py-3">
+                        <a href="/" class="text-sm text-zinc-400 transition-colors hover:text-indigo-300">"← Home"</a>
+                        <div class="truncate text-lg font-semibold text-zinc-100">{article.title.clone()}</div>
+                        <div class="font-mono text-sm text-zinc-500">{total} " paragraphs"</div>
+                    </div>
+                </div>
                 {paragraphs}
                 <TypingSpeedPanel
                     typing_speed_paragraph
@@ -884,16 +894,16 @@ pub fn ArticlePage(
                     completed_typing_speeds
                     mistyped_characters
                 />
-                <div class="fixed bottom-2 p-2 bg-zinc-900 shadow-md cursor-default flex flex-wrap gap-2 items-center">
+                <div class="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 flex-wrap items-center gap-2 rounded-full border border-white/10 bg-zinc-900/80 px-4 py-2 text-sm text-zinc-300 shadow-2xl shadow-black/50 backdrop-blur-xl animate-slide-up">
                     {voice_dropdown}
                     {current_paragraph_toggle}
-                    "jump: "
-                    <div class="pl-1 underline cursor-pointer" on:click=move |_| on_back(pairs)>
+                    <span class="text-zinc-500">"jump:"</span>
+                    <div class="underline decoration-indigo-400/50 underline-offset-4 cursor-pointer transition-colors hover:text-indigo-300" on:click=move |_| on_back(pairs)>
                         <a href="/">home</a>
                     </div> {link}
                 </div>
                 <div class="absolute animate-blink z-20" style=caret_position>
-                    <span class="text-xl lg:text-3xl font-extrabold font-mono text-yellow-500 font-bold">
+                    <span class="text-xl lg:text-2xl font-extrabold font-mono text-indigo-400">
                         _
                     </span>
                 </div>
@@ -903,7 +913,7 @@ pub fn ArticlePage(
         }
     };
     view! {
-        <div class="w-screen lg:w-3/4 flex flex-col">
+        <div class="mx-auto w-full max-w-5xl flex flex-col">
             {views}
         </div>
     }
