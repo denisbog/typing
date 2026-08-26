@@ -370,123 +370,165 @@ async fn start_paragraph_audio(
 #[component]
 pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl IntoView {
     let views = move || {
-        {
-            data.get()
+        data.get()
             .articles
             .clone()
             .into_iter()
             .enumerate()
             .map(move |(index, item)| {
+                let paragraph_count = item.paragraphs.len();
+                let translated_count = item
+                    .paragraphs
+                    .iter()
+                    .filter(|paragraph| paragraph.translation.is_some())
+                    .count();
+                let pair_count = item
+                    .paragraphs
+                    .iter()
+                    .filter_map(|paragraph| paragraph.pairs.as_ref())
+                    .map(Vec::len)
+                    .sum::<usize>();
+                let progress = if paragraph_count == 0 {
+                    0
+                } else {
+                    translated_count * 100 / paragraph_count
+                };
+                let title = item.title.trim();
+                let (headline, summary) = title
+                    .split_once("||")
+                    .map(|(headline, summary)| {
+                        (headline.trim().to_string(), Some(summary.trim().to_string()))
+                    })
+                    .unwrap_or_else(|| (title.to_string(), None));
+
                 view! {
-                    <div class="group flex flex-col gap-4 rounded-2xl border border-white/5 bg-white/[0.03] p-5 shadow-lg shadow-black/20 backdrop-blur transition-all duration-200 hover:border-indigo-500/30 hover:bg-white/[0.05] animate-fade-in">
-                        <div class="flex w-full flex-col gap-4">
-                            <a class="flex w-full flex-row items-center gap-3" href=format!("/article/{}", index)>
-                                <span class="flex h-9 min-w-[40px] items-center justify-center rounded-lg border border-indigo-500/20 bg-indigo-500/10 px-2 font-mono text-sm font-semibold text-indigo-300">
-                                    {item.paragraphs.len()}
+                    <article class="article-card group flex min-h-[290px] flex-col rounded-[26px] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-cyan-200/20 hover:shadow-2xl hover:shadow-cyan-950/20 animate-fade-in sm:p-6">
+                        <a
+                            class="flex flex-1 flex-col outline-none"
+                            href=format!("/article/{}", index)
+                            on:click=move |_| window().scroll_to_with_x_and_y(0.0, 0.0)
+                        >
+                            <div class="flex items-start justify-between gap-4">
+                                <div class="flex items-center gap-3">
+                                    <span class="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-300">
+                                        {format!("Article {:02}", index + 1)}
+                                    </span>
+                                    <span class="h-1 w-1 rounded-full bg-slate-700"></span>
+                                    <span class="font-mono text-[10px] uppercase tracking-wider text-slate-500">
+                                        {format!("{} paragraphs", paragraph_count)}
+                                    </span>
+                                </div>
+                                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.04] text-slate-500 transition-all group-hover:border-cyan-200/20 group-hover:bg-cyan-300/10 group-hover:text-cyan-200">
+                                    "↗"
                                 </span>
-                                <span class="flex text-lg font-semibold text-zinc-100 transition-colors group-hover:text-white">{item.title}</span>
-                            </a>
-                            <div class="grid grid-cols-2 gap-x-4 gap-y-1 lg:grid-cols-8">
-                                {item
-                                    .paragraphs
-                                    .iter()
-                                    .filter(|paragraph| paragraph.pairs.is_some())
-                                    .map(|paragraph| {
-                                        let words_original = paragraph
-                                            .original
-                                            .split(" ")
-                                            .map(str::to_string)
-                                            .collect::<Vec<String>>();
-                                        if let Some(translation) = &paragraph.translation {
-                                            let words_translation = translation
-                                                .split(" ")
-                                                .map(str::to_string)
-                                                .collect::<Vec<String>>();
-                                            Either::Left(
-                                                paragraph
-                                                    .pairs
-                                                    .clone()
-                                                    .unwrap()
-                                                    .iter()
-                                                    .map(|pair| {
-                                                        let pair_original = pair
-                                                            .original
-                                                            .iter()
-                                                            .map(|index| { words_original[*index].clone() })
-                                                            .map(|word| {
-                                                                view! { <div class="flex p-1 italic">{word}</div> }
-                                                            })
-                                                            .collect_view();
-                                                        let pair_translated = pair
-                                                            .translation
-                                                            .iter()
-                                                            .map(|index| { words_translation[*index].clone() })
-                                                            .map(|word| {
-                                                                view! { <div class="flex p-1 italic">{word}</div> }
-                                                            })
-                                                            .collect_view();
-                                                        view! {
-                                                            <div class="flex justify-end text-zinc-500/80">
-                                                                {pair_original}
-                                                            </div>
-                                                            <div class="flex text-emerald-400/90">{pair_translated}</div>
-                                                        }
-                                                    })
-                                                    .collect_view(),
-                                            )
-                                        } else {
-                                            Either::Right(view! { "no translation available" })
-                                        }
-                                    })
-                                    .collect_view()}
                             </div>
-                        </div>
-                        <div class="flex flex-wrap gap-2 border-t border-white/5 pt-4">
-                            <div
-                                class=BUTTON_CLASS
-                                on:click=move |_event| {
-                                    spawn_local(async move {
+
+                            <div class="my-7">
+                                <h3 class="text-balance text-xl font-bold leading-snug tracking-[-0.02em] text-slate-100 transition-colors group-hover:text-white">
+                                    {headline}
+                                </h3>
+                                {summary
+                                    .map(|summary| {
+                                        view! {
+                                            <p class="mt-3 line-clamp-2 text-sm leading-relaxed text-slate-500">
+                                                {summary}
+                                            </p>
+                                        }
+                                    })}
+
+                            </div>
+
+                            <div class="mt-auto">
+                                <div class="mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-widest text-slate-600">
+                                    <span>"Translation coverage"</span>
+                                    <span class="text-slate-400">{format!("{}%", progress)}</span>
+                                </div>
+                                <div class="h-1 overflow-hidden rounded-full bg-white/[0.05]">
+                                    <div
+                                        class="h-full rounded-full bg-gradient-to-r from-cyan-400 to-sky-500"
+                                        style=format!("width: {}%", progress)
+                                    ></div>
+                                </div>
+                            </div>
+                        </a>
+
+                        <div class="mt-5 flex items-center justify-between gap-3 border-t border-white/[0.06] pt-4">
+                            <div class="flex items-center gap-2 text-xs text-slate-500">
+                                <span class="flex h-7 min-w-7 items-center justify-center rounded-lg bg-emerald-300/[0.08] px-2 font-mono font-bold text-emerald-300">
+                                    {pair_count}
+                                </span>
+                                <span>"saved pairs"</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button
+                                    class=BUTTON_CLASS
+                                    title="Save this article’s word pairs"
+                                    on:click=move |_event| {
+                                        spawn_local(async move {
+                                            let article_to_store = data
+                                                .get_untracked()
+                                                .articles
+                                                .get(index)
+                                                .unwrap()
+                                                .clone();
+                                            let _ = store_pairs(article_to_store).await;
+                                        });
+                                    }
+                                >
+
+                                    "Save"
+                                </button>
+                                <button
+                                    class=BUTTON_DANGER_CLASS
+                                    title="Delete article"
+                                    on:click=move |_event| {
                                         let article_to_remove = data
                                             .get_untracked()
                                             .articles
                                             .get(index)
                                             .unwrap()
                                             .clone();
-                                        let _ = store_pairs(article_to_remove).await;
-                                    });
-                                }
-                            >
-
-                                "Save Pairs"
-                            </div>
-                            <div
-                                class=BUTTON_DANGER_CLASS
-                                on:click=move |_event| {
-                                    let article_to_remove = data
-                                        .get_untracked()
-                                        .articles
-                                        .get(index)
-                                        .unwrap()
-                                        .clone();
-                                    spawn_local(async move {
-                                        delete_article(article_to_remove).await.unwrap();
-                                    });
-                                    set_data
-                                        .update(|item| {
-                                            item.articles.remove(index);
+                                        spawn_local(async move {
+                                            delete_article(article_to_remove).await.unwrap();
                                         });
-                                }
-                            >
+                                        set_data
+                                            .update(|item| {
+                                                item.articles.remove(index);
+                                            });
+                                    }
+                                >
 
-                                "Delete"
+                                    "Delete"
+                                </button>
                             </div>
                         </div>
+                    </article>
+                }
+            })
+            .collect_view()
+    };
+
+    view! {
+        <Show
+            when=move || !data.get().articles.is_empty()
+            fallback=move || {
+                view! {
+                    <div class="glass-panel flex min-h-72 flex-col items-center justify-center rounded-[28px] px-6 text-center">
+                        <span class="flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-200/15 bg-cyan-300/[0.08] text-2xl text-cyan-200">
+                            "＋"
+                        </span>
+                        <h3 class="mt-5 text-xl font-bold text-white">"Your library is ready"</h3>
+                        <p class="mt-2 max-w-sm text-sm leading-relaxed text-slate-500">
+                            "Add your first article to create a focused typing and translation practice session."
+                        </p>
                     </div>
                 }
-            }).collect_view()
-        }
-    };
-    view! { <div class="w-full flex flex-col gap-5">{views}</div> }
+            }
+        >
+
+            <div class="grid w-full gap-5 lg:grid-cols-2">{views}</div>
+        </Show>
+    }
 }
 
 #[component]
@@ -561,6 +603,9 @@ pub fn ArticlePage(
         let hash = location.hash.get();
         let hash = hash.trim_start_matches('#');
         if hash.is_empty() {
+            if let Some(window) = web_sys::window() {
+                window.scroll_to_with_x_and_y(0.0, 0.0);
+            }
             return;
         }
         if let Some(document) = web_sys::window().and_then(|window| window.document()) {
@@ -628,7 +673,10 @@ pub fn ArticlePage(
                 .enumerate()
                 .map(|(index, _item)| {
                     view! {
-                        <a class="flex h-6 w-6 items-center justify-center rounded-md bg-white/5 font-mono text-xs text-zinc-400 transition-colors hover:bg-indigo-500/20 hover:text-indigo-300" href=format!("#{}", index + 1)>
+                        <a
+                            class="flex h-7 min-w-7 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.04] font-mono text-[10px] text-slate-500 transition-colors hover:border-cyan-300/20 hover:bg-cyan-300/10 hover:text-cyan-200"
+                            href=format!("#{}", index + 1)
+                        >
                             {index + 1}
                         </a>
                     }
@@ -773,7 +821,12 @@ pub fn ArticlePage(
                             set_pairs
                             div_ref
                             speech_cursor
-                            audio_directory=if has_audio_directory { Some(audio_directory.clone()) } else { None }
+                            audio_directory=if has_audio_directory {
+                                Some(audio_directory.clone())
+                            } else {
+                                None
+                            }
+
                             on_audio_click=on_audio_click.clone()
                             on_replay_word=on_replay_word.clone()
                             on_current_paragraph=on_current_paragraph.clone()
@@ -796,13 +849,15 @@ pub fn ArticlePage(
             let voice_dropdown = if has_audio_directory {
                 view! {
                     <select
-                        class="rounded-lg border border-zinc-700/80 bg-zinc-950/80 px-2 py-1.5 text-sm text-zinc-300 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                        prop:value=move || playback.selected_voice.get().unwrap_or_else(|| "default".to_string())
+                        class="rounded-xl border border-white/[0.08] bg-slate-950/80 px-3 py-2 text-xs text-slate-300 outline-none transition-colors focus:border-cyan-300/30 focus:ring-2 focus:ring-cyan-300/10"
+                        prop:value=move || {
+                            playback.selected_voice.get().unwrap_or_else(|| "default".to_string())
+                        }
+
                         on:change=move |event| {
                             let value = event_target_value(&event);
                             let voice = if value == "default" { None } else { Some(value) };
                             playback.set_selected_voice.set(voice.clone());
-
                             if has_audio_directory
                                 && playback.article_index.get() == Some(article_id)
                                 && playback.paragraph.get().is_some()
@@ -813,24 +868,24 @@ pub fn ArticlePage(
                                 }
                                 playback.set_is_playing.set(false);
                                 playback.set_speech_cursor.set(None);
-
                                 let article = article_for_voice.clone();
                                 let directory = audio_directory_for_voice_change.clone();
                                 let playback = playback;
                                 spawn_local(async move {
                                     let _ = start_paragraph_audio(
-                                        article,
-                                        article_id,
-                                        directory,
-                                        paragraph_index,
-                                        playback,
-                                        voice,
-                                    )
-                                    .await;
+                                            article,
+                                            article_id,
+                                            directory,
+                                            paragraph_index,
+                                            playback,
+                                            voice,
+                                        )
+                                        .await;
                                 });
                             }
                         }
                     >
+
                         <option value="default">"default"</option>
                         {move || {
                             available_voices
@@ -838,19 +893,49 @@ pub fn ArticlePage(
                                 .into_iter()
                                 .map(|voice| {
                                     let value = voice.clone();
+                                    if playback
+                                        .selected_voice
+                                        .get()
+                                        .unwrap_or_else(|| "default".to_string()) == voice
+                                    {
+                                        view! {
+                                            // workaround for the selection issue, options are being
+                                            // rendered after the select value is set, we need to force the
+                                            // selction maker on the selected item
+                                            <option value=value selected>
+                                                {voice}
+                                            </option>
+                                        }
+                                            .into_any()
+                                    } else {
+                                        view! {
+                                            // workaround for the selection issue, options are being
+                                            // rendered after the select value is set, we need to force the
+                                            // selction maker on the selected item
 
-                                    // workaround for the selection issue, options are being
-                                    // rendered after the select value is set, we need to force the
-                                    // selction maker on the selected item
-                                    if playback.selected_voice.get().unwrap_or_else(|| "default".to_string()) == voice {
-                                        view! { <option value=value selected>{voice}</option> }.into_any()
-                                    }else {
-                                       view! { <option value=value>{voice}</option> }.into_any()
+                                            // workaround for the selection issue, options are being
+                                            // rendered after the select value is set, we need to force the
+                                            // selction maker on the selected item
+
+                                            // workaround for the selection issue, options are being
+                                            // rendered after the select value is set, we need to force the
+                                            // selction maker on the selected item
+
+                                            // workaround for the selection issue, options are being
+                                            // rendered after the select value is set, we need to force the
+                                            // selction maker on the selected item
+
+                                            // workaround for the selection issue, options are being
+                                            // rendered after the select value is set, we need to force the
+                                            // selction maker on the selected item
+                                            <option value=value>{voice}</option>
+                                        }
+                                            .into_any()
                                     }
-                                    // view! { <option value=value>{voice}</option> }
                                 })
                                 .collect_view()
                         }}
+
                     </select>
                 }
                 .into_any()
@@ -861,17 +946,16 @@ pub fn ArticlePage(
             let voice_dropdown = view! { <div class="hidden"></div> }.into_any();
             #[cfg(feature = "hydrate")]
             let current_paragraph_toggle = view! {
-                <label class="flex cursor-pointer items-center gap-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors">
+                <label class="flex cursor-pointer items-center gap-2 text-xs text-slate-400 transition-colors hover:text-slate-200">
                     <input
-                        class="h-4 w-4 accent-indigo-500"
+                        class="h-4 w-4 accent-cyan-300"
                         type="checkbox"
                         prop:checked=move || playback.current_paragraph_only.get()
                         on:change=move |event| {
-                            playback
-                                .set_current_paragraph_only
-                                .set(event_target_checked(&event));
+                            playback.set_current_paragraph_only.set(event_target_checked(&event));
                         }
                     />
+
                     "Current paragraph only"
                 </label>
             }
@@ -880,13 +964,34 @@ pub fn ArticlePage(
             let current_paragraph_toggle = view! { <div class="hidden"></div> }.into_any();
 
             Either::Left(view! {
-                <div class="sticky top-0 z-30 w-full border-b border-white/5 bg-[#08080d]/70 backdrop-blur-xl animate-fade-in">
-                    <div class="mx-auto flex w-full max-w-4xl items-center justify-between gap-4 px-4 py-3">
-                        <a href="/" class="text-sm text-zinc-400 transition-colors hover:text-indigo-300">"← Home"</a>
-                        <div class="truncate text-lg font-semibold text-zinc-100">{article.title.clone()}</div>
-                        <div class="font-mono text-sm text-zinc-500">{total} " paragraphs"</div>
+                <header class="w-full border-b border-white/[0.06] bg-[#070a10] animate-fade-in">
+                    <div class="mx-auto grid h-[72px] w-full max-w-6xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 px-4 sm:px-6">
+                        <a
+                            href="/"
+                            class="group inline-flex items-center gap-2 text-sm font-semibold text-slate-400 transition-colors hover:text-white"
+                            on:click=move |_| on_back(pairs)
+                        >
+                            <span class="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] transition group-hover:border-cyan-300/20 group-hover:bg-cyan-300/10 group-hover:text-cyan-200">
+                                "←"
+                            </span>
+                            <span class="hidden sm:block">"Library"</span>
+                        </a>
+                        <div class="min-w-0 text-center">
+                            <div class="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-cyan-300">
+                                "Now practicing"
+                            </div>
+                            <div class="mt-1 truncate text-sm font-semibold text-slate-100 sm:text-base">
+                                {article.title.clone()}
+                            </div>
+                        </div>
+                        <div class="rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2 text-right">
+                            <div class="font-mono text-xs font-bold text-white">{total}</div>
+                            <div class="font-mono text-[7px] uppercase tracking-widest text-slate-600">
+                                "Paragraphs"
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </header>
                 {paragraphs}
                 <TypingSpeedPanel
                     typing_speed_paragraph
@@ -894,16 +999,29 @@ pub fn ArticlePage(
                     completed_typing_speeds
                     mistyped_characters
                 />
-                <div class="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 flex-wrap items-center gap-2 rounded-full border border-white/10 bg-zinc-900/80 px-4 py-2 text-sm text-zinc-300 shadow-2xl shadow-black/50 backdrop-blur-xl animate-slide-up">
-                    {voice_dropdown}
-                    {current_paragraph_toggle}
-                    <span class="text-zinc-500">"jump:"</span>
-                    <div class="underline decoration-indigo-400/50 underline-offset-4 cursor-pointer transition-colors hover:text-indigo-300" on:click=move |_| on_back(pairs)>
-                        <a href="/">home</a>
-                    </div> {link}
+                <div class="fixed bottom-4 left-1/2 z-40 flex w-[calc(100%-2rem)] max-w-6xl -translate-x-1/2 items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/85 p-2.5 text-sm text-slate-300 shadow-2xl shadow-black/50 backdrop-blur-2xl animate-slide-up">
+                    <div class="hidden shrink-0 items-center gap-3 border-r border-white/[0.07] pr-3 sm:flex">
+                        {voice_dropdown} {current_paragraph_toggle}
+                    </div>
+                    <span class="shrink-0 pl-1 font-mono text-[9px] font-bold uppercase tracking-widest text-slate-600">
+                        "Jump to"
+                    </span>
+                    <nav class="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
+                        {link}
+                    </nav>
                 </div>
-                <div class="absolute animate-blink z-20" style=caret_position>
-                    <span class="text-xl lg:text-2xl font-extrabold font-mono text-indigo-400">
+                <div
+                    class=move || {
+                        if typing_speed_paragraph.get().is_some() {
+                            "absolute z-20 animate-blink"
+                        } else {
+                            "hidden"
+                        }
+                    }
+
+                    style=caret_position
+                >
+                    <span class="font-mono text-xl font-extrabold text-cyan-300 lg:text-2xl">
                         _
                     </span>
                 </div>
@@ -912,9 +1030,5 @@ pub fn ArticlePage(
             Either::Right(())
         }
     };
-    view! {
-        <div class="mx-auto w-full max-w-5xl flex flex-col">
-            {views}
-        </div>
-    }
+    view! { <div class="flex w-full flex-col">{views}</div> }
 }

@@ -99,7 +99,9 @@ passing additinal feature `aws`, LEPTOS_OUTPUT_NAME=`typing` should match the ma
 ## build and deploy the application
 
 ```bash
+npx tailwindcss -i ./input.css -o ./public/typing.css
 cargo leptos watch --release
+npx tailwindcss -i ./input.css -o ./public/typing.css
 RUSTFLAGS="-Zlinker-features=-lld" LEPTOS_OUTPUT_NAME=typing cargo lambda build --no-default-features --features=ssr,lambda --release
 LEPTOS_OUTPUT_NAME=typing cargo lambda build --no-default-features --features=ssr,lambda --release
 cargo lambda deploy --include target/site --enable-function-url --binary-name=typing

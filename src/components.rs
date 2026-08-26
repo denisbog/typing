@@ -388,9 +388,9 @@ impl TypingState {
             WordState::Pair => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-emerald-500/10 text-emerald-300",
             WordState::Highlighted => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-rose-500/15 text-rose-200",
             WordState::HighlightedPair => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-sky-500/15 text-sky-200",
-            WordState::Clicked => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md underline decoration-indigo-400 decoration-2 underline-offset-4",
-            WordState::ClickedSelected => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-amber-500/10 underline decoration-amber-400 decoration-2 underline-offset-4",
-            WordState::None => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md transition-colors hover:bg-white/5",
+            WordState::Clicked => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md underline decoration-cyan-300 decoration-2 underline-offset-4",
+            WordState::ClickedSelected => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-amber-400/10 underline decoration-amber-300 decoration-2 underline-offset-4",
+            WordState::None => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md transition-colors",
         }
     }
 
@@ -591,184 +591,393 @@ pub fn Sentance(
     };
     let class = move || {
         if sentace_state.read().enable_selection {
-            "w-full max-w-4xl flex cursor-default rounded-2xl border border-indigo-500/30 bg-indigo-500/[0.04] p-4 lg:p-6 shadow-lg shadow-indigo-500/5 transition-colors duration-300"
+            "article-card w-full max-w-6xl cursor-default overflow-hidden rounded-[28px] border-cyan-300/30 bg-cyan-300/[0.035] shadow-2xl shadow-cyan-950/20 transition-all duration-300"
         } else {
-            "w-full max-w-4xl flex rounded-2xl border border-white/5 bg-white/[0.02] p-4 lg:p-6 transition-colors duration-300 hover:border-white/10"
+            "article-card w-full max-w-6xl overflow-hidden rounded-[28px] transition-all duration-300 hover:border-white/[0.12]"
         }
     };
 
     view! {
-        <div class="flex flex-col items-center justify-center min-h-lvh lg:h-min snap-start parent gap-2" id=index + 1>
+        <section
+            class="parent flex min-h-[calc(100svh-4.5rem)] w-full snap-start scroll-mt-[72px] flex-col items-center justify-center gap-4 px-4 py-10 sm:px-6 lg:py-14"
+            id=index + 1
+        >
             <div class=class>
-                <div
-                    class="flex flex-wrap font-mono text-lg lg:text-2xl leading-relaxed focus:outline-none"
-                    tabindex=1
-                    on:keydown=move |event| {
-                        let key = event.key_code();
-                        let mut local_store = store.get_untracked();
-                        if key == 8 && event.ctrl_key() {
-                            // Ctrl+Backspace moves the cursor to the beginning of the
-                            // current word without changing the typed text.
-                            if let Some(word) = local_store.words.get_mut(local_store.word_index) {
-                                let typed_characters = word
-                                    .characters
-                                    .iter()
-                                    .filter(|character| character.typed_char.is_some())
-                                    .count();
-                                word.char_index = 0;
-                                word.characters.iter_mut().for_each(|character| {
-                                    character.typed_char = None;
-                                });
-                                set_typing.update(|typing| {
-                                    if let Some(typing) = typing.as_mut() {
-                                        for _ in 0..typed_characters {
-                                            typing.untick();
-                                        }
+                <div class="flex items-center justify-between gap-4 border-b border-white/[0.06] px-5 py-4 sm:px-7">
+                    <div class="flex items-center gap-3">
+                        <span class="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">
+                            {format!("Paragraph {:02}", index + 1)}
+                        </span>
+                        <span class="h-1 w-1 rounded-full bg-slate-700"></span>
+                        <span class="font-mono text-[10px] uppercase tracking-widest text-slate-600">
+                            {format!("{:02} / {:02}", index + 1, total)}
+                        </span>
+                    </div>
+                    <span class=move || {
+                        if sentace_state.read().enable_selection {
+                            "rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 font-mono text-[9px] uppercase tracking-widest text-cyan-200"
+                        } else {
+                            "rounded-full border border-white/[0.07] bg-white/[0.04] px-3 py-1 font-mono text-[9px] uppercase tracking-widest text-slate-500"
+                        }
+                    }>
+                        {move || {
+                            if sentace_state.read().enable_selection {
+                                "Pairing mode"
+                            } else {
+                                "Typing mode"
+                            }
+                        }}
+                    </span>
+                </div>
+                <div class="grid lg:grid-cols-[1.35fr_0.85fr]">
+                    <div class="p-5 sm:p-7 lg:p-9">
+                        <div class="mb-5 flex items-center justify-between">
+                            <span class="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                                "Original · German"
+                            </span>
+                            <span class="font-mono text-[9px] uppercase tracking-widest text-slate-700">
+                                "Start typing anywhere"
+                            </span>
+                        </div>
+                        <div
+                            class="flex flex-wrap font-mono text-lg leading-[1.75] text-slate-200 outline-none sm:text-xl lg:text-[1.35rem]"
+                            tabindex=1
+                            on:keydown=move |event| {
+                                let key = event.key_code();
+                                let mut local_store = store.get_untracked();
+                                if key == 8 && event.ctrl_key() {
+                                    if let Some(word) = local_store
+                                        .words
+                                        .get_mut(local_store.word_index)
+                                    {
+                                        let typed_characters = word
+                                            .characters
+                                            .iter()
+                                            .filter(|character| character.typed_char.is_some())
+                                            .count();
+                                        word.char_index = 0;
+                                        word.characters
+                                            .iter_mut()
+                                            .for_each(|character| {
+                                                character.typed_char = None;
+                                            });
+                                        set_typing
+                                            .update(|typing| {
+                                                if let Some(typing) = typing.as_mut() {
+                                                    for _ in 0..typed_characters {
+                                                        typing.untick();
+                                                    }
+                                                }
+                                            });
                                     }
-                                });
-                            }
-                            let word_index = local_store.word_index;
-                            set_store.set(local_store);
-                            if let Some(replay_word) = replay_word.clone() {
-                                replay_word.run((index, word_index));
-                            }
-                            event.prevent_default();
-                        } else if key == 8 {
-                            if let Some(word) = local_store.words.get_mut(local_store.word_index) {
-                                if word.char_index > 0 {
-                                    word.char_index -= 1;
-                                    let temp = word.characters.get_mut(word.char_index).unwrap();
-                                    temp.backspace();
-                                    set_typing
-                                        .update(|typing| {
-                                            typing
-                                                .as_mut()
-                                                .map(|typing| {
-                                                    typing.untick();
-                                                });
-                                        });
-                                } else if local_store.word_index > 0 {
-                                    local_store.word_index -= 1;
-                                    set_typing
-                                        .update(|typing| {
-                                            typing
-                                                .as_mut()
-                                                .map(|typing| {
-                                                    typing.untick();
-                                                });
-                                        });
-                                }
-                            } else if local_store.word_index > 0 {
-                                local_store.word_index -= 1;
-                            }
-                            set_store.set(local_store);
-                            record_current_speed();
-                        } else if key == 32 && local_store.word_index < local_store.words.len() - 1
-                        {
-                            if let Some(word) = local_store.words.get_mut(local_store.word_index) {
-                                if word.char_index == word.characters.len() {
+                                    let word_index = local_store.word_index;
+                                    set_store.set(local_store);
+                                    if let Some(replay_word) = replay_word.clone() {
+                                        replay_word.run((index, word_index));
+                                    }
                                     event.prevent_default();
-                                    local_store.word_index += 1;
+                                } else if key == 8 {
+                                    if let Some(word) = local_store
+                                        .words
+                                        .get_mut(local_store.word_index)
+                                    {
+                                        if word.char_index > 0 {
+                                            word.char_index -= 1;
+                                            let temp = word
+                                                .characters
+                                                .get_mut(word.char_index)
+                                                .unwrap();
+                                            temp.backspace();
+                                            set_typing
+                                                .update(|typing| {
+                                                    typing
+                                                        .as_mut()
+                                                        .map(|typing| {
+                                                            typing.untick();
+                                                        });
+                                                });
+                                        } else if local_store.word_index > 0 {
+                                            local_store.word_index -= 1;
+                                            set_typing
+                                                .update(|typing| {
+                                                    typing
+                                                        .as_mut()
+                                                        .map(|typing| {
+                                                            typing.untick();
+                                                        });
+                                                });
+                                        }
+                                    } else if local_store.word_index > 0 {
+                                        local_store.word_index -= 1;
+                                    }
                                     set_store.set(local_store);
                                     record_current_speed();
-                                    set_typing
-                                        .update(|typing| {
-                                            typing
-                                                .as_mut()
-                                                .map(|typing| {
-                                                    typing.tick();
+                                } else if key == 32
+                                    && local_store.word_index < local_store.words.len() - 1
+                                {
+                                    if let Some(word) = local_store
+                                        .words
+                                        .get_mut(local_store.word_index)
+                                    {
+                                        if word.char_index == word.characters.len() {
+                                            event.prevent_default();
+                                            local_store.word_index += 1;
+                                            set_store.set(local_store);
+                                            record_current_speed();
+                                            set_typing
+                                                .update(|typing| {
+                                                    typing
+                                                        .as_mut()
+                                                        .map(|typing| {
+                                                            typing.tick();
+                                                        });
                                                 });
-                                        });
+                                        }
+                                    }
                                 }
                             }
-                        }
-                    }
 
-                    on:focus=move |_event| {
-                        switch_to_paragraph(index);
-                        if !sentace_state.read().enable_selection {
-                            set_store.update(|store| store.focus = true)
-                        }
-                    }
-
-                    on:focusout=move |_event| {
-                        set_store.update(|store| store.focus = false);
-                        finalize_current_speed(index);
-                        set_typing.update(|typing| {
-                            typing.as_mut().map(|typing| typing.pause());
-                        });
-                    }
-
-                    on:keypress=move |event| {
-                        let key = event.key_code();
-                        let mut local_store = store.get();
-                        if local_store.word_index < local_store.words.len() {
-                            let word = local_store.words.get_mut(local_store.word_index).unwrap();
-                            if word.char_index < word.characters.len() {
-                                let typed_char = char::from_u32(key).unwrap();
-                                let character = word.characters.get_mut(word.char_index).unwrap();
-                                if !compare(typed_char, character.reference_char) {
-                                    set_mistyped.update(|count| *count += 1);
-                                    set_mistyped_characters.set(mistyped.get_untracked());
+                            on:focus=move |_event| {
+                                switch_to_paragraph(index);
+                                if !sentace_state.read().enable_selection {
+                                    set_store.update(|store| store.focus = true)
                                 }
-                                character.typed(typed_char);
-                                word.char_index += 1;
+                            }
+
+                            on:focusout=move |_event| {
+                                set_store.update(|store| store.focus = false);
+                                finalize_current_speed(index);
                                 set_typing
                                     .update(|typing| {
-                                        typing
-                                            .as_mut()
-                                            .map(|typing| {
-                                                typing.tick();
-                                            });
+                                        typing.as_mut().map(|typing| typing.pause());
                                     });
-                                typing
-                                    .read()
-                                    .as_ref()
-                                    .map(|typing| {
-                                        log!(
-                                            "timmings chars: {}, timer: {}", typing.chars, typing.timer
-                                            .elapsed().as_secs_f32()
-                                        );
-                                    });
-                                set_store.set(local_store);
-                                record_current_speed();
                             }
-                        }
-                        event.prevent_default();
-                    }
-                >
 
-                    <div class="pr-3 pt-1 lg:pt-2 font-sans text-sm lg:text-base tabular-nums text-indigo-300/50">{index + 1} {"/"} {total} {")"}</div>
-
-                    {
-                        view! {
-                            <For
-                                each=move || store.get().words.into_iter().enumerate()
-                                key=move |(index, w)| {
-                                    let current_word_index = store.read().word_index == *index
-                                        && store.read().focus;
-                                    format!("{}-{}-{}", index, w.char_index, current_word_index)
+                            on:keypress=move |event| {
+                                let key = event.key_code();
+                                let mut local_store = store.get();
+                                if local_store.word_index < local_store.words.len() {
+                                    let word = local_store
+                                        .words
+                                        .get_mut(local_store.word_index)
+                                        .unwrap();
+                                    if word.char_index < word.characters.len() {
+                                        let typed_char = char::from_u32(key).unwrap();
+                                        let character = word
+                                            .characters
+                                            .get_mut(word.char_index)
+                                            .unwrap();
+                                        if !compare(typed_char, character.reference_char) {
+                                            set_mistyped.update(|count| *count += 1);
+                                            set_mistyped_characters.set(mistyped.get_untracked());
+                                        }
+                                        character.typed(typed_char);
+                                        word.char_index += 1;
+                                        set_typing
+                                            .update(|typing| {
+                                                typing
+                                                    .as_mut()
+                                                    .map(|typing| {
+                                                        typing.tick();
+                                                    });
+                                            });
+                                        typing
+                                            .read()
+                                            .as_ref()
+                                            .map(|typing| {
+                                                log!(
+                                                    "timmings chars: {}, timer: {}", typing.chars, typing.timer
+                                                    .elapsed().as_secs_f32()
+                                                );
+                                            });
+                                        set_store.set(local_store);
+                                        record_current_speed();
+                                    }
                                 }
+                                event.prevent_default();
+                            }
+                        >
 
-                                children=move |(word_index, w)| {
-                                    let speech_active = move || {
-                                        audio_current_article.get() == Some(article_index)
-                                            && speech_cursor
-                                                .get()
-                                                .is_some_and(|cursor| {
-                                                    cursor.paragraph == index
-                                                        && cursor.word == word_index
-                                                })
-                                    };
+                            {
+                                view! {
+                                    <For
+                                        each=move || store.get().words.into_iter().enumerate()
+                                        key=move |(index, w)| {
+                                            let current_word_index = store.read().word_index == *index
+                                                && store.read().focus;
+                                            format!("{}-{}-{}", index, w.char_index, current_word_index)
+                                        }
+
+                                        children=move |(word_index, w)| {
+                                            let speech_active = move || {
+                                                audio_current_article.get() == Some(article_index)
+                                                    && speech_cursor
+                                                        .get()
+                                                        .is_some_and(|cursor| {
+                                                            cursor.paragraph == index && cursor.word == word_index
+                                                        })
+                                            };
+                                            let class = move || {
+                                                let mut class = TypingState::get_style_for_word_state(
+                                                        sentace_state
+                                                            .read()
+                                                            .get_state_for_word(word_index, EvaluationFor::Original),
+                                                    )
+                                                    .to_string();
+                                                if sentace_state.read().enable_selection {
+                                                    class.push_str(" cursor-pointer hover:bg-white/[0.06]");
+                                                }
+                                                if speech_active() {
+                                                    class
+                                                        .push_str(
+                                                            " underline decoration-cyan-400 decoration-2 underline-offset-4",
+                                                        );
+                                                }
+                                                class
+                                            };
+                                            view! {
+                                                <div
+                                                    class=class
+                                                    on:click=move |_| {
+                                                        if sentace_state.read().enable_selection {
+                                                            set_sentace_state
+                                                                .update(|state| {
+                                                                    state
+                                                                        .set_selection_click(word_index, EvaluationFor::Original);
+                                                                });
+                                                        }
+                                                    }
+                                                >
+
+                                                    <For
+                                                        each=move || w.clone().characters.into_iter().enumerate()
+                                                        key=move |(index, _c)| { format!("{}", index) }
+
+                                                        children=move |(char_index, c)| {
+                                                            let class = if let Some(typed_char) = c.typed_char {
+                                                                log!("compare {} with {}", typed_char, c.reference_char);
+                                                                if compare(typed_char, c.reference_char) {
+                                                                    if store.read().word_index == word_index {
+                                                                        "text-cyan-200/80 underline decoration-cyan-300/40 underline-offset-4"
+                                                                    } else {
+                                                                        "text-cyan-200/55"
+                                                                    }
+                                                                } else {
+                                                                    "text-rose-400 italic underline decoration-rose-400/60 decoration-wavy underline-offset-4"
+                                                                }
+                                                            } else {
+                                                                if store.read().word_index == word_index
+                                                                    && store.read().focus
+                                                                {
+                                                                    "underline decoration-cyan-300 decoration-2 underline-offset-4"
+                                                                } else {
+                                                                    ""
+                                                                }
+                                                            };
+                                                            let local_store = store.get();
+                                                            let word_state = local_store
+                                                                .words
+                                                                .get(local_store.word_index)
+                                                                .unwrap();
+                                                            let typing_cursor_active = store.read().word_index
+                                                                == word_index && store.read().focus
+                                                                && (word_state.char_index == char_index || char_index == 0
+                                                                    || (word_state.characters.len() == word_state.char_index
+                                                                        && (char_index + 1) == word_state.char_index));
+                                                            if typing_cursor_active {
+                                                                view! {
+                                                                    <div class=class node_ref=div_ref>
+                                                                        {c.reference_char}
+                                                                    </div>
+                                                                }
+                                                                    .into_any()
+                                                            } else {
+                                                                view! { <div class=class>{c.reference_char}</div> }
+                                                                    .into_any()
+                                                            }
+                                                        }
+                                                    />
+
+                                                    {move || {
+                                                        if let Some(index) = sentace_state
+                                                            .read()
+                                                            .get_pair_index_for_word_if_any(
+                                                                word_index,
+                                                                EvaluationFor::Original,
+                                                            )
+                                                        {
+                                                            Either::Left(
+                                                                view! {
+                                                                    <div class="absolute -top-2.5 right-0.5 rounded border border-cyan-300/20 bg-slate-950 px-1 py-px font-sans text-[10px] font-semibold leading-none text-cyan-200 shadow">
+                                                                        {index + 1}
+                                                                    </div>
+                                                                },
+                                                            )
+                                                        } else {
+                                                            Either::Right(view! { <div class="absolute"></div> })
+                                                        }
+                                                    }}
+
+                                                    {move || {
+                                                        let pair = match sentace_state.read().clicked {
+                                                            Clicked::Original(clicked_word_index) => {
+                                                                clicked_word_index == word_index
+                                                            }
+                                                            _ => false,
+                                                        };
+                                                        if pair {
+                                                            Either::Left(pair_button())
+                                                        } else {
+                                                            Either::Right(())
+                                                        }
+                                                    }}
+
+                                                    {move || {
+                                                        if let Clicked::SelectedOriginal(
+                                                            clicked_highlight,
+                                                            clicked_highligth_word_index,
+                                                        ) = sentace_state.read().clicked
+                                                        {
+                                                            if clicked_highligth_word_index == word_index {
+                                                                return delete_button(clicked_highlight).into_any();
+                                                            }
+                                                        }
+                                                        ().into_any()
+                                                    }}
+
+                                                </div>
+                                            }
+                                        }
+                                    />
+                                }
+                            }
+
+                        </div>
+                    </div>
+                    <div class="border-t border-white/[0.06] bg-white/[0.018] p-5 sm:p-7 lg:border-l lg:border-t-0 lg:p-9">
+                        <div class="mb-5 flex items-center justify-between">
+                            <span class="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                                "Translation · English"
+                            </span>
+                            <span class="font-mono text-[9px] uppercase tracking-widest text-slate-700">
+                                "Reference"
+                            </span>
+                        </div>
+                        <div class="flex flex-wrap text-[0.95rem] italic leading-[1.9] text-slate-500 sm:text-base">
+
+                            <For
+                                each=move || translation_words.clone().into_iter().enumerate()
+                                key=move |(index, _item)| *index
+                                children=move |(word_index, item)| {
                                     let class = move || {
                                         let mut class = TypingState::get_style_for_word_state(
                                             sentace_state
                                                 .read()
-                                                .get_state_for_word(word_index, EvaluationFor::Original),
+                                                .get_state_for_word(word_index, EvaluationFor::Translation),
                                         )
                                         .to_string();
-                                        if speech_active() {
-                                            class.push_str(" underline decoration-cyan-400 decoration-2 underline-offset-4");
+                                        if sentace_state.read().enable_selection {
+                                            class.push_str(" cursor-pointer hover:bg-white/[0.06]");
                                         }
                                         class
                                     };
@@ -780,72 +989,28 @@ pub fn Sentance(
                                                     set_sentace_state
                                                         .update(|state| {
                                                             state
-                                                                .set_selection_click(word_index, EvaluationFor::Original);
+                                                                .set_selection_click(
+                                                                    word_index,
+                                                                    EvaluationFor::Translation,
+                                                                );
                                                         });
                                                 }
                                             }
                                         >
 
-                                            <For
-                                                each=move || w.clone().characters.into_iter().enumerate()
-                                                key=move |(index, _c)| { format!("{}", index) }
-
-                                                children=move |(char_index, c)| {
-                                                    let class = if let Some(typed_char) = c.typed_char {
-                                                        log!("compare {} with {}", typed_char, c.reference_char);
-                                                        if compare(typed_char, c.reference_char) {
-                                                            if store.read().word_index == word_index {
-                                                                "text-indigo-300/70 underline decoration-indigo-400/40 underline-offset-4"
-                                                            } else {
-                                                                "text-indigo-300/50"
-                                                            }
-                                                        } else {
-                                                            "text-rose-400 italic underline decoration-rose-400/60 decoration-wavy underline-offset-4"
-                                                        }
-                                                    } else {
-                                                        if store.read().word_index == word_index
-                                                            && store.read().focus
-                                                        {
-                                                            "underline decoration-indigo-400 decoration-2 underline-offset-4"
-                                                        } else {
-                                                            ""
-                                                        }
-                                                    };
-                                                    let local_store = store.get();
-                                                    let word_state = local_store
-                                                        .words
-                                                        .get(local_store.word_index)
-                                                        .unwrap();
-                                                    let typing_cursor_active = store.read().word_index == word_index
-                                                        && store.read().focus
-                                                        && (word_state.char_index == char_index || char_index == 0
-                                                            || (word_state.characters.len() == word_state.char_index
-                                                                && (char_index + 1) == word_state.char_index));
-                                                    if typing_cursor_active {
-                                                        view! {
-                                                            <div class=class node_ref=div_ref>
-                                                                {c.reference_char}
-                                                            </div>
-                                                        }
-                                                            .into_any()
-                                                    } else {
-                                                        view! { <div class=class>{c.reference_char}</div> }
-                                                            .into_any()
-                                                    }
-                                                }
-                                            />
+                                            {item}
 
                                             {move || {
                                                 if let Some(index) = sentace_state
                                                     .read()
                                                     .get_pair_index_for_word_if_any(
                                                         word_index,
-                                                        EvaluationFor::Original,
+                                                        EvaluationFor::Translation,
                                                     )
                                                 {
                                                     Either::Left(
                                                         view! {
-                                                            <div class="absolute -top-2.5 lg:-top-3 right-0.5 rounded border border-indigo-500/30 bg-zinc-900 px-1 py-px font-sans text-[10px] leading-none font-semibold text-indigo-300 shadow">
+                                                            <div class="absolute -top-2.5 right-0.5 rounded border border-cyan-300/20 bg-slate-950 px-1 py-px font-sans text-[10px] font-semibold leading-none text-cyan-200 shadow">
                                                                 {index + 1}
                                                             </div>
                                                         },
@@ -857,7 +1022,7 @@ pub fn Sentance(
 
                                             {move || {
                                                 let pair = match sentace_state.read().clicked {
-                                                    Clicked::Original(clicked_word_index) => {
+                                                    Clicked::Translation(clicked_word_index) => {
                                                         clicked_word_index == word_index
                                                     }
                                                     _ => false,
@@ -870,7 +1035,7 @@ pub fn Sentance(
                                             }}
 
                                             {move || {
-                                                if let Clicked::SelectedOriginal(
+                                                if let Clicked::SelectedTranslation(
                                                     clicked_highlight,
                                                     clicked_highligth_word_index,
                                                 ) = sentace_state.read().clicked
@@ -886,101 +1051,18 @@ pub fn Sentance(
                                     }
                                 }
                             />
-                        }
-                    }
 
-                </div>
-                <div class="flex flex-wrap px-5 lg:px-8 pb-2 text-zinc-500/90 italic">
-
-                    <For
-                        each=move || translation_words.clone().into_iter().enumerate()
-                        key=move |(index, _item)| *index
-                        children=move |(word_index, item)| {
-                            let class = move || TypingState::get_style_for_word_state(
-                                sentace_state
-                                    .read()
-                                    .get_state_for_word(word_index, EvaluationFor::Translation),
-                            );
-                            view! {
-                                <div
-                                    class=class
-                                    on:click=move |_| {
-                                        if sentace_state.read().enable_selection {
-                                            set_sentace_state
-                                                .update(|state| {
-                                                    state
-                                                        .set_selection_click(
-                                                            word_index,
-                                                            EvaluationFor::Translation,
-                                                        );
-                                                });
-                                        }
-                                    }
-                                >
-
-                                    {item}
-
-                                    {move || {
-                                        if let Some(index) = sentace_state
-                                            .read()
-                                            .get_pair_index_for_word_if_any(
-                                                word_index,
-                                                EvaluationFor::Translation,
-                                            )
-                                        {
-                                            Either::Left(
-                                                view! {
-                                                    <div class="absolute -top-2.5 lg:-top-3 right-0.5 rounded border border-indigo-500/30 bg-zinc-900 px-1 py-px font-sans text-[10px] leading-none font-semibold text-indigo-300 shadow">
-                                                        {index + 1}
-                                                    </div>
-                                                },
-                                            )
-                                        } else {
-                                            Either::Right(view! { <div class="absolute"></div> })
-                                        }
-                                    }}
-
-                                    {move || {
-                                        let pair = match sentace_state.read().clicked {
-                                            Clicked::Translation(clicked_word_index) => {
-                                                clicked_word_index == word_index
-                                            }
-                                            _ => false,
-                                        };
-                                        if pair {
-                                            Either::Left(pair_button())
-                                        } else {
-                                            Either::Right(())
-                                        }
-                                    }}
-
-                                    {move || {
-                                        if let Clicked::SelectedTranslation(
-                                            clicked_highlight,
-                                            clicked_highligth_word_index,
-                                        ) = sentace_state.read().clicked
-                                        {
-                                            if clicked_highligth_word_index == word_index {
-                                                return delete_button(clicked_highlight).into_any();
-                                            }
-                                        }
-                                        ().into_any()
-                                    }}
-
-                                </div>
-                            }
-                        }
-                    />
-
+                        </div>
+                    </div>
                 </div>
             </div>
 
             {
                 let label = move || {
                     if sentace_state.read().enable_selection {
-                        "click to enable typing"
+                        "Back to typing"
                     } else {
-                        "click to enable pairing"
+                        "Pair words"
                     }
                 };
                 let audio_disabled = audio_directory.is_none() || on_audio_click.is_none();
@@ -989,11 +1071,7 @@ pub fn Sentance(
                     if audio_current_article.get() == Some(article_index)
                         && audio_current_paragraph.get() == Some(index)
                     {
-                        if audio_is_playing.get() {
-                            "Pause audio"
-                        } else {
-                            "Resume audio"
-                        }
+                        if audio_is_playing.get() { "Pause audio" } else { "Resume audio" }
                     } else {
                         "Play audio"
                     }
@@ -1010,25 +1088,37 @@ pub fn Sentance(
                                 _set_copy_notice.set(true);
                                 spawn_local(async move {
                                     let _ = copy_to_clipboard(text).await;
-                                    let _ = wasm_timer::Delay::new(Duration::from_millis(1500)).await;
+                                    let _ = wasm_timer::Delay::new(Duration::from_millis(1500))
+                                        .await;
                                     _set_copy_notice.set(false);
                                 });
                             }
                         >
-                            {move || if copy_notice.get() { "Copied to clipboard" } else { "Copy original" }}
+
+                            {move || {
+                                if copy_notice.get() {
+                                    "Copied to clipboard"
+                                } else {
+                                    "Copy original"
+                                }
+                            }}
                         </button>
                     }
                 };
                 #[cfg(not(feature = "hydrate"))]
                 let copy_original = || {
                     view! {
-                        <button class=BUTTON_CLASS disabled=true title="Copy the original paragraph text">
+                        <button
+                            class=BUTTON_CLASS
+                            disabled=true
+                            title="Copy the original paragraph text"
+                        >
                             "Copy original"
                         </button>
                     }
                 };
                 view! {
-                    <div class="flex items-center justify-center flex-wrap gap-2 px-4 pb-8">
+                    <div class="flex flex-wrap items-center justify-center gap-2 px-4 pb-8">
                         <div
                             class=BUTTON_CLASS
                             on:click=move |_event| {
@@ -1049,6 +1139,7 @@ pub fn Sentance(
                                     BUTTON_CLASS.to_string()
                                 }
                             }
+
                             disabled=move || audio_disabled
                             on:click=move |_| {
                                 if let Some(on_audio_click) = audio_click.clone() {
@@ -1056,10 +1147,11 @@ pub fn Sentance(
                                 }
                             }
                         >
+
                             {audio_label}
                         </button>
                         {copy_original()}
-                        <div class="rounded-md border border-white/5 bg-white/5 px-2.5 py-1.5 font-mono text-xs text-zinc-400">
+                        <div class="rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 font-mono text-xs text-slate-300">
 
                             {move || {
                                 typing
@@ -1070,13 +1162,13 @@ pub fn Sentance(
                                         |typing| format!("{:.2} ", typing.get_wpm()),
                                     )
                             }}
-                            <span class="text-zinc-500">(wpm)</span>
+                            <span class="text-slate-600">" WPM"</span>
                         </div>
                     </div>
                 }
             }
 
-        </div>
+        </section>
     }
 }
 
@@ -1134,35 +1226,59 @@ pub fn TypingSpeedPanel(
 
     view! {
         <Show
-            when=move || typing_speed_paragraph.get().is_some() && !typing_speed_samples.get().is_empty()
+            when=move || {
+                typing_speed_paragraph.get().is_some() && !typing_speed_samples.get().is_empty()
+            }
             fallback=move || view! { <div class="hidden"></div> }
         >
-            <div class="fixed top-2 right-2 z-30 overflow-hidden rounded-xl border border-white/10 bg-zinc-900/80 shadow-2xl shadow-black/40 backdrop-blur-xl">
-                <div class="relative w-full">
-                    <svg viewBox="0 0 240 100" class="w-full h-24 block overflow-visible">
-                        <rect x="0" y="0" width="240" height="100" rx="8" class="fill-[#0c0c14] stroke-white/10" stroke-width="1"/>
-                        <Show when=move || average_line_y().is_some() fallback=move || view! { <div class="hidden"></div> }>
+            <div class="fixed right-5 top-24 z-30 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/80 p-1 shadow-2xl shadow-black/40 backdrop-blur-2xl animate-fade-in">
+                <div class="relative w-full overflow-hidden rounded-xl">
+                    <svg viewBox="0 0 240 100" class="block h-24 w-full overflow-visible">
+                        <rect
+                            x="0"
+                            y="0"
+                            width="240"
+                            height="100"
+                            rx="10"
+                            class="fill-[#090e17] stroke-white/5"
+                            stroke-width="1"
+                        ></rect>
+                        <Show
+                            when=move || average_line_y().is_some()
+                            fallback=move || view! { <div class="hidden"></div> }
+                        >
                             <line
                                 x1="0"
                                 x2="240"
                                 y1=move || average_line_y().unwrap_or(0.0)
                                 y2=move || average_line_y().unwrap_or(0.0)
-                                stroke="#9ca3af"
+                                stroke="#475569"
                                 stroke-width="1"
                                 stroke-dasharray="4 4"
-                            />
+                            ></line>
                         </Show>
-                        <polyline fill="none" stroke="#818cf8" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points=chart_points/>
+                        <polyline
+                            fill="none"
+                            stroke="#67e8f9"
+                            stroke-width="2"
+                            stroke-linejoin="round"
+                            stroke-linecap="round"
+                            points=chart_points
+                        ></polyline>
                     </svg>
-                    <div class="absolute inset-0 pointer-events-none text-[10px] text-zinc-300 p-2">
-                        <div class="absolute bottom-1 left-2 rounded-md bg-black/50 px-2 py-0.5 font-mono text-indigo-300">
+                    <div class="pointer-events-none absolute inset-0 p-2 text-[10px] text-slate-300">
+                        <div class="absolute bottom-1 left-2 rounded-md bg-black/50 px-2 py-0.5 font-mono text-cyan-200">
                             {move || format!("{:.1} WPM", current_speed())}
                         </div>
-                        <div class="absolute top-1 right-2 rounded-md bg-black/50 px-2 py-0.5 font-mono text-rose-400">
+                        <div class="absolute right-2 top-1 rounded-md bg-black/50 px-2 py-0.5 font-mono text-rose-300">
                             {move || format!("{} mistyped", mistyped_characters.get())}
                         </div>
                         <div class="absolute bottom-1 right-2 rounded-md bg-black/50 px-2 py-0.5 font-mono">
-                            {move || average_previous().map(|avg| format!("avg prev {:.1} WPM", avg)).unwrap_or_else(|| "avg prev —".to_string())}
+                            {move || {
+                                average_previous()
+                                    .map(|avg| format!("avg prev {:.1} WPM", avg))
+                                    .unwrap_or_else(|| "avg prev —".to_string())
+                            }}
                         </div>
                     </div>
                 </div>
