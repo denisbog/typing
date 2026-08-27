@@ -19,9 +19,8 @@ pub fn PropertiesPage() -> impl IntoView {
         <div class="mx-auto w-full max-w-2xl px-5 py-10 lg:px-6">
             <a href="/" class=BUTTON_CLASS>"← Library"</a>
 
-            <div class="glass-panel relative mt-8 overflow-hidden rounded-3xl p-6 animate-slide-up sm:p-8">
-                <div class="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-cyan-300/10 blur-3xl"></div>
-                <div class="relative">
+            <div class="glass-panel relative mt-6 overflow-hidden rounded-lg p-5 animate-slide-up">
+                                <div class="relative">
                     <span class="eyebrow">"Properties"</span>
                     <h1 class="mt-3 text-2xl font-bold tracking-tight text-white">
                         "Sound preferences"
@@ -40,7 +39,7 @@ pub fn PropertiesPage() -> impl IntoView {
                     </label>
                     <select
                         id="preferred-voice"
-                        class="mt-2 w-full rounded-xl border border-white/[0.08] bg-slate-950/80 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-cyan-300/35 disabled:cursor-not-allowed disabled:opacity-50"
+                        class="mt-2 w-full rounded-md border border-white/[0.08] bg-slate-950/80 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-slate-400/60 disabled:cursor-not-allowed disabled:opacity-50"
                         prop:value=move || {
                             if voice.get().is_empty() { "default".to_string() } else { voice.get() }
                         }
@@ -70,7 +69,7 @@ pub fn PropertiesPage() -> impl IntoView {
                         <input
                             id="current-paragraph-only"
                             type="checkbox"
-                            class="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-white/20 bg-slate-950 accent-cyan-400"
+                            class="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-white/20 bg-slate-950 accent-slate-300"
                             prop:checked=move || current_paragraph_only.get()
                             on:change=move |event| {
                                 let checked = event_target_checked(&event);
@@ -91,7 +90,7 @@ pub fn PropertiesPage() -> impl IntoView {
                     </div>
 
                     <Show when=move || saved.get() fallback=|| ()>
-                        <p class="mt-3 text-sm text-emerald-300">"Saved ✓"</p>
+                        <p class="mt-3 text-sm text-slate-300">"Saved ✓"</p>
                     </Show>
                 </div>
             </div>

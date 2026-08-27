@@ -67,8 +67,8 @@ fn PlaybackPanel(playback: PlaybackState) -> impl IntoView {
             when=move || playback.article_title.get().is_some()
             fallback=move || view! { <div class="hidden"></div> }
         >
-            <div class="fixed bottom-5 right-5 z-50 flex items-center gap-4 rounded-2xl border border-white/10 bg-slate-950/85 p-3 shadow-2xl shadow-black/50 backdrop-blur-2xl animate-slide-up">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-300/15 bg-cyan-300/10 text-cyan-200">
+            <div class="fixed bottom-5 right-5 z-50 flex items-center gap-4 rounded-md border border-white/10 bg-slate-950/85 p-3 shadow-lg shadow-black/30 backdrop-blur-md animate-slide-up">
+                <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-white/10 bg-white/10 text-slate-200">
                     <span class="text-sm">"▶"</span>
                 </div>
                 <div class="flex min-w-0 flex-col gap-0.5 text-sm">
@@ -85,7 +85,7 @@ fn PlaybackPanel(playback: PlaybackState) -> impl IntoView {
                                     .unwrap_or_default()
                             }}
                         </span>
-                        <span class="h-1 w-1 rounded-full bg-cyan-300/60"></span>
+                        <span class="h-1 w-1 rounded-full bg-slate-400/60"></span>
                         <span>
                             {move || {
                                 playback
@@ -274,12 +274,11 @@ pub fn App() -> impl IntoView {
                 <div class="fixed inset-0 z-50 overflow-y-auto">
                     <div class="fixed inset-0 bg-[#020408]/80 backdrop-blur-md transition-opacity animate-fade-in"></div>
                     <div class="relative flex min-h-full items-center justify-center p-4 sm:p-6">
-                        <div class="glass-panel relative w-full max-w-2xl overflow-hidden rounded-[28px] p-6 shadow-2xl shadow-black/60 animate-slide-up sm:p-8">
-                            <div class="pointer-events-none absolute -right-20 -top-20 h-48 w-48 rounded-full bg-cyan-300/10 blur-3xl"></div>
-                            <div class="relative mb-6 flex items-start justify-between gap-6">
+                        <div class="glass-panel relative w-full max-w-2xl overflow-hidden rounded-lg p-5 animate-slide-up">
+                                                        <div class="relative mb-6 flex items-start justify-between gap-6">
                                 <div>
                                     <span class="eyebrow">"New material"</span>
-                                    <h2 class="mt-3 text-2xl font-bold tracking-tight text-white">
+                                    <h2 class="mt-2 text-xl font-bold tracking-tight text-white">
                                         "Add an article"
                                     </h2>
                                     <p class="mt-1 text-sm text-slate-400">
@@ -287,7 +286,7 @@ pub fn App() -> impl IntoView {
                                     </p>
                                 </div>
                                 <button
-                                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-lg text-slate-400 transition hover:bg-white/10 hover:text-white"
+                                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-lg text-slate-400 transition hover:bg-white/10 hover:text-white"
                                     aria-label="Close dialog"
                                     on:click=move |_event| set_input_popup.set(false)
                                 >
@@ -295,7 +294,7 @@ pub fn App() -> impl IntoView {
                                 </button>
                             </div>
                             <textarea
-                                class="relative h-80 w-full resize-none rounded-2xl border border-white/[0.08] bg-black/25 p-5 font-mono text-sm leading-relaxed text-slate-200 placeholder-slate-600 outline-none transition focus:border-cyan-300/35 focus:ring-4 focus:ring-cyan-300/[0.06]"
+                                class="relative h-80 w-full resize-none rounded-md border border-white/[0.08] bg-black/25 p-5 font-mono text-sm leading-relaxed text-slate-200 placeholder-slate-600 outline-none transition focus:border-slate-400/60 focus:ring-4 focus:ring-white/10"
                                 placeholder="Paste or type your article here…"
                                 prop:value=translation_input
                                 on:input=move |event| {
@@ -392,11 +391,10 @@ pub fn App() -> impl IntoView {
                             }
                             view! {
                                 <div class="grid min-h-screen w-full place-items-center px-5 py-10">
-                                    <div class="glass-panel relative w-full max-w-md overflow-hidden rounded-[32px] p-8 animate-slide-up sm:p-10">
-                                        <div class="absolute -right-20 -top-24 h-56 w-56 rounded-full bg-cyan-300/10 blur-3xl"></div>
-                                        <div class="relative">
+                                    <div class="glass-panel relative w-full max-w-md overflow-hidden rounded-lg p-5 animate-slide-up">
+                                                                                <div class="relative">
                                             <a href="/" class="inline-flex items-center gap-3">
-                                                <span class="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200/20 bg-cyan-300 text-sm font-black text-slate-950 shadow-lg shadow-cyan-300/20">
+                                                <span class="flex h-9 w-9 items-center justify-center rounded border border-white/15 bg-slate-200 text-xs font-black text-slate-900">
                                                     "T/"
                                                 </span>
                                                 <span>
@@ -445,10 +443,10 @@ pub fn App() -> impl IntoView {
                         path=path!("")
                         view=move || {
                             view! {
-                                <header class="sticky top-0 z-40 w-full border-b border-white/[0.06] bg-[#070a10]/75 backdrop-blur-2xl">
-                                    <div class="mx-auto flex h-[72px] w-full max-w-6xl items-center justify-between px-5 lg:px-6">
+                                <header class="sticky top-0 z-40 w-full border-b border-white/[0.06] bg-[#070a10]/75 backdrop-blur-md">
+                                    <div class="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-2 px-4 sm:gap-3 sm:px-5 lg:px-6">
                                         <a href="/" class="group inline-flex items-center gap-3">
-                                            <span class="flex h-10 w-10 items-center justify-center rounded-2xl border border-cyan-200/20 bg-cyan-300 text-xs font-black text-slate-950 shadow-lg shadow-cyan-300/15 transition-transform group-hover:-rotate-3">
+                                            <span class="flex h-8 w-8 items-center justify-center rounded border border-white/15 bg-slate-200 text-xs font-black text-slate-900">
                                                 "T/"
                                             </span>
                                             <span>
@@ -475,7 +473,17 @@ pub fn App() -> impl IntoView {
                                                     when=move || last_sync.get().is_some()
                                                     fallback=|| view! { <span>Get data from server</span> }
                                                 >
-                                                    <span class="flex items-center gap-1.5">
+                                                    // Compact label on phones, full timestamp on larger screens.
+                                                    <span class="flex items-center gap-1.5 sm:hidden">
+                                                        {move || {
+                                                            if refreshing.get() {
+                                                                "Refreshing…".to_string()
+                                                            } else {
+                                                                "Synced ✓".to_string()
+                                                            }
+                                                        }}
+                                                    </span>
+                                                    <span class="hidden items-center gap-1.5 sm:flex">
                                                         {move || {
                                                             if refreshing.get() {
                                                                 "Refreshing…".to_string()
@@ -505,14 +513,14 @@ pub fn App() -> impl IntoView {
                                                 on:click=move |_event| set_input_popup.set(true)
                                             >
                                                 <span class="text-lg leading-none">"+"</span>
-                                                <span>"New article"</span>
+                                                <span class="hidden sm:inline">"New article"</span>
                                             </button>
                                         </div>
                                     </div>
                                 </header>
 
-                                <div class="mx-auto flex w-full max-w-6xl flex-col px-5 pb-16 lg:px-6">
-                                    <section class="grid gap-10 border-b border-white/[0.06] py-10 md:grid-cols-[1fr_auto] md:items-end md:py-14">
+                                <div class="mx-auto flex w-full max-w-6xl flex-col px-4 pb-16 sm:px-5 lg:px-6">
+                                    <section class="grid gap-8 border-b border-white/[0.06] py-8 md:grid-cols-[1fr_auto] md:items-end lg:py-10">
                                         <div class="max-w-3xl animate-slide-up">
                                             <span class="eyebrow">"Practice dashboard"</span>
                                             <h1 class="mt-5 text-balance text-4xl font-bold tracking-[-0.045em] text-white sm:text-5xl lg:text-[3.5rem] lg:leading-[1.05]">
@@ -523,9 +531,9 @@ pub fn App() -> impl IntoView {
                                                 "Turn the articles you care about into focused bilingual typing sessions, with audio and live performance feedback."
                                             </p>
                                         </div>
-                                        <div class="glass-panel grid min-w-[320px] grid-cols-3 divide-x divide-white/[0.07] rounded-2xl px-2 py-4 animate-float-in">
+                                        <div class="glass-panel grid min-w-0 grid-cols-3 divide-x divide-white/[0.07] rounded-md px-2 py-4 animate-float-in sm:min-w-[320px]">
                                             <div class="px-4">
-                                                <div class="text-2xl font-bold text-white">
+                                                <div class="text-xl font-bold text-white">
                                                     {move || translation_post.get().articles.len()}
                                                 </div>
                                                 <div class="mt-1 font-mono text-[9px] uppercase tracking-widest text-slate-500">
@@ -533,7 +541,7 @@ pub fn App() -> impl IntoView {
                                                 </div>
                                             </div>
                                             <div class="px-4">
-                                                <div class="text-2xl font-bold text-white">
+                                                <div class="text-xl font-bold text-white">
                                                     {move || {
                                                         translation_post
                                                             .get()
@@ -548,7 +556,7 @@ pub fn App() -> impl IntoView {
                                                 </div>
                                             </div>
                                             <div class="px-4">
-                                                <div class="text-2xl font-bold text-cyan-200">
+                                                <div class="text-xl font-bold text-slate-200">
                                                     {move || {
                                                         translation_post
                                                             .get()
@@ -575,7 +583,7 @@ pub fn App() -> impl IntoView {
                                         <div class="mb-6 flex items-end justify-between gap-6">
                                             <div>
                                                 <span class="eyebrow">"Your collection"</span>
-                                                <h2 class="mt-3 text-2xl font-bold tracking-tight text-white">
+                                                <h2 class="mt-2 text-xl font-bold tracking-tight text-white">
                                                     "Continue practicing"
                                                 </h2>
                                             </div>
@@ -585,8 +593,8 @@ pub fn App() -> impl IntoView {
                                         </div>
                                         <Suspense fallback=move || {
                                             view! {
-                                                <div class="glass-panel flex items-center justify-center gap-3 rounded-3xl py-20 text-slate-500">
-                                                    <div class="h-5 w-5 animate-spin rounded-full border-2 border-slate-700 border-t-cyan-300"></div>
+                                                <div class="glass-panel flex items-center justify-center gap-3 rounded-lg py-20 text-slate-500">
+                                                    <div class="h-5 w-5 animate-spin rounded-full border-2 border-slate-700 border-t-slate-300"></div>
                                                     <span class="font-mono text-xs uppercase tracking-widest">
                                                         "Loading library"
                                                     </span>

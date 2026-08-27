@@ -402,7 +402,7 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                     .unwrap_or_else(|| (title.to_string(), None));
 
                 view! {
-                    <article class="article-card group flex min-h-[290px] flex-col rounded-[26px] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-cyan-200/20 hover:shadow-2xl hover:shadow-cyan-950/20 animate-fade-in sm:p-6">
+                    <article class="article-card group flex flex-col rounded-lg p-4 transition-colors duration-150 hover:border-white/15 animate-fade-in sm:p-5">
                         <a
                             class="flex flex-1 flex-col outline-none"
                             href=format!("/article/{}", index)
@@ -410,7 +410,7 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                         >
                             <div class="flex items-start justify-between gap-4">
                                 <div class="flex items-center gap-3">
-                                    <span class="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-300">
+                                    <span class="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">
                                         {format!("Article {:02}", index + 1)}
                                     </span>
                                     <span class="h-1 w-1 rounded-full bg-slate-700"></span>
@@ -418,7 +418,7 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                                         {format!("{} paragraphs", paragraph_count)}
                                     </span>
                                 </div>
-                                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.04] text-slate-500 transition-all group-hover:border-cyan-200/20 group-hover:bg-cyan-300/10 group-hover:text-cyan-200">
+                                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/[0.07] bg-white/[0.04] text-slate-500 transition-all group-hover:border-white/15 group-hover:bg-white/10 group-hover:text-slate-200">
                                     "↗"
                                 </span>
                             </div>
@@ -445,7 +445,7 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                                 </div>
                                 <div class="h-1 overflow-hidden rounded-full bg-white/[0.05]">
                                     <div
-                                        class="h-full rounded-full bg-gradient-to-r from-cyan-400 to-sky-500"
+                                        class="h-full rounded-sm bg-slate-400"
                                         style=format!("width: {}%", progress)
                                     ></div>
                                 </div>
@@ -454,7 +454,7 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
 
                         <div class="mt-5 flex items-center justify-between gap-3 border-t border-white/[0.06] pt-4">
                             <div class="flex items-center gap-2 text-xs text-slate-500">
-                                <span class="flex h-7 min-w-7 items-center justify-center rounded-lg bg-emerald-300/[0.08] px-2 font-mono font-bold text-emerald-300">
+                                <span class="flex h-7 min-w-7 items-center justify-center rounded-lg bg-white/[0.06] px-2 font-mono font-bold text-slate-300">
                                     {pair_count}
                                 </span>
                                 <span>"saved pairs"</span>
@@ -513,8 +513,8 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
             when=move || !data.get().articles.is_empty()
             fallback=move || {
                 view! {
-                    <div class="glass-panel flex min-h-72 flex-col items-center justify-center rounded-[28px] px-6 text-center">
-                        <span class="flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-200/15 bg-cyan-300/[0.08] text-2xl text-cyan-200">
+                    <div class="glass-panel flex min-h-72 flex-col items-center justify-center rounded-lg px-6 text-center">
+                        <span class="flex h-14 w-14 items-center justify-center rounded-md border border-white/10 bg-white/[0.06] text-2xl text-slate-200">
                             "＋"
                         </span>
                         <h3 class="mt-5 text-xl font-bold text-white">"Your library is ready"</h3>
@@ -677,7 +677,7 @@ pub fn ArticlePage(
                 .map(|(index, _item)| {
                     view! {
                         <a
-                            class="flex h-7 min-w-7 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.04] font-mono text-[10px] text-slate-500 transition-colors hover:border-cyan-300/20 hover:bg-cyan-300/10 hover:text-cyan-200"
+                            class="flex h-7 min-w-7 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.04] font-mono text-[10px] text-slate-500 transition-colors hover:border-white/15 hover:bg-white/10 hover:text-slate-200"
                             href=format!("#{}", index + 1)
                         >
                             {index + 1}
@@ -860,7 +860,7 @@ pub fn ArticlePage(
             let voice_dropdown = if has_audio_directory {
                 view! {
                     <select
-                        class="rounded-xl border border-white/[0.08] bg-slate-950/80 px-3 py-2 text-xs text-slate-300 outline-none transition-colors focus:border-cyan-300/30 focus:ring-2 focus:ring-cyan-300/10"
+                        class="rounded-md border border-white/[0.08] bg-slate-950/80 px-3 py-2 text-xs text-slate-300 outline-none transition-colors focus:border-white/25 focus:ring-2 focus:ring-white/10"
                         prop:value=move || {
                             playback.selected_voice.get().unwrap_or_else(|| "default".to_string())
                         }
@@ -959,7 +959,7 @@ pub fn ArticlePage(
             let current_paragraph_toggle = view! {
                 <label class="flex cursor-pointer items-center gap-2 text-xs text-slate-400 transition-colors hover:text-slate-200">
                     <input
-                        class="h-4 w-4 accent-cyan-300"
+                        class="h-4 w-4 accent-slate-300"
                         type="checkbox"
                         prop:checked=move || playback.current_paragraph_only.get()
                         on:change=move |event| {
@@ -976,26 +976,26 @@ pub fn ArticlePage(
 
             Either::Left(view! {
                 <header class="w-full border-b border-white/[0.06] bg-[#070a10] animate-fade-in">
-                    <div class="mx-auto grid h-[72px] w-full max-w-6xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 px-4 sm:px-6">
+                    <div class="mx-auto grid h-14 w-full max-w-6xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 sm:px-6">
                         <a
                             href="/"
                             class="group inline-flex items-center gap-2 text-sm font-semibold text-slate-400 transition-colors hover:text-white"
                             on:click=move |_| on_back(pairs)
                         >
-                            <span class="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] transition group-hover:border-cyan-300/20 group-hover:bg-cyan-300/10 group-hover:text-cyan-200">
+                            <span class="flex h-9 w-9 items-center justify-center rounded-md border border-white/[0.08] bg-white/[0.04] transition group-hover:border-white/15 group-hover:bg-white/10 group-hover:text-slate-200">
                                 "←"
                             </span>
                             <span class="hidden sm:block">"Library"</span>
                         </a>
                         <div class="min-w-0 text-center">
-                            <div class="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-cyan-300">
+                            <div class="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-slate-300">
                                 "Now practicing"
                             </div>
                             <div class="mt-1 truncate text-sm font-semibold text-slate-100 sm:text-base">
                                 {article.title.clone()}
                             </div>
                         </div>
-                        <div class="rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2 text-right">
+                        <div class="rounded-md border border-white/[0.07] bg-white/[0.04] px-3 py-2 text-right">
                             <div class="font-mono text-xs font-bold text-white">{total}</div>
                             <div class="font-mono text-[7px] uppercase tracking-widest text-slate-600">
                                 "Paragraphs"
@@ -1014,7 +1014,7 @@ pub fn ArticlePage(
                     if is_mobile.get() {
                         "hidden"
                     } else {
-                        "fixed bottom-4 left-1/2 z-40 flex w-[calc(100%-2rem)] max-w-6xl -translate-x-1/2 items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/85 p-2.5 text-sm text-slate-300 shadow-2xl shadow-black/50 backdrop-blur-2xl animate-slide-up"
+                        "fixed bottom-4 left-1/2 z-40 flex w-[calc(100%-2rem)] max-w-6xl -translate-x-1/2 items-center gap-3 rounded-md border border-white/10 bg-slate-950/85 p-2.5 text-sm text-slate-300 shadow-lg shadow-black/30 backdrop-blur-md animate-slide-up"
                     }
                 }>
                     <div class="hidden shrink-0 items-center gap-3 border-r border-white/[0.07] pr-3 sm:flex">
@@ -1038,7 +1038,7 @@ pub fn ArticlePage(
 
                     style=caret_position
                 >
-                    <span class="font-mono text-xl font-extrabold text-cyan-300 lg:text-2xl">
+                    <span class="font-mono text-xl font-extrabold text-slate-300 lg:text-2xl">
                         _
                     </span>
                 </div>

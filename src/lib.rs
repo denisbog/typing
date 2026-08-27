@@ -21,22 +21,22 @@ pub mod translation_page;
 pub mod local_store;
 pub mod properties_page;
 
-pub const BUTTON_CLASS: &str = "inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] \
-     bg-white/[0.045] px-4 py-2.5 text-sm font-semibold text-slate-300 shadow-sm backdrop-blur \
-     transition-all duration-200 hover:-translate-y-0.5 hover:border-cyan-300/25 hover:bg-white/[0.08] hover:text-white \
-     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/40 cursor-pointer \
+pub const BUTTON_CLASS: &str = "inline-flex items-center justify-center gap-1.5 rounded-md border border-white/[0.08] \
+     bg-white/[0.045] px-3 py-1.5 text-sm font-semibold text-slate-300 \
+     transition-colors duration-150 hover:border-white/25 hover:bg-white/[0.08] hover:text-white \
+     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/50 cursor-pointer \
      text-nowrap whitespace-nowrap select-none disabled:pointer-events-none disabled:opacity-40";
 
-pub const BUTTON_PRIMARY_CLASS: &str = "inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-200/20 \
-     bg-cyan-300 px-4 py-2.5 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-400/15 \
-     transition-all duration-200 hover:-translate-y-0.5 hover:bg-cyan-200 hover:shadow-cyan-300/25 \
-     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/50 cursor-pointer \
+pub const BUTTON_PRIMARY_CLASS: &str = "inline-flex items-center justify-center gap-1.5 rounded-md border border-white/10 \
+     bg-slate-200 px-3 py-1.5 text-sm font-bold text-slate-900 \
+     transition-colors duration-150 hover:bg-white \
+     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300/50 cursor-pointer \
      text-nowrap whitespace-nowrap select-none disabled:pointer-events-none disabled:opacity-40";
 
-pub const BUTTON_DANGER_CLASS: &str = "inline-flex items-center justify-center gap-2 rounded-xl border border-rose-400/15 \
-     bg-rose-400/[0.08] px-4 py-2.5 text-sm font-semibold text-rose-300 \
-     transition-all duration-200 hover:-translate-y-0.5 hover:border-rose-300/30 hover:bg-rose-400/15 hover:text-rose-200 \
-     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300/30 cursor-pointer \
+pub const BUTTON_DANGER_CLASS: &str = "inline-flex items-center justify-center gap-1.5 rounded-md border border-white/[0.08] \
+     bg-white/[0.045] px-3 py-1.5 text-sm font-semibold text-slate-300 \
+     transition-colors duration-150 hover:border-rose-300/30 hover:bg-white/[0.08] hover:text-rose-200 \
+     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/50 cursor-pointer \
      text-nowrap whitespace-nowrap select-none";
 
 #[cfg(feature = "ssr")]

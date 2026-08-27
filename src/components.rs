@@ -382,11 +382,11 @@ impl TypingState {
 
     fn get_style_for_word_state(word_state: WordState) -> &'static str {
         match word_state {
-            WordState::Pair => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-emerald-500/10 text-emerald-300",
-            WordState::Highlighted => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-rose-500/15 text-rose-200",
-            WordState::HighlightedPair => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-sky-500/15 text-sky-200",
-            WordState::Clicked => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md underline decoration-cyan-300 decoration-2 underline-offset-4",
-            WordState::ClickedSelected => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-amber-400/10 underline decoration-amber-300 decoration-2 underline-offset-4",
+            WordState::Pair => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-white/[0.08] text-slate-200",
+            WordState::Highlighted => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-rose-500/10 text-rose-300/90",
+            WordState::HighlightedPair => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-white/[0.07] underline decoration-slate-400 decoration-2 underline-offset-4",
+            WordState::Clicked => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md underline decoration-slate-300 decoration-2 underline-offset-4",
+            WordState::ClickedSelected => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-white/10 underline decoration-slate-300 decoration-2 underline-offset-4",
             WordState::None => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md transition-colors",
         }
     }
@@ -438,7 +438,7 @@ pub fn Sentance(
             Either::Left(view! {
                 <div class="snap-start">
                     <div
-                        class="absolute -top-2.5 -right-2 z-10 cursor-pointer rounded-md bg-amber-400 px-1.5 py-px font-sans text-xs font-semibold text-zinc-900 shadow-md shadow-amber-400/30 transition-colors hover:bg-amber-300"
+                        class="absolute -top-2.5 -right-2 z-10 cursor-pointer rounded border border-white/20 bg-slate-200 px-1.5 py-px font-sans text-xs font-semibold text-slate-900 transition-colors hover:bg-white"
                         on:click=move |_event| {
                             set_sentace_state
                                 .update(|state| {
@@ -465,7 +465,7 @@ pub fn Sentance(
         view! {
             <div>
                 <div
-                    class="absolute -top-2.5 -right-2 z-10 cursor-pointer rounded-md bg-rose-500 px-1.5 py-px font-sans text-xs font-semibold text-white shadow-md shadow-rose-500/30 transition-colors hover:bg-rose-400"
+                    class="absolute -top-2.5 -right-2 z-10 cursor-pointer rounded border border-white/20 bg-slate-200 px-1.5 py-px font-sans text-xs font-semibold text-slate-900 transition-colors hover:bg-white"
                     on:click=move |_event| {
                         set_sentace_state
                             .update(|state| {
@@ -588,21 +588,21 @@ pub fn Sentance(
     };
     let class = move || {
         if sentace_state.read().enable_selection {
-            "article-card w-full max-w-6xl cursor-default overflow-hidden rounded-[28px] border-cyan-300/30 bg-cyan-300/[0.035] shadow-2xl shadow-cyan-950/20 transition-all duration-300"
+            "article-card w-full max-w-6xl cursor-default overflow-hidden rounded-lg border-white/25 bg-white/[0.02] shadow-lg shadow-black/20 transition-all duration-300"
         } else {
-            "article-card w-full max-w-6xl overflow-hidden rounded-[28px] transition-all duration-300 hover:border-white/[0.12]"
+            "article-card w-full max-w-6xl overflow-hidden rounded-lg transition-all duration-300 hover:border-white/[0.12]"
         }
     };
 
     view! {
         <section
-            class="parent flex min-h-[calc(100svh-4.5rem)] w-full snap-start scroll-mt-[72px] flex-col items-center justify-center gap-4 px-4 py-10 sm:px-6 lg:py-14"
+            class="parent flex min-h-[calc(100svh-3.5rem)] w-full snap-start scroll-mt-14 flex-col items-center justify-center gap-3 px-2 py-4 sm:px-6 sm:py-8 lg:py-10"
             id=index + 1
         >
             <div class=class>
-                <div class="flex items-center justify-between gap-4 border-b border-white/[0.06] px-5 py-4 sm:px-7">
-                    <div class="flex items-center gap-3">
-                        <span class="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">
+                <div class="flex items-center justify-between gap-4 border-b border-white/[0.06] px-4 py-3 sm:px-7 sm:py-4">
+                    <div class="flex min-w-0 items-center gap-3">
+                        <span class="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-300">
                             {format!("Paragraph {:02}", index + 1)}
                         </span>
                         <span class="h-1 w-1 rounded-full bg-slate-700"></span>
@@ -612,7 +612,7 @@ pub fn Sentance(
                     </div>
                     <span class=move || {
                         if sentace_state.read().enable_selection {
-                            "rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 font-mono text-[9px] uppercase tracking-widest text-cyan-200"
+                            "rounded-full border border-white/15 bg-white/10 px-3 py-1 font-mono text-[9px] uppercase tracking-widest text-slate-200"
                         } else {
                             "rounded-full border border-white/[0.07] bg-white/[0.04] px-3 py-1 font-mono text-[9px] uppercase tracking-widest text-slate-500"
                         }
@@ -627,17 +627,17 @@ pub fn Sentance(
                     </span>
                 </div>
                 <div class="grid lg:grid-cols-[1.35fr_0.85fr]">
-                    <div class="p-5 sm:p-7 lg:p-9">
-                        <div class="mb-5 flex items-center justify-between">
+                    <div class="p-4 sm:p-7 lg:p-9">
+                        <div class="mb-5 flex items-center justify-between gap-3">
                             <span class="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">
                                 "Original · German"
                             </span>
-                            <span class="font-mono text-[9px] uppercase tracking-widest text-slate-700">
+                            <span class="hidden font-mono text-[9px] uppercase tracking-widest text-slate-700 sm:inline">
                                 "Start typing anywhere"
                             </span>
                         </div>
                         <div
-                            class="flex flex-wrap font-mono text-base leading-[1.7] text-slate-200 outline-none break-words min-w-0 sm:text-xl lg:text-[1.35rem]"
+                            class="flex flex-wrap font-mono text-base leading-[1.7] text-slate-500 outline-none break-words min-w-0 sm:text-xl lg:text-[1.35rem]"
                             tabindex=1
                             on:keydown=move |event| {
                                 let key = event.key_code();
@@ -827,7 +827,7 @@ pub fn Sentance(
                                                 if speech_active() {
                                                     class
                                                         .push_str(
-                                                            " underline decoration-cyan-400 decoration-2 underline-offset-4",
+                                                            " underline decoration-slate-400 decoration-2 underline-offset-4",
                                                         );
                                                 }
                                                 class
@@ -855,9 +855,9 @@ pub fn Sentance(
                                                                 log!("compare {} with {}", typed_char, c.reference_char);
                                                                 if compare(typed_char, c.reference_char) {
                                                                     if store.read().word_index == word_index {
-                                                                        "text-cyan-200/80 underline decoration-cyan-300/40 underline-offset-4"
+                                                                        "text-slate-100 underline decoration-slate-500 underline-offset-4"
                                                                     } else {
-                                                                        "text-cyan-200/55"
+                                                                        "text-slate-300"
                                                                     }
                                                                 } else {
                                                                     "text-rose-400 italic underline decoration-rose-400/60 decoration-wavy underline-offset-4"
@@ -866,7 +866,7 @@ pub fn Sentance(
                                                                 if store.read().word_index == word_index
                                                                     && store.read().focus
                                                                 {
-                                                                    "underline decoration-cyan-300 decoration-2 underline-offset-4"
+                                                                    "underline decoration-slate-300 decoration-2 underline-offset-4"
                                                                 } else {
                                                                     ""
                                                                 }
@@ -905,7 +905,7 @@ pub fn Sentance(
                                                         {
                                                             Either::Left(
                                                                 view! {
-                                                                    <div class="absolute -top-2.5 right-0.5 rounded border border-cyan-300/20 bg-slate-950 px-1 py-px font-sans text-[10px] font-semibold leading-none text-cyan-200 shadow">
+                                                                    <div class="absolute -top-2.5 right-0.5 rounded border border-white/15 bg-slate-950 px-1 py-px font-sans text-[10px] font-semibold leading-none text-slate-200 shadow">
                                                                         {index + 1}
                                                                     </div>
                                                                 },
@@ -951,12 +951,12 @@ pub fn Sentance(
 
                         </div>
                     </div>
-                    <div class="border-t border-white/[0.06] bg-white/[0.018] p-5 sm:p-7 lg:border-l lg:border-t-0 lg:p-9">
-                        <div class="mb-5 flex items-center justify-between">
+                    <div class="border-t border-white/[0.06] bg-white/[0.018] p-4 sm:p-7 lg:border-l lg:border-t-0 lg:p-9">
+                        <div class="mb-5 flex items-center justify-between gap-3">
                             <span class="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">
                                 "Translation · English"
                             </span>
-                            <span class="font-mono text-[9px] uppercase tracking-widest text-slate-700">
+                            <span class="hidden font-mono text-[9px] uppercase tracking-widest text-slate-700 sm:block">
                                 "Reference"
                             </span>
                         </div>
@@ -1007,7 +1007,7 @@ pub fn Sentance(
                                                 {
                                                     Either::Left(
                                                         view! {
-                                                            <div class="absolute -top-2.5 right-0.5 rounded border border-cyan-300/20 bg-slate-950 px-1 py-px font-sans text-[10px] font-semibold leading-none text-cyan-200 shadow">
+                                                            <div class="absolute -top-2.5 right-0.5 rounded border border-white/15 bg-slate-950 px-1 py-px font-sans text-[10px] font-semibold leading-none text-slate-200 shadow">
                                                                 {index + 1}
                                                             </div>
                                                         },
@@ -1148,7 +1148,7 @@ pub fn Sentance(
                             {audio_label}
                         </button>
                         {copy_original()}
-                        <div class="rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 font-mono text-xs text-slate-300">
+                        <div class="rounded-md border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 font-mono text-xs text-slate-300">
 
                             {move || {
                                 typing
@@ -1231,8 +1231,8 @@ pub fn TypingSpeedPanel(
             }
             fallback=move || view! { <div class="hidden"></div> }
         >
-            <div class="fixed right-5 top-24 z-30 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/80 p-1 shadow-2xl shadow-black/40 backdrop-blur-2xl animate-fade-in">
-                <div class="relative w-full overflow-hidden rounded-xl">
+            <div class="fixed right-5 top-24 z-30 overflow-hidden rounded-md border border-white/10 bg-slate-950/80 p-1 shadow-lg shadow-black/30 backdrop-blur-md animate-fade-in">
+                <div class="relative w-full overflow-hidden rounded-md">
                     <svg viewBox="0 0 240 100" class="block h-24 w-full overflow-visible">
                         <rect
                             x="0"
@@ -1259,7 +1259,7 @@ pub fn TypingSpeedPanel(
                         </Show>
                         <polyline
                             fill="none"
-                            stroke="#67e8f9"
+                            stroke="#94a3b8"
                             stroke-width="2"
                             stroke-linejoin="round"
                             stroke-linecap="round"
@@ -1267,10 +1267,10 @@ pub fn TypingSpeedPanel(
                         ></polyline>
                     </svg>
                     <div class="pointer-events-none absolute inset-0 p-2 text-[10px] text-slate-300">
-                        <div class="absolute bottom-1 left-2 rounded-md bg-black/50 px-2 py-0.5 font-mono text-cyan-200">
+                        <div class="absolute bottom-1 left-2 rounded-md bg-black/50 px-2 py-0.5 font-mono text-slate-200">
                             {move || format!("{:.1} WPM", current_speed())}
                         </div>
-                        <div class="absolute right-2 top-1 rounded-md bg-black/50 px-2 py-0.5 font-mono text-rose-300">
+                        <div class="absolute right-2 top-1 rounded-md bg-black/50 px-2 py-0.5 font-mono text-slate-300">
                             {move || format!("{} mistyped", mistyped_characters.get())}
                         </div>
                         <div class="absolute bottom-1 right-2 rounded-md bg-black/50 px-2 py-0.5 font-mono">
