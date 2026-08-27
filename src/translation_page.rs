@@ -615,6 +615,8 @@ pub fn ArticlePage(
         }
     });
 
+    let is_mobile = leptos_use::use_media_query("(max-width: 767px)");
+
     let views = move || {
         let animated_value = AnimatedSignal::new(
             move || AnimationTarget::<EffectPosition> {
@@ -1008,7 +1010,13 @@ pub fn ArticlePage(
                     completed_typing_speeds
                     mistyped_characters
                 />
-                <div class="fixed bottom-4 left-1/2 z-40 flex w-[calc(100%-2rem)] max-w-6xl -translate-x-1/2 items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/85 p-2.5 text-sm text-slate-300 shadow-2xl shadow-black/50 backdrop-blur-2xl animate-slide-up">
+                <div class=move || {
+                    if is_mobile.get() {
+                        "hidden"
+                    } else {
+                        "fixed bottom-4 left-1/2 z-40 flex w-[calc(100%-2rem)] max-w-6xl -translate-x-1/2 items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/85 p-2.5 text-sm text-slate-300 shadow-2xl shadow-black/50 backdrop-blur-2xl animate-slide-up"
+                    }
+                }>
                     <div class="hidden shrink-0 items-center gap-3 border-r border-white/[0.07] pr-3 sm:flex">
                         {voice_dropdown} {current_paragraph_toggle}
                     </div>

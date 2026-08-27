@@ -7,6 +7,7 @@ const DATA_KEY: &str = "typing.data.cache";
 const SYNC_KEY: &str = "typing.data.sync_ts";
 const VOICE_KEY: &str = "typing.preferred_voice";
 const VOICES_KEY: &str = "typing.known_voices";
+const CURRENT_PARAGRAPH_ONLY_KEY: &str = "typing.current_paragraph_only";
 
 #[cfg(feature = "hydrate")]
 fn set_storage(key: &str, value: &str) {
@@ -122,6 +123,26 @@ pub fn preferred_voice() -> Option<String> {
     #[cfg(not(feature = "hydrate"))]
     {
         None
+    }
+}
+
+/// Whether playback should be limited to the current paragraph (set from the
+/// Properties page).
+pub fn save_current_paragraph_only(value: bool) {
+    #[cfg(feature = "hydrate")]
+    set_storage(CURRENT_PARAGRAPH_ONLY_KEY, if value { "1" } else { "0" });
+    #[cfg(not(feature = "hydrate"))]
+    let _ = value;
+}
+
+pub fn current_paragraph_only() -> bool {
+    #[cfg(feature = "hydrate")]
+    {
+        return get_storage(CURRENT_PARAGRAPH_ONLY_KEY).is_some_and(|v| v == "1");
+    }
+    #[cfg(not(feature = "hydrate"))]
+    {
+        false
     }
 }
 

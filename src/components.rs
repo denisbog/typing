@@ -1176,6 +1176,7 @@ pub fn TypingSpeedPanel(
     completed_typing_speeds: ReadSignal<Vec<Option<f32>>>,
     mistyped_characters: ReadSignal<usize>,
 ) -> impl IntoView {
+    let is_mobile = leptos_use::use_media_query("(max-width: 767px)");
     let current_speed = move || typing_speed_samples.get().last().copied().unwrap_or(0.0);
     let average_previous = move || {
         let paragraph_index = typing_speed_paragraph.get()?;
@@ -1224,7 +1225,9 @@ pub fn TypingSpeedPanel(
     view! {
         <Show
             when=move || {
-                typing_speed_paragraph.get().is_some() && !typing_speed_samples.get().is_empty()
+                !is_mobile.get()
+                    && typing_speed_paragraph.get().is_some()
+                    && !typing_speed_samples.get().is_empty()
             }
             fallback=move || view! { <div class="hidden"></div> }
         >

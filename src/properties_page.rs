@@ -10,6 +10,8 @@ const KNOWN_VOICES: &[&str] = &["merz"];
 #[component]
 pub fn PropertiesPage() -> impl IntoView {
     let (voice, set_voice) = signal(local_store::preferred_voice().unwrap_or_default());
+    let (current_paragraph_only, set_current_paragraph_only) =
+        signal(local_store::current_paragraph_only());
     let (saved, set_saved) = signal(false);
 
     view! {
@@ -63,6 +65,30 @@ pub fn PropertiesPage() -> impl IntoView {
                         "Available: default, "
                         {KNOWN_VOICES.join(", ")}
                     </p>
+
+                    <div class="mt-7 flex items-start gap-3">
+                        <input
+                            id="current-paragraph-only"
+                            type="checkbox"
+                            class="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-white/20 bg-slate-950 accent-cyan-400"
+                            prop:checked=move || current_paragraph_only.get()
+                            on:change=move |event| {
+                                let checked = event_target_checked(&event);
+                                set_current_paragraph_only.set(checked);
+                                local_store::save_current_paragraph_only(checked);
+                                set_saved.set(true);
+                            }
+                        />
+                        <label for="current-paragraph-only" class="cursor-pointer select-none">
+                            <span class="block text-sm font-medium text-slate-200">
+                                "Play only current paragraph"
+                            </span>
+                            <span class="mt-0.5 block text-xs leading-relaxed text-slate-500">
+                                "When enabled, audio playback stops at the end of the paragraph
+                                you started it in instead of continuing through the article."
+                            </span>
+                        </label>
+                    </div>
 
                     <Show when=move || saved.get() fallback=|| ()>
                         <p class="mt-3 text-sm text-emerald-300">"Saved ✓"</p>

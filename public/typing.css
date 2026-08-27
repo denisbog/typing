@@ -857,6 +857,10 @@ button,
   margin-left: auto;
 }
 
+.mt-0\.5 {
+  margin-top: 0.125rem;
+}
+
 .mt-1 {
   margin-top: 0.25rem;
 }
@@ -1416,6 +1420,10 @@ button,
   border-color: rgb(255 255 255 / 0.1);
 }
 
+.border-white\/20 {
+  border-color: rgb(255 255 255 / 0.2);
+}
+
 .border-white\/\[0\.06\] {
   border-color: rgb(255 255 255 / 0.06);
 }
@@ -1798,6 +1806,10 @@ button,
   font-weight: 800;
 }
 
+.font-medium {
+  font-weight: 500;
+}
+
 .font-semibold {
   font-weight: 600;
 }
@@ -2017,6 +2029,10 @@ button,
 
 .accent-cyan-300 {
   accent-color: #67e8f9;
+}
+
+.accent-cyan-400 {
+  accent-color: #22d3ee;
 }
 
 .opacity-50 {
