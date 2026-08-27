@@ -31,7 +31,7 @@ use leptos_meta::*;
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     provide_meta_context();
     view! {
-        <!DOCTYPE html>
+        <!DOCTYPE html> 
         <html lang="en" class="snap-y snap-y-mandatory">
             <head>
                 <meta charset="utf-8"/>
@@ -84,6 +84,7 @@ fn PlaybackPanel(playback: PlaybackState) -> impl IntoView {
                                     .map(|item| format!("Paragraph {:02}", item + 1))
                                     .unwrap_or_default()
                             }}
+
                         </span>
                         <span class="h-1 w-1 rounded-full bg-slate-400/60"></span>
                         <span>
@@ -93,6 +94,7 @@ fn PlaybackPanel(playback: PlaybackState) -> impl IntoView {
                                     .get()
                                     .unwrap_or_else(|| "Default voice".to_string())
                             }}
+
                         </span>
                     </div>
                 </div>
@@ -100,6 +102,7 @@ fn PlaybackPanel(playback: PlaybackState) -> impl IntoView {
                     when=move || {
                         playback.article_index.get().is_some() && playback.paragraph.get().is_some()
                     }
+
                     fallback=move || view! { <div class="hidden"></div> }
                 >
                     <a
@@ -275,7 +278,7 @@ pub fn App() -> impl IntoView {
                     <div class="fixed inset-0 bg-[#020408]/80 backdrop-blur-md transition-opacity animate-fade-in"></div>
                     <div class="relative flex min-h-full items-center justify-center p-4 sm:p-6">
                         <div class="glass-panel relative w-full max-w-2xl overflow-hidden rounded-lg p-5 animate-slide-up">
-                                                        <div class="relative mb-6 flex items-start justify-between gap-6">
+                            <div class="relative mb-6 flex items-start justify-between gap-6">
                                 <div>
                                     <span class="eyebrow">"New material"</span>
                                     <h2 class="mt-2 text-xl font-bold tracking-tight text-white">
@@ -392,7 +395,7 @@ pub fn App() -> impl IntoView {
                             view! {
                                 <div class="grid min-h-screen w-full place-items-center px-5 py-10">
                                     <div class="glass-panel relative w-full max-w-md overflow-hidden rounded-lg p-5 animate-slide-up">
-                                                                                <div class="relative">
+                                        <div class="relative">
                                             <a href="/" class="inline-flex items-center gap-3">
                                                 <span class="flex h-9 w-9 items-center justify-center rounded border border-white/15 bg-slate-200 text-xs font-black text-slate-900">
                                                     "T/"
@@ -426,6 +429,7 @@ pub fn App() -> impl IntoView {
                                                         .unwrap();
                                                 }
                                             >
+
                                                 <span>"Continue with your account"</span>
                                                 <span>"→"</span>
                                             </button>
@@ -443,7 +447,7 @@ pub fn App() -> impl IntoView {
                         path=path!("")
                         view=move || {
                             view! {
-                                <header class="sticky top-0 z-40 w-full border-b border-white/[0.06] bg-[#070a10]/75 backdrop-blur-md">
+                                <header class="z-40 w-full border-b border-white/[0.06] bg-[#070a10]/75 backdrop-blur-md">
                                     <div class="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-2 px-4 sm:gap-3 sm:px-5 lg:px-6">
                                         <a href="/" class="group inline-flex items-center gap-3">
                                             <span class="flex h-8 w-8 items-center justify-center rounded border border-white/15 bg-slate-200 text-xs font-black text-slate-900">
@@ -469,6 +473,7 @@ pub fn App() -> impl IntoView {
                                                     set_refresh_request.update(|n| *n += 1);
                                                 }
                                             >
+
                                                 <Show
                                                     when=move || last_sync.get().is_some()
                                                     fallback=|| view! { <span>Get data from server</span> }
@@ -482,6 +487,7 @@ pub fn App() -> impl IntoView {
                                                                 "Synced ✓".to_string()
                                                             }
                                                         }}
+
                                                     </span>
                                                     <span class="hidden items-center gap-1.5 sm:flex">
                                                         {move || {
@@ -493,10 +499,11 @@ pub fn App() -> impl IntoView {
                                                                     last_sync
                                                                         .get()
                                                                         .map(crate::local_store::format_sync_time)
-                                                                        .unwrap_or_default()
+                                                                        .unwrap_or_default(),
                                                                 )
                                                             }
                                                         }}
+
                                                     </span>
                                                 </Show>
                                             </button>
@@ -550,6 +557,7 @@ pub fn App() -> impl IntoView {
                                                             .map(|article| article.paragraphs.len())
                                                             .sum::<usize>()
                                                     }}
+
                                                 </div>
                                                 <div class="mt-1 font-mono text-[9px] uppercase tracking-widest text-slate-500">
                                                     "Paragraphs"
@@ -571,6 +579,7 @@ pub fn App() -> impl IntoView {
                                                             })
                                                             .count()
                                                     }}
+
                                                 </div>
                                                 <div class="mt-1 font-mono text-[9px] uppercase tracking-widest text-slate-500">
                                                     "Paired"
@@ -605,14 +614,16 @@ pub fn App() -> impl IntoView {
                                                 #[cfg(feature = "hydrate")]
                                                 {
                                                     if data_ready.get() {
-                                                        Some(view! {
-                                                            <TranslationPage
-                                                                data=translation_post
-                                                                set_data=set_translation_post
-                                                            />
-                                                            <PlaybackPanel playback=playback/>
-                                                            <div>{input_popup_component(set_translation_post)}</div>
-                                                        })
+                                                        Some(
+                                                            view! {
+                                                                <TranslationPage
+                                                                    data=translation_post
+                                                                    set_data=set_translation_post
+                                                                />
+                                                                <PlaybackPanel playback=playback/>
+                                                                <div>{input_popup_component(set_translation_post)}</div>
+                                                            },
+                                                        )
                                                     } else {
                                                         None
                                                     }
@@ -620,13 +631,15 @@ pub fn App() -> impl IntoView {
                                                 #[cfg(not(feature = "hydrate"))]
                                                 {
                                                     if data_ready.get() {
-                                                        Some(view! {
-                                                            <TranslationPage
-                                                                data=translation_post
-                                                                set_data=set_translation_post
-                                                            />
-                                                            <div>{input_popup_component(set_translation_post)}</div>
-                                                        })
+                                                        Some(
+                                                            view! {
+                                                                <TranslationPage
+                                                                    data=translation_post
+                                                                    set_data=set_translation_post
+                                                                />
+                                                                <div>{input_popup_component(set_translation_post)}</div>
+                                                            },
+                                                        )
                                                     } else {
                                                         None
                                                     }
@@ -654,13 +667,15 @@ pub fn App() -> impl IntoView {
                                 }>
                                     {move || {
                                         if data_ready.get() {
-                                            Some(view! {
-                                                <ArticlePage
-                                                    data=translation_post
-                                                    set_data=set_translation_post
-                                                    playback=playback
-                                                />
-                                            })
+                                            Some(
+                                                view! {
+                                                    <ArticlePage
+                                                        data=translation_post
+                                                        set_data=set_translation_post
+                                                        playback=playback
+                                                    />
+                                                },
+                                            )
                                         } else {
                                             None
                                         }
@@ -674,7 +689,9 @@ pub fn App() -> impl IntoView {
                     <Route
                         path=path!("/properties")
                         view=move || {
-                            view! { <crate::properties_page::PropertiesPage/> }
+                            view! {
+                                <crate::properties_page::PropertiesPage></crate::properties_page::PropertiesPage>
+                            }
                         }
                     />
 

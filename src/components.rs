@@ -382,7 +382,7 @@ impl TypingState {
 
     fn get_style_for_word_state(word_state: WordState) -> &'static str {
         match word_state {
-            WordState::Pair => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-white/[0.08] text-slate-200",
+            WordState::Pair => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-white/[0.08] text-slate-400",
             WordState::Highlighted => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-rose-500/10 text-rose-300/90",
             WordState::HighlightedPair => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-white/[0.07] underline decoration-slate-400 decoration-2 underline-offset-4",
             WordState::Clicked => "relative flex px-1.5 py-0.5 lg:mt-1 rounded-md underline decoration-slate-300 decoration-2 underline-offset-4",
@@ -419,6 +419,7 @@ pub fn Sentance(
     audio_current_article: ReadSignal<Option<usize>>,
     audio_current_paragraph: ReadSignal<Option<usize>>,
     audio_is_playing: ReadSignal<bool>,
+    is_mobile: Signal<bool>,
     typing_speed_paragraph: ReadSignal<Option<usize>>,
     set_typing_speed_paragraph: WriteSignal<Option<usize>>,
     typing_speed_samples: ReadSignal<Vec<f32>>,
@@ -602,7 +603,7 @@ pub fn Sentance(
             <div class=class>
                 <div class="flex items-center justify-between gap-4 border-b border-white/[0.06] px-4 py-3 sm:px-7 sm:py-4">
                     <div class="flex min-w-0 items-center gap-3">
-                        <span class="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-300">
+                        <span class="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
                             {format!("Paragraph {:02}", index + 1)}
                         </span>
                         <span class="h-1 w-1 rounded-full bg-slate-700"></span>
@@ -618,12 +619,15 @@ pub fn Sentance(
                         }
                     }>
                         {move || {
-                            if sentace_state.read().enable_selection {
+                            if is_mobile.get() {
+                                "Reading mode"
+                            } else if sentace_state.read().enable_selection {
                                 "Pairing mode"
                             } else {
                                 "Typing mode"
                             }
                         }}
+
                     </span>
                 </div>
                 <div class="grid lg:grid-cols-[1.35fr_0.85fr]">
@@ -632,14 +636,45 @@ pub fn Sentance(
                             <span class="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">
                                 "Original · German"
                             </span>
-                            <span class="hidden font-mono text-[9px] uppercase tracking-widest text-slate-700 sm:inline">
-                                "Start typing anywhere"
+                            <span class=move || {
+                                if is_mobile.get() {
+                                    "font-mono text-[9px] uppercase tracking-widest text-slate-600 sm:inline"
+                                } else {
+                                    "hidden font-mono text-[9px] uppercase tracking-widest text-slate-700 sm:inline"
+                                }
+                            }>
+                                {move || {
+                                    if is_mobile.get() {
+                                        "Tap paragraph to play audio"
+                                    } else {
+                                        "Start typing anywhere"
+                                    }
+                                }}
+
                             </span>
                         </div>
                         <div
-                            class="flex flex-wrap font-mono text-base leading-[1.7] text-slate-500 outline-none break-words min-w-0 sm:text-xl lg:text-[1.35rem]"
-                            tabindex=1
+                            class=move || {
+                                if is_mobile.get() {
+                                    "flex flex-wrap break-words min-w-0 cursor-pointer text-lg leading-[1.85] text-slate-400 sm:text-xl lg:text-[1.35rem]"
+                                } else {
+                                    "flex flex-wrap font-mono text-base leading-[1.7] text-slate-500 outline-none break-words min-w-0 sm:text-xl lg:text-[1.35rem]"
+                                }
+                            }
+
+                            tabindex=move || if is_mobile.get() { -1 } else { 1 }
+                            on:click=move |_| {
+                                if is_mobile.get() && !sentace_state.read().enable_selection {
+                                    if let Some(on_audio_click) = on_audio_click.clone() {
+                                        on_audio_click.run(index);
+                                    }
+                                }
+                            }
+
                             on:keydown=move |event| {
+                                if is_mobile.get() {
+                                    return;
+                                }
                                 let key = event.key_code();
                                 let mut local_store = store.get_untracked();
                                 if key == 8 && event.ctrl_key() {
@@ -735,6 +770,9 @@ pub fn Sentance(
                             }
 
                             on:focus=move |_event| {
+                                if is_mobile.get() {
+                                    return;
+                                }
                                 switch_to_paragraph(index);
                                 if !sentace_state.read().enable_selection {
                                     set_store.update(|store| store.focus = true)
@@ -751,6 +789,9 @@ pub fn Sentance(
                             }
 
                             on:keypress=move |event| {
+                                if is_mobile.get() {
+                                    return;
+                                }
                                 let key = event.key_code();
                                 let mut local_store = store.get();
                                 if local_store.word_index < local_store.words.len() {
@@ -905,7 +946,7 @@ pub fn Sentance(
                                                         {
                                                             Either::Left(
                                                                 view! {
-                                                                    <div class="absolute -top-2.5 right-0.5 rounded border border-white/15 bg-slate-950 px-1 py-px font-sans text-[10px] font-semibold leading-none text-slate-200 shadow">
+                                                                    <div class="absolute -top-2.5 right-0.5 rounded border border-white/15 bg-slate-950 px-1 py-px font-sans text-[10px] font-semibold leading-none text-slate-400 shadow">
                                                                         {index + 1}
                                                                     </div>
                                                                 },
@@ -968,11 +1009,11 @@ pub fn Sentance(
                                 children=move |(word_index, item)| {
                                     let class = move || {
                                         let mut class = TypingState::get_style_for_word_state(
-                                            sentace_state
-                                                .read()
-                                                .get_state_for_word(word_index, EvaluationFor::Translation),
-                                        )
-                                        .to_string();
+                                                sentace_state
+                                                    .read()
+                                                    .get_state_for_word(word_index, EvaluationFor::Translation),
+                                            )
+                                            .to_string();
                                         if sentace_state.read().enable_selection {
                                             class.push_str(" cursor-pointer hover:bg-white/[0.06]");
                                         }
@@ -1007,7 +1048,7 @@ pub fn Sentance(
                                                 {
                                                     Either::Left(
                                                         view! {
-                                                            <div class="absolute -top-2.5 right-0.5 rounded border border-white/15 bg-slate-950 px-1 py-px font-sans text-[10px] font-semibold leading-none text-slate-200 shadow">
+                                                            <div class="absolute -top-2.5 right-0.5 rounded border border-white/15 bg-slate-950 px-1 py-px font-sans text-[10px] font-semibold leading-none text-slate-400 shadow">
                                                                 {index + 1}
                                                             </div>
                                                         },
@@ -1099,6 +1140,7 @@ pub fn Sentance(
                                     "Copy original"
                                 }
                             }}
+
                         </button>
                     }
                 };
@@ -1148,7 +1190,13 @@ pub fn Sentance(
                             {audio_label}
                         </button>
                         {copy_original()}
-                        <div class="rounded-md border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 font-mono text-xs text-slate-300">
+                        <div class=move || {
+                            if is_mobile.get() {
+                                "hidden"
+                            } else {
+                                "rounded-md border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 font-mono text-xs text-slate-300"
+                            }
+                        }>
 
                             {move || {
                                 typing
@@ -1176,7 +1224,7 @@ pub fn TypingSpeedPanel(
     completed_typing_speeds: ReadSignal<Vec<Option<f32>>>,
     mistyped_characters: ReadSignal<usize>,
 ) -> impl IntoView {
-    let is_mobile = leptos_use::use_media_query("(max-width: 767px)");
+    let is_mobile = leptos_use::use_media_query("(max-width: 1024px)");
     let current_speed = move || typing_speed_samples.get().last().copied().unwrap_or(0.0);
     let average_previous = move || {
         let paragraph_index = typing_speed_paragraph.get()?;
@@ -1225,10 +1273,10 @@ pub fn TypingSpeedPanel(
     view! {
         <Show
             when=move || {
-                !is_mobile.get()
-                    && typing_speed_paragraph.get().is_some()
+                !is_mobile.get() && typing_speed_paragraph.get().is_some()
                     && !typing_speed_samples.get().is_empty()
             }
+
             fallback=move || view! { <div class="hidden"></div> }
         >
             <div class="fixed right-5 top-24 z-30 overflow-hidden rounded-md border border-white/10 bg-slate-950/80 p-1 shadow-lg shadow-black/30 backdrop-blur-md animate-fade-in">
@@ -1279,6 +1327,7 @@ pub fn TypingSpeedPanel(
                                     .map(|avg| format!("avg prev {:.1} WPM", avg))
                                     .unwrap_or_else(|| "avg prev —".to_string())
                             }}
+
                         </div>
                     </div>
                 </div>

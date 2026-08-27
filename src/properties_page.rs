@@ -17,17 +17,19 @@ pub fn PropertiesPage() -> impl IntoView {
     view! {
         <Title text="Properties — Tippen"/>
         <div class="mx-auto w-full max-w-2xl px-5 py-10 lg:px-6">
-            <a href="/" class=BUTTON_CLASS>"← Library"</a>
+            <a href="/" class=BUTTON_CLASS>
+                "← Library"
+            </a>
 
             <div class="glass-panel relative mt-6 overflow-hidden rounded-lg p-5 animate-slide-up">
-                                <div class="relative">
+                <div class="relative">
                     <span class="eyebrow">"Properties"</span>
                     <h1 class="mt-3 text-2xl font-bold tracking-tight text-white">
                         "Sound preferences"
                     </h1>
                     <p class="mt-2 text-sm leading-relaxed text-slate-400">
                         "Choose the voice used when reading articles aloud. If the preferred
-                        voice is not available for an article, it falls back to "default".
+                        voice is not available for an article, it falls back to "default ".
                         If the article has no audio, the voice selector is disabled."
                     </p>
 
@@ -43,6 +45,7 @@ pub fn PropertiesPage() -> impl IntoView {
                         prop:value=move || {
                             if voice.get().is_empty() { "default".to_string() } else { voice.get() }
                         }
+
                         on:change=move |event| {
                             let value = event_target_value(&event);
                             let v = if value == "default" { String::new() } else { value };
@@ -51,6 +54,7 @@ pub fn PropertiesPage() -> impl IntoView {
                             set_saved.set(true);
                         }
                     >
+
                         <option value="default">"default"</option>
                         {KNOWN_VOICES
                             .iter()
@@ -61,8 +65,7 @@ pub fn PropertiesPage() -> impl IntoView {
                             .collect_view()}
                     </select>
                     <p class="mt-1 text-xs text-slate-600">
-                        "Available: default, "
-                        {KNOWN_VOICES.join(", ")}
+                        "Available: default, " {KNOWN_VOICES.join(", ")}
                     </p>
 
                     <div class="mt-7 flex items-start gap-3">
@@ -78,6 +81,7 @@ pub fn PropertiesPage() -> impl IntoView {
                                 set_saved.set(true);
                             }
                         />
+
                         <label for="current-paragraph-only" class="cursor-pointer select-none">
                             <span class="block text-sm font-medium text-slate-200">
                                 "Play only current paragraph"

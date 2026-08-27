@@ -22,7 +22,7 @@ pub mod local_store;
 pub mod properties_page;
 
 pub const BUTTON_CLASS: &str = "inline-flex items-center justify-center gap-1.5 rounded-md border border-white/[0.08] \
-     bg-white/[0.045] px-3 py-1.5 text-sm font-semibold text-slate-300 \
+     bg-white/[0.045] px-3 py-1.5 text-sm font-semibold text-slate-400 \
      transition-colors duration-150 hover:border-white/25 hover:bg-white/[0.08] hover:text-white \
      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/50 cursor-pointer \
      text-nowrap whitespace-nowrap select-none disabled:pointer-events-none disabled:opacity-40";
@@ -34,7 +34,7 @@ pub const BUTTON_PRIMARY_CLASS: &str = "inline-flex items-center justify-center 
      text-nowrap whitespace-nowrap select-none disabled:pointer-events-none disabled:opacity-40";
 
 pub const BUTTON_DANGER_CLASS: &str = "inline-flex items-center justify-center gap-1.5 rounded-md border border-white/[0.08] \
-     bg-white/[0.045] px-3 py-1.5 text-sm font-semibold text-slate-300 \
+     bg-white/[0.045] px-3 py-1.5 text-sm font-semibold text-slate-400 \
      transition-colors duration-150 hover:border-rose-300/30 hover:bg-white/[0.08] hover:text-rose-200 \
      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/50 cursor-pointer \
      text-nowrap whitespace-nowrap select-none";

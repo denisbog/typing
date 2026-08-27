@@ -615,7 +615,7 @@ pub fn ArticlePage(
         }
     });
 
-    let is_mobile = leptos_use::use_media_query("(max-width: 767px)");
+    let is_mobile = leptos_use::use_media_query("(max-width: 1024px)");
 
     let views = move || {
         let animated_value = AnimatedSignal::new(
@@ -844,6 +844,7 @@ pub fn ArticlePage(
                             audio_current_article
                             audio_current_paragraph
                             audio_is_playing
+                            is_mobile
                             typing_speed_paragraph
                             set_typing_speed_paragraph
                             typing_speed_samples
@@ -939,6 +940,14 @@ pub fn ArticlePage(
                                             // workaround for the selection issue, options are being
                                             // rendered after the select value is set, we need to force the
                                             // selction maker on the selected item
+
+                                            // workaround for the selection issue, options are being
+                                            // rendered after the select value is set, we need to force the
+                                            // selction maker on the selected item
+
+                                            // workaround for the selection issue, options are being
+                                            // rendered after the select value is set, we need to force the
+                                            // selction maker on the selected item
                                             <option value=value>{voice}</option>
                                         }
                                             .into_any()
@@ -988,15 +997,15 @@ pub fn ArticlePage(
                             <span class="hidden sm:block">"Library"</span>
                         </a>
                         <div class="min-w-0 text-center">
-                            <div class="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-slate-300">
+                            <div class="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-slate-500">
                                 "Now practicing"
                             </div>
-                            <div class="mt-1 truncate text-sm font-semibold text-slate-100 sm:text-base">
+                            <div class="mt-1 truncate text-sm font-semibold text-slate-300 sm:text-base">
                                 {article.title.clone()}
                             </div>
                         </div>
                         <div class="rounded-md border border-white/[0.07] bg-white/[0.04] px-3 py-2 text-right">
-                            <div class="font-mono text-xs font-bold text-white">{total}</div>
+                            <div class="font-mono text-xs font-bold text-slate-400">{total}</div>
                             <div class="font-mono text-[7px] uppercase tracking-widest text-slate-600">
                                 "Paragraphs"
                             </div>
