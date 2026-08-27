@@ -3,6 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use components::Association;
+#[cfg(feature = "ssr")]
 use leptos::prelude::LeptosOptions;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -17,6 +18,8 @@ pub mod translation;
 pub mod application_types;
 pub mod persistance;
 pub mod translation_page;
+pub mod local_store;
+pub mod properties_page;
 
 pub const BUTTON_CLASS: &str = "inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] \
      bg-white/[0.045] px-4 py-2.5 text-sm font-semibold text-slate-300 shadow-sm backdrop-blur \

@@ -671,6 +671,7 @@ pub fn ArticlePage(
                 .clone()
                 .into_iter()
                 .enumerate()
+                .filter(|(index, _item)| *index == 0 || (*index + 1) % 5 == 0)
                 .map(|(index, _item)| {
                     view! {
                         <a
@@ -696,6 +697,14 @@ pub fn ArticlePage(
                 let audio_directory_for_voices = audio_directory.clone();
                 spawn_local(async move {
                     if let Ok(voices) = fetch_available_voices(&audio_directory_for_voices).await {
+                        // Fall back to "default" when the globally preferred voice
+                        // is not available for this particular article.
+                        if let Some(pref) = playback.selected_voice.get_untracked().as_deref() {
+                            if !voices.iter().any(|v| v == pref) {
+                                playback.set_selected_voice.set(None);
+                            }
+                        }
+                        crate::local_store::merge_voices(&voices);
                         set_available_voices.set(voices);
                     }
                 });

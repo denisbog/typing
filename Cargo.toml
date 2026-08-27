@@ -28,7 +28,8 @@ leptos_meta = { version = "0.8.6" }
 tokio = { version = "1", features = ["rt-multi-thread"], optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
 wasm-bindgen-futures = { version = "0.4", optional = true }
-web-sys = { version = "0.3", optional = true, features = ["Window", "Response", "HtmlAudioElement", "Event", "EventTarget", "Navigator", "Clipboard"] }
+web-sys = { version = "0.3", optional = true, features = ["Window", "Response", "HtmlAudioElement", "Event", "EventTarget", "Navigator", "Clipboard", "Storage"] }
+js-sys = { version = "0.3", optional = true }
 
 server_fn = { version = "0.8", optional = true }
 tower = { version = "0.5", features = ["util"], optional = true }
@@ -62,6 +63,7 @@ hydrate = [
     "dep:wasm-bindgen",
     "dep:wasm-bindgen-futures",
     "dep:web-sys",
+    "dep:js-sys",
 ]
 ssr = [
     "dep:axum",

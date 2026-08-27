@@ -734,12 +734,20 @@ button,
   inset: 0px;
 }
 
+.-right-16 {
+  right: -4rem;
+}
+
 .-right-2 {
   right: -0.5rem;
 }
 
 .-right-20 {
   right: -5rem;
+}
+
+.-top-16 {
+  top: -4rem;
 }
 
 .-top-2\.5 {
@@ -869,6 +877,14 @@ button,
   margin-top: 1.25rem;
 }
 
+.mt-7 {
+  margin-top: 1.75rem;
+}
+
+.mt-8 {
+  margin-top: 2rem;
+}
+
 .mt-auto {
   margin-top: auto;
 }
@@ -922,6 +938,10 @@ button,
 
 .h-4 {
   height: 1rem;
+}
+
+.h-40 {
+  height: 10rem;
 }
 
 .h-48 {
@@ -994,6 +1014,10 @@ button,
 
 .w-4 {
   width: 1rem;
+}
+
+.w-40 {
+  width: 10rem;
 }
 
 .w-48 {
@@ -1293,6 +1317,10 @@ button,
 
 .text-balance {
   text-wrap: balance;
+}
+
+.break-words {
+  overflow-wrap: break-word;
 }
 
 .rounded {
@@ -1648,6 +1676,11 @@ button,
   padding-bottom: 5rem;
 }
 
+.py-3 {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
 .py-4 {
   padding-top: 1rem;
   padding-bottom: 1rem;
@@ -1708,8 +1741,8 @@ button,
   line-height: 2.5rem;
 }
 
-.text-\[0\.95rem\] {
-  font-size: 0.95rem;
+.text-\[0\.9rem\] {
+  font-size: 0.9rem;
 }
 
 .text-\[10px\] {
@@ -1777,12 +1810,12 @@ button,
   font-style: italic;
 }
 
-.leading-\[1\.75\] {
-  line-height: 1.75;
+.leading-\[1\.7\] {
+  line-height: 1.7;
 }
 
-.leading-\[1\.9\] {
-  line-height: 1.9;
+.leading-\[1\.8\] {
+  line-height: 1.8;
 }
 
 .leading-none {
@@ -2293,8 +2326,16 @@ button,
   pointer-events: none;
 }
 
+.disabled\:cursor-not-allowed:disabled {
+  cursor: not-allowed;
+}
+
 .disabled\:opacity-40:disabled {
   opacity: 0.4;
+}
+
+.disabled\:opacity-50:disabled {
+  opacity: 0.5;
 }
 
 .group:hover .group-hover\:-rotate-3 {

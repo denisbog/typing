@@ -1,4 +1,3 @@
-use std::ops::Sub;
 use std::time::Duration;
 use std::{collections::BTreeSet, hash::Hash};
 
@@ -9,8 +8,6 @@ use leptos::logging::warn;
 use leptos::prelude::*;
 #[cfg(feature = "hydrate")]
 use leptos::task::spawn_local;
-use leptos_animation::{easing, AnimatedSignal, AnimationTarget};
-use leptos_animation::{AnimationContext, AnimationMode};
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -640,7 +637,7 @@ pub fn Sentance(
                             </span>
                         </div>
                         <div
-                            class="flex flex-wrap font-mono text-lg leading-[1.75] text-slate-200 outline-none sm:text-xl lg:text-[1.35rem]"
+                            class="flex flex-wrap font-mono text-base leading-[1.7] text-slate-200 outline-none break-words min-w-0 sm:text-xl lg:text-[1.35rem]"
                             tabindex=1
                             on:keydown=move |event| {
                                 let key = event.key_code();
@@ -963,7 +960,7 @@ pub fn Sentance(
                                 "Reference"
                             </span>
                         </div>
-                        <div class="flex flex-wrap text-[0.95rem] italic leading-[1.9] text-slate-500 sm:text-base">
+                        <div class="flex flex-wrap break-words min-w-0 text-[0.9rem] italic leading-[1.8] text-slate-500 sm:text-base">
 
                             <For
                                 each=move || translation_words.clone().into_iter().enumerate()

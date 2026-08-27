@@ -10,8 +10,8 @@ use leptos_use::UseCookieOptions;
 
 use crate::get_user_info;
 use crate::parse_hash;
-use crate::translation_page::TranslationPage;
 use crate::translation_page::PlaybackState;
+use crate::translation_page::TranslationPage;
 use crate::{
     application_types::{Article, Data},
     translation::{get_data, store_article},
@@ -31,7 +31,7 @@ use leptos_meta::*;
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     provide_meta_context();
     view! {
-        <!DOCTYPE html> 
+        <!DOCTYPE html>
         <html lang="en" class="snap-y snap-y-mandatory">
             <head>
                 <meta charset="utf-8"/>
@@ -161,14 +161,45 @@ pub fn App() -> impl IntoView {
             .same_site(SameSite::None),
     );
 
-    let (translation_post, set_translation_post) = signal(Data::default());
+    // Seed the library from the local cache first; only fall back to the
+    // server automatically when there is no cached copy.
+    #[cfg(feature = "hydrate")]
+    let cached = crate::local_store::cached_data();
+    #[cfg(not(feature = "hydrate"))]
+    let cached = None;
+    let (translation_post, set_translation_post) = signal(cached.clone().unwrap_or_default());
+    let (last_sync, set_last_sync) = signal(crate::local_store::cached_last_sync());
+    let (from_cache, set_from_cache) = signal(cached.is_some());
+    // Becomes true as soon as we have something to render: immediately when the
+    // cache is present, otherwise once the server returns.
+    let (data_ready, set_data_ready) = signal(cached.is_some());
+    let (refreshing, set_refreshing) = signal(false);
+    // bump to force a server refresh on demand
+    let (refresh_request, set_refresh_request) = signal(0u32);
+
+    // Persist every mutated library to the local cache so we always have the
+    // latest offline snapshot.
+    #[cfg(feature = "hydrate")]
+    Effect::new(move |_| {
+        let data = translation_post.get();
+        if !data.articles.is_empty() {
+            log!("dafault data will not be stored");
+            crate::local_store::cache_data(&data);
+        };
+    });
+
     let (input_popup, set_input_popup) = signal(false);
     let (audio_is_playing, set_audio_is_playing) = signal(false);
     let (audio_article_title, set_audio_article_title) = signal(Option::<String>::None);
     let (audio_article_index, set_audio_article_index) = signal(Option::<usize>::None);
     let (audio_paragraph, set_audio_paragraph) = signal(Option::<usize>::None);
+    #[cfg(feature = "hydrate")]
+    let (audio_selected_voice, set_audio_selected_voice) =
+        signal(crate::local_store::preferred_voice());
+    #[cfg(not(feature = "hydrate"))]
     let (audio_selected_voice, set_audio_selected_voice) = signal(Option::<String>::None);
-    let (audio_speech_cursor, set_audio_speech_cursor) = signal(Option::<crate::translation_page::SpeechCursor>::None);
+    let (audio_speech_cursor, set_audio_speech_cursor) =
+        signal(Option::<crate::translation_page::SpeechCursor>::None);
     let (audio_current_paragraph_only, set_audio_current_paragraph_only) = signal(false);
     #[cfg(feature = "hydrate")]
     let playback = PlaybackState {
@@ -192,21 +223,41 @@ pub fn App() -> impl IntoView {
     #[cfg(not(feature = "hydrate"))]
     let playback = PlaybackState;
     let resource = Resource::new(
-        move || session_id,
-        |session| async move {
-            if session.get().is_some() {
-                get_data(session.get().unwrap()).await.unwrap()
+        move || (session_id.get(), refresh_request.get()),
+        move |(session, _refresh)| async move {
+            log!("got the session check it data refresh is needed");
+            // Auto-fetch only when there is no local cache; once we are sitting on
+            // a cached snapshot, data updates require an explicit refresh.
+            if let Some(session) = session {
+                if from_cache.get_untracked() && refresh_request.get_untracked() == 0 {
+                    None
+                } else {
+                    log!(
+                        "refreshing the data {} {} ",
+                        from_cache.get_untracked(),
+                        refresh_request.get_untracked()
+                    );
+                    set_refreshing.set(false);
+                    get_data(session).await.ok()
+                }
             } else {
-                Data::default()
+                None
             }
         },
     );
     Effect::new(move |_| {
-        if let Some(data) = resource.get() {
-            log!("setting data {:?}", data);
-            set_translation_post.set(data);
-        } else {
-            log!("data not loaded");
+        // The resource future only ever resolves to Some(Some(data)) when a
+        // fresh server fetch actually happened (no cache, or explicit refresh),
+        // so whenever we reach this branch the result should always be applied.
+        if let Some(Some(data)) = resource.get() {
+            let now = crate::local_store::now_ms();
+            set_translation_post.set(data.clone());
+            set_last_sync.set(Some(now));
+            set_from_cache.set(false);
+            set_data_ready.set(true);
+            set_refreshing.set(false);
+            #[cfg(feature = "hydrate")]
+            crate::local_store::cache_data_with_sync(&data, now);
         }
     });
     let input_popup_component = move |set_translation_post: WriteSignal<Data>| {
@@ -406,6 +457,42 @@ pub fn App() -> impl IntoView {
                                                 "Your practice library"
                                             </span>
                                             <button
+                                                class=BUTTON_CLASS
+                                                on:click=move |_event| {
+                                                    set_refreshing.set(true);
+                                                    set_refresh_request.update(|n| *n += 1);
+                                                }
+                                            >
+                                                <Show
+                                                    when=move || last_sync.get().is_some()
+                                                    fallback=|| view! { <span>Get data from server</span> }
+                                                >
+                                                    <span class="flex items-center gap-1.5">
+                                                        {move || {
+                                                            if refreshing.get() {
+                                                                "Refreshing…".to_string()
+                                                            } else {
+                                                                format!(
+                                                                    "Last sync · {}",
+                                                                    last_sync
+                                                                        .get()
+                                                                        .map(crate::local_store::format_sync_time)
+                                                                        .unwrap_or_default()
+                                                                )
+                                                            }
+                                                        }}
+                                                    </span>
+                                                </Show>
+                                            </button>
+                                            <a
+                                                href="/properties"
+                                                class=BUTTON_CLASS
+                                                aria-label="Properties"
+                                                title="Properties"
+                                            >
+                                                "⚙"
+                                            </a>
+                                            <button
                                                 class=BUTTON_PRIMARY_CLASS
                                                 on:click=move |_event| set_input_popup.set(true)
                                             >
@@ -499,31 +586,35 @@ pub fn App() -> impl IntoView {
                                             }
                                         }>
                                             {move || {
-                                                resource
-                                                    .get()
-                                                    .map(|_data| {
-                                                        #[cfg(feature = "hydrate")]
-                                                        {
-                                                            view! {
-                                                                <TranslationPage
-                                                                    data=translation_post
-                                                                    set_data=set_translation_post
-                                                                />
-                                                                <PlaybackPanel playback=playback/>
-                                                                <div>{input_popup_component(set_translation_post)}</div>
-                                                            }
-                                                        }
-                                                        #[cfg(not(feature = "hydrate"))]
-                                                        {
-                                                            view! {
-                                                                <TranslationPage
-                                                                    data=translation_post
-                                                                    set_data=set_translation_post
-                                                                />
-                                                                <div>{input_popup_component(set_translation_post)}</div>
-                                                            }
-                                                        }
-                                                    })
+                                                #[cfg(feature = "hydrate")]
+                                                {
+                                                    if data_ready.get() {
+                                                        Some(view! {
+                                                            <TranslationPage
+                                                                data=translation_post
+                                                                set_data=set_translation_post
+                                                            />
+                                                            <PlaybackPanel playback=playback/>
+                                                            <div>{input_popup_component(set_translation_post)}</div>
+                                                        })
+                                                    } else {
+                                                        None
+                                                    }
+                                                }
+                                                #[cfg(not(feature = "hydrate"))]
+                                                {
+                                                    if data_ready.get() {
+                                                        Some(view! {
+                                                            <TranslationPage
+                                                                data=translation_post
+                                                                set_data=set_translation_post
+                                                            />
+                                                            <div>{input_popup_component(set_translation_post)}</div>
+                                                        })
+                                                    } else {
+                                                        None
+                                                    }
+                                                }
                                             }}
 
                                         </Suspense>
@@ -546,21 +637,28 @@ pub fn App() -> impl IntoView {
                                     }
                                 }>
                                     {move || {
-                                        resource
-                                            .get()
-                                            .map(|_data| {
-                                                view! {
-                                                    <ArticlePage
-                                                        data=translation_post
-                                                        set_data=set_translation_post
-                                                        playback=playback
-                                                    />
-                                                }
+                                        if data_ready.get() {
+                                            Some(view! {
+                                                <ArticlePage
+                                                    data=translation_post
+                                                    set_data=set_translation_post
+                                                    playback=playback
+                                                />
                                             })
+                                        } else {
+                                            None
+                                        }
                                     }}
 
                                 </Suspense>
                             }
+                        }
+                    />
+
+                    <Route
+                        path=path!("/properties")
+                        view=move || {
+                            view! { <crate::properties_page::PropertiesPage/> }
                         }
                     />
 

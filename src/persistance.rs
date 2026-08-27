@@ -1,3 +1,4 @@
+#[cfg(feature = "ssr")]
 use std::collections::HashMap;
 
 #[cfg(feature = "ssr")]
