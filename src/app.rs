@@ -35,7 +35,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
         <html lang="en" class="app-html">
             <head>
                 <meta charset="utf-8"/>
-                <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"/>
                 <Title text="Tippen — Fluency Studio"/>
                 <Meta name="theme-color" content="#070a10"/>
                 <Meta
