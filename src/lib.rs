@@ -28,6 +28,8 @@ pub const BUTTON_PRIMARY_CLASS: &str = "btn-primary";
 
 pub const BUTTON_DANGER_CLASS: &str = "btn-danger";
 
+pub const ORIGIN: &str = "fluencystudio.link";
+
 #[cfg(feature = "ssr")]
 #[derive(Clone, Debug)]
 pub struct AppState {

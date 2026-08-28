@@ -8,6 +8,7 @@ use leptos_router::path;
 use leptos_use::use_cookie_with_options;
 use leptos_use::UseCookieOptions;
 
+use crate::ORIGIN;
 use crate::get_user_info;
 use crate::parse_hash;
 use crate::translation_page::PlaybackState;
@@ -440,8 +441,8 @@ pub fn App() -> impl IntoView {
                                                 on:click=move |_event| {
                                                     window()
                                                         .location()
-                                                        .assign(
-                                                            "https://typing.auth.us-east-1.amazoncognito.com/oauth2/authorize?client_id=2n9mqgc2vfhharda4r547sdcpm&response_type=token&scope=email+openid&redirect_uri=https%3A%2F%2Fxfwvamzfhhd4wjc766gmj6qsza0pcjeq.lambda-url.us-east-1.on.aws%2F",
+                                                        .assign(&format!(
+                                                            "https://typing.auth.us-east-1.amazoncognito.com/oauth2/authorize?client_id=2n9mqgc2vfhharda4r547sdcpm&response_type=token&scope=email+openid&redirect_uri=https%3A%2F%2F{}%2F", ORIGIN),
                                                         )
                                                         .unwrap();
                                                 }
