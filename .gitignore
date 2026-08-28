@@ -2,3 +2,5 @@
 /node_modules
 /components/**/target/*
 /**/Cargo.lock
+
+public/typing.css

@@ -31,7 +31,7 @@ use leptos_meta::*;
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     provide_meta_context();
     view! {
-        <!DOCTYPE html> 
+        <!DOCTYPE html>
         <html lang="en" class="app-html">
             <head>
                 <meta charset="utf-8"/>
@@ -186,12 +186,14 @@ pub fn App() -> impl IntoView {
     Effect::new(move |_| {
         let data = translation_post.get();
         if !data.articles.is_empty() {
-            log!("dafault data will not be stored");
             crate::local_store::cache_data(&data);
+        }else {
+            log!("dafault data will not be stored");
         };
     });
 
     let (input_popup, set_input_popup) = signal(false);
+    let (adding, set_adding) = signal(false);
     let (audio_is_playing, set_audio_is_playing) = signal(false);
     let (audio_article_title, set_audio_article_title) = signal(Option::<String>::None);
     let (audio_article_index, set_audio_article_index) = signal(Option::<usize>::None);
@@ -243,13 +245,10 @@ pub fn App() -> impl IntoView {
                 if from_cache.get_untracked() && refresh_request.get_untracked() == 0 {
                     None
                 } else {
-                    log!(
-                        "refreshing the data {} {} ",
-                        from_cache.get_untracked(),
-                        refresh_request.get_untracked()
-                    );
+                    set_refreshing.set(true);
+                    let out = get_data(session).await.ok();
                     set_refreshing.set(false);
-                    get_data(session).await.ok()
+                    out
                 }
             } else {
                 None
@@ -319,14 +318,16 @@ pub fn App() -> impl IntoView {
                                         }
                                     />
 
-                                    <input
+                                    <button
                                         class=BUTTON_PRIMARY_CLASS
-                                        type="button"
-                                        value="Add to library →"
+                                        disabled=move || adding.get()
                                         on:click=move |_event| {
+                                            if adding.get() {
+                                                return;
+                                            }
                                             let temp = translation_input.get();
                                             log!("passing argument: {}", temp);
-                                            set_input_popup.set(false);
+                                            set_adding.set(true);
                                             spawn_local(async move {
                                                 let paragraphs = temp
                                                     .split("\n")
@@ -340,10 +341,26 @@ pub fn App() -> impl IntoView {
                                                     .update(|data| {
                                                         data.articles.push(article.clone());
                                                     });
-                                                store_article(article).await.unwrap();
+                                                let _ = store_article(article).await;
+                                                set_adding.set(false);
+                                                set_input_popup.set(false);
                                             });
                                         }
-                                    />
+                                    >
+
+                                        {move || {
+                                            if adding.get() {
+                                                view! {
+                                                    <span class="btn-spinner btn-spinner--dark"></span>
+                                                    "Adding…"
+                                                }
+                                                    .into_any()
+                                            } else {
+                                                view! { "Add to library →" }.into_any()
+                                            }
+                                        }}
+
+                                    </button>
 
                                 </div>
                             </div>
@@ -482,9 +499,14 @@ pub fn App() -> impl IntoView {
                                                     <span class="sync-label-compact">
                                                         {move || {
                                                             if refreshing.get() {
-                                                                "Refreshing…".to_string()
+                                                                Either::Left(
+                                                                    view! {
+                                                                        <span class="btn-spinner"></span>
+                                                                        "Refreshing…"
+                                                                    },
+                                                                )
                                                             } else {
-                                                                "Synced ✓".to_string()
+                                                                Either::Right(view! { "Synced ✓" })
                                                             }
                                                         }}
 
@@ -492,14 +514,21 @@ pub fn App() -> impl IntoView {
                                                     <span class="sync-label-full">
                                                         {move || {
                                                             if refreshing.get() {
-                                                                "Refreshing…".to_string()
+                                                                Either::Left(
+                                                                    view! {
+                                                                        <span class="btn-spinner"></span>
+                                                                        "Refreshing…"
+                                                                    },
+                                                                )
                                                             } else {
-                                                                format!(
-                                                                    "Last sync · {}",
-                                                                    last_sync
-                                                                        .get()
-                                                                        .map(crate::local_store::format_sync_time)
-                                                                        .unwrap_or_default(),
+                                                                Either::Right(
+                                                                    format!(
+                                                                        "Last sync · {}",
+                                                                        last_sync
+                                                                            .get()
+                                                                            .map(crate::local_store::format_sync_time)
+                                                                            .unwrap_or_default(),
+                                                                    ),
                                                                 )
                                                             }
                                                         }}
@@ -507,6 +536,14 @@ pub fn App() -> impl IntoView {
                                                     </span>
                                                 </Show>
                                             </button>
+                                            <a
+                                                href="/match"
+                                                class=BUTTON_CLASS
+                                                title="Match saved pairs"
+                                            >
+                                                <span class="btn-icon">"⧉"</span>
+                                                <span class="btn-label">"Match pairs"</span>
+                                            </a>
                                             <a
                                                 href="/properties"
                                                 class=BUTTON_CLASS
@@ -691,6 +728,35 @@ pub fn App() -> impl IntoView {
                         view=move || {
                             view! {
                                 <crate::properties_page::PropertiesPage></crate::properties_page::PropertiesPage>
+                            }
+                        }
+                    />
+
+                    <Route
+                        path=path!("/match")
+                        view=move || {
+                            view! {
+                                <Suspense fallback=move || {
+                                    view! {
+                                        <div class="loading-inline">
+                                            <div class="spinner-zinc"></div>
+                                            "Loading…"
+                                        </div>
+                                    }
+                                }>
+                                    {move || {
+                                        if data_ready.get() {
+                                            Some(
+                                                view! {
+                                                    <crate::matching_page::MatchingPage data=translation_post/>
+                                                },
+                                            )
+                                        } else {
+                                            None
+                                        }
+                                    }}
+
+                                </Suspense>
                             }
                         }
                     />

@@ -376,6 +376,8 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
             .into_iter()
             .enumerate()
             .map(move |(index, item)| {
+                let (saving, set_saving) = signal(false);
+                let (deleting, set_deleting) = signal(false);
                 let paragraph_count = item.paragraphs.len();
                 let translated_count = item
                     .paragraphs
@@ -461,9 +463,18 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                             </div>
                             <div class="article-action-buttons">
                                 <button
-                                    class=BUTTON_CLASS
+                                    class=move || {
+                                        if saving.get() {
+                                            format!("{} opacity-50 cursor-wait", BUTTON_CLASS)
+                                        } else {
+                                            BUTTON_CLASS.to_string()
+                                        }
+                                    }
+
                                     title="Save this article’s word pairs"
+                                    disabled=move || saving.get()
                                     on:click=move |_event| {
+                                        set_saving.set(true);
                                         spawn_local(async move {
                                             let article_to_store = data
                                                 .get_untracked()
@@ -472,15 +483,35 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                                                 .unwrap()
                                                 .clone();
                                             let _ = store_pairs(article_to_store).await;
+                                            set_saving.set(false);
                                         });
                                     }
                                 >
 
-                                    "Save"
+                                    {move || {
+                                        if saving.get() {
+                                            view! {
+                                                <span class="btn-spinner"></span>
+                                                "Saving"
+                                            }
+                                                .into_any()
+                                        } else {
+                                            view! { "Save" }.into_any()
+                                        }
+                                    }}
+
                                 </button>
                                 <button
-                                    class=BUTTON_DANGER_CLASS
+                                    class=move || {
+                                        if deleting.get() {
+                                            format!("{} opacity-50 cursor-wait", BUTTON_DANGER_CLASS)
+                                        } else {
+                                            BUTTON_DANGER_CLASS.to_string()
+                                        }
+                                    }
+
                                     title="Delete article"
+                                    disabled=move || deleting.get()
                                     on:click=move |_event| {
                                         let article_to_remove = data
                                             .get_untracked()
@@ -488,17 +519,30 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                                             .get(index)
                                             .unwrap()
                                             .clone();
+                                        set_deleting.set(true);
                                         spawn_local(async move {
-                                            delete_article(article_to_remove).await.unwrap();
+                                            let _ = delete_article(article_to_remove).await;
+                                            set_deleting.set(false);
+                                            set_data
+                                                .update(|item| {
+                                                    item.articles.remove(index);
+                                                });
                                         });
-                                        set_data
-                                            .update(|item| {
-                                                item.articles.remove(index);
-                                            });
                                     }
                                 >
 
-                                    "Delete"
+                                    {move || {
+                                        if deleting.get() {
+                                            view! {
+                                                <span class="btn-spinner"></span>
+                                                "Deleting"
+                                            }
+                                                .into_any()
+                                        } else {
+                                            view! { "Delete" }.into_any()
+                                        }
+                                    }}
+
                                 </button>
                             </div>
                         </div>
