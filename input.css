@@ -58,52 +58,829 @@
   }
 }
 
-@layer components {
-  .app-shell {
-    position: relative;
-    isolation: isolate;
-    min-height: 100vh;
-  }
-
-  .glass-panel {
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: #10141b;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-  }
-
-  .article-card {
-    position: relative;
-    overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.075);
-    background: #0e1219;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  }
-
-  .eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.6rem;
-    color: #94a3b8;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-  }
-
-  .eyebrow::before {
-    width: 1.6rem;
-    height: 1px;
-    content: "";
-    background: currentColor;
-  }
-
-  .text-balance {
-    text-wrap: balance;
-  }
+/* ------------------------------------------------------------------ */
+/* Shared layout surfaces                                              */
+/* ------------------------------------------------------------------ */
+.app-shell {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
 }
 
-/* Pure black surfaces on mobile for OLED displays */
+.app-html {
+  @apply snap-y;
+}
+
+.app-body {
+  @apply min-h-screen bg-[#070a10] text-slate-300 antialiased;
+}
+
+.glass-panel {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #10141b;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.article-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background: #0e1219;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: #94a3b8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.eyebrow::before {
+  width: 1.6rem;
+  height: 1px;
+  content: "";
+  background: currentColor;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+/* ------------------------------------------------------------------ */
+/* Buttons (moved from src/lib.rs)                                      */
+/* ------------------------------------------------------------------ */
+.btn {
+  @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-white/[0.08] bg-white/[0.045] px-3 py-1.5 text-sm font-semibold text-slate-400 transition-colors duration-150 hover:border-white/25 hover:bg-white/[0.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/50 cursor-pointer text-nowrap whitespace-nowrap select-none disabled:pointer-events-none disabled:opacity-40;
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-white/10 bg-slate-200 px-3 py-1.5 text-sm font-bold text-slate-900 transition-colors duration-150 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300/50 cursor-pointer text-nowrap whitespace-nowrap select-none disabled:pointer-events-none disabled:opacity-40;
+}
+
+.btn-danger {
+  @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-white/[0.08] bg-white/[0.045] px-3 py-1.5 text-sm font-semibold text-slate-400 transition-colors duration-150 hover:border-rose-300/30 hover:bg-white/[0.08] hover:text-rose-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/50 cursor-pointer text-nowrap whitespace-nowrap select-none;
+}
+
+.btn-block {
+  @apply w-full;
+}
+
+.btn--muted {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ------------------------------------------------------------------ */
+/* Shared labels / separators                                          */
+/* ------------------------------------------------------------------ */
+.label-mono {
+  @apply font-mono text-[10px] font-bold uppercase tracking-[0.2em];
+}
+
+.label-mono-secondary {
+  @apply font-mono text-[10px] uppercase tracking-widest;
+}
+
+.dot-sep {
+  @apply h-1 w-1 rounded-full bg-slate-700;
+}
+
+/* ------------------------------------------------------------------ */
+/* Sentence (typing) card - moved from src/components.rs               */
+/* ------------------------------------------------------------------ */
+.sentence-section {
+  @apply flex min-h-[calc(100svh-3.5rem)] w-full snap-start scroll-mt-14 flex-col items-center justify-center gap-3 px-2 py-4 sm:px-6 sm:py-8 lg:py-10;
+}
+
+.sentence-card {
+  @apply w-full max-w-6xl overflow-hidden rounded-lg transition-all duration-300;
+}
+
+.sentence-card:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.sentence-card--selecting {
+  cursor: default;
+  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.02);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.sentence-card--selecting:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.sentence-header {
+  @apply flex items-center justify-between gap-4 border-b border-white/[0.06] px-4 py-3 sm:px-7 sm:py-4;
+}
+
+.sentence-header-left {
+  @apply flex min-w-0 items-center gap-3;
+}
+
+.badge-index {
+  @apply font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400;
+}
+
+.badge-count {
+  @apply font-mono text-[10px] uppercase tracking-widest text-slate-600;
+}
+
+.mode-badge {
+  @apply rounded-full border px-3 py-1 font-mono text-[9px] uppercase tracking-widest;
+  border-color: rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.04);
+  color: #64748b;
+}
+
+.mode-badge--active {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+}
+
+.sentence-grid {
+  @apply grid lg:grid-cols-[1.35fr_0.85fr];
+}
+
+.sentence-col-original {
+  @apply p-4 sm:p-7 lg:p-9;
+}
+
+.sentence-col-translation {
+  @apply border-t border-white/[0.06] bg-white/[0.018] p-4 sm:p-7 lg:border-l lg:border-t-0 lg:p-9;
+}
+
+.sentence-label-row {
+  @apply mb-5 flex items-center justify-between gap-3;
+}
+
+.sentence-label {
+  @apply font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500;
+}
+
+.hint-label {
+  @apply font-mono text-[9px] uppercase tracking-widest text-slate-600 sm:inline;
+}
+
+.typing-area {
+  @apply flex flex-wrap break-words min-w-0 text-slate-500 sm:text-xl lg:text-[1.35rem];
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 1rem;
+  line-height: 1.7;
+  outline: none;
+}
+
+.translation-ref {
+  @apply hidden font-mono text-[9px] uppercase tracking-widest text-slate-700 sm:block;
+}
+
+.translation-text {
+  @apply flex flex-wrap break-words min-w-0 text-[0.9rem] italic leading-[1.8] text-slate-500 sm:text-base;
+}
+
+/* word state chips */
+.word-word-pair {
+  @apply relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-white/[0.08] text-slate-400;
+}
+
+.word-highlighted {
+  @apply relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-rose-500/10 text-rose-300/90;
+}
+
+.word-highlighted-pair {
+  @apply relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-white/[0.07] underline decoration-slate-400 decoration-2 underline-offset-4;
+}
+
+.word-clicked {
+  @apply relative flex px-1.5 py-0.5 lg:mt-1 rounded-md underline decoration-slate-300 decoration-2 underline-offset-4;
+}
+
+.word-clicked-selected {
+  @apply relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-white/10 underline decoration-slate-300 decoration-2 underline-offset-4;
+}
+
+.word-normal {
+  @apply relative flex px-1.5 py-0.5 lg:mt-1 rounded-md transition-colors;
+}
+
+.word-selectable {
+  cursor: pointer;
+}
+
+.word-selectable:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.word-speech-active {
+  text-decoration: underline;
+  text-decoration-color: #94a3b8;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+/* typed character states */
+.char-correct-current {
+  @apply text-slate-100 underline decoration-slate-500 underline-offset-4;
+}
+
+.char-correct {
+  @apply text-slate-300;
+}
+
+.char-wrong {
+  @apply text-rose-400 italic underline decoration-rose-400/60 decoration-wavy underline-offset-4;
+}
+
+.char-pending-current {
+  @apply underline decoration-slate-300 decoration-2 underline-offset-4;
+}
+
+/* floating pair / remove pill */
+.sentence-action-pill {
+  @apply absolute -top-2.5 -right-2 z-10 cursor-pointer rounded border border-white/20 bg-slate-200 px-1.5 py-px font-sans text-xs font-semibold text-slate-900 transition-colors hover:bg-white;
+}
+
+.word-pair-index {
+  @apply absolute -top-2.5 right-0.5 rounded border border-white/15 bg-slate-950 px-1 py-px font-sans text-[10px] font-semibold leading-none text-slate-400 shadow;
+}
+
+.sentence-footer {
+  @apply flex flex-wrap items-center justify-center gap-2 px-4 pb-8;
+}
+
+.wpm-pill {
+  @apply rounded-md border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 font-mono text-xs text-slate-300;
+}
+
+.wpm-unit {
+  @apply text-slate-600;
+}
+
+/* ------------------------------------------------------------------ */
+/* Typing speed panel - moved from src/components.rs                   */
+/* ------------------------------------------------------------------ */
+.speed-panel {
+  @apply fixed right-5 top-24 z-30 overflow-hidden rounded-md border border-white/10 bg-slate-950/80 p-1 shadow-lg shadow-black/30 backdrop-blur-md animate-fade-in;
+}
+
+.speed-panel-inner {
+  @apply relative w-full overflow-hidden rounded-md;
+}
+
+.speed-chart {
+  @apply block h-24 w-full overflow-visible;
+}
+
+.speed-chart-bg {
+  fill: #090e17;
+  stroke: rgba(255, 255, 255, 0.05);
+}
+
+.speed-overlay {
+  @apply pointer-events-none absolute inset-0 p-2 text-[10px] text-slate-300;
+}
+
+.speed-chip {
+  @apply rounded-md bg-black/50 px-2 py-0.5 font-mono;
+}
+
+.speed-chip--bright {
+  @apply text-slate-200;
+}
+
+.speed-chip--dim {
+  @apply text-slate-300;
+}
+
+.speed-chip--bl {
+  @apply absolute bottom-1 left-2;
+}
+
+.speed-chip--tr {
+  @apply absolute right-2 top-1;
+}
+
+.speed-chip--br {
+  @apply absolute bottom-1 right-2;
+}
+
+/* ------------------------------------------------------------------ */
+/* Library article list - moved from src/translation_page.rs            */
+/* ------------------------------------------------------------------ */
+.library-grid {
+  @apply grid w-full gap-5 lg:grid-cols-2;
+}
+
+.article-list-card {
+  @apply flex flex-col rounded-lg p-4 transition-colors duration-150 hover:border-white/15 animate-fade-in sm:p-5;
+}
+
+.article-link {
+  @apply flex flex-1 flex-col outline-none;
+}
+
+.article-link-head {
+  @apply flex items-start justify-between gap-4;
+}
+
+.article-link-badges {
+  @apply flex items-center gap-3;
+}
+
+.article-index {
+  @apply font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300;
+}
+
+.article-meta {
+  @apply font-mono text-[10px] uppercase tracking-wider text-slate-500;
+}
+
+.article-arrow {
+  @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/[0.07] bg-white/[0.04] text-slate-500 transition-all group-hover:border-white/15 group-hover:bg-white/10 group-hover:text-slate-200;
+}
+
+.article-card-body {
+  @apply my-7;
+}
+
+.article-title {
+  @apply text-balance text-xl font-bold leading-snug tracking-[-0.02em] text-slate-100 transition-colors group-hover:text-white;
+}
+
+.article-summary {
+  @apply mt-3 line-clamp-2 text-sm leading-relaxed text-slate-500;
+}
+
+.article-card-foot {
+  @apply mt-auto;
+}
+
+.article-coverage-label {
+  @apply mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-widest text-slate-600;
+}
+
+.article-coverage-value {
+  @apply text-slate-400;
+}
+
+.article-coverage-track {
+  @apply h-1 overflow-hidden rounded-full bg-white/[0.05];
+}
+
+.article-coverage-bar {
+  @apply h-full rounded-sm bg-slate-400;
+}
+
+.article-actions {
+  @apply mt-5 flex items-center justify-between gap-3 border-t border-white/[0.06] pt-4;
+}
+
+.article-action-buttons {
+  @apply flex items-center gap-2;
+}
+
+.article-pairs {
+  @apply flex items-center gap-2 text-xs text-slate-500;
+}
+
+.article-pairs-count {
+  @apply flex h-7 min-w-7 items-center justify-center rounded-lg bg-white/[0.06] px-2 font-mono font-bold text-slate-300;
+}
+
+.library-empty {
+  @apply flex min-h-72 flex-col items-center justify-center rounded-lg px-6 text-center;
+}
+
+.library-empty-icon {
+  @apply flex h-14 w-14 items-center justify-center rounded-md border border-white/10 bg-white/[0.06] text-2xl text-slate-200;
+}
+
+.library-empty-title {
+  @apply mt-5 text-xl font-bold text-white;
+}
+
+.library-empty-sub {
+  @apply mt-2 max-w-sm text-sm leading-relaxed text-slate-500;
+}
+
+/* ------------------------------------------------------------------ */
+/* Article page - moved from src/translation_page.rs                    */
+/* ------------------------------------------------------------------ */
+.article-page {
+  @apply flex w-full flex-col;
+}
+
+.page-header {
+  @apply w-full border-b border-white/[0.06] bg-[#070a10] animate-fade-in;
+}
+
+.page-header-inner {
+  @apply mx-auto grid h-14 w-full max-w-6xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 sm:px-6;
+}
+
+.back-link {
+  @apply inline-flex items-center gap-2 text-sm font-semibold text-slate-400 transition-colors hover:text-white;
+}
+
+.back-icon {
+  @apply flex h-9 w-9 items-center justify-center rounded-md border border-white/[0.08] bg-white/[0.04] transition group-hover:border-white/15 group-hover:bg-white/10 group-hover:text-slate-200;
+}
+
+.back-link-label {
+  @apply hidden sm:block;
+}
+
+.page-title-wrap {
+  @apply min-w-0 text-center;
+}
+
+.page-title-eyebrow {
+  @apply font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-slate-500;
+}
+
+.page-title {
+  @apply mt-1 truncate text-sm font-semibold text-slate-300 sm:text-base;
+}
+
+.page-count {
+  @apply rounded-md border border-white/[0.07] bg-white/[0.04] px-3 py-2 text-right;
+}
+
+.page-count-num {
+  @apply font-mono text-xs font-bold text-slate-400;
+}
+
+.page-count-label {
+  @apply font-mono text-[7px] uppercase tracking-widest text-slate-600;
+}
+
+.jump-bar {
+  @apply fixed bottom-4 left-1/2 z-40 flex w-[calc(100%-2rem)] max-w-6xl -translate-x-1/2 items-center gap-3 rounded-md border border-white/10 bg-slate-950/85 p-2.5 text-sm text-slate-300 shadow-lg shadow-black/30 backdrop-blur-md animate-slide-up;
+}
+
+.jump-bar-options {
+  @apply hidden shrink-0 items-center gap-3 border-r border-white/[0.07] pr-3 sm:flex;
+}
+
+.jump-label {
+  @apply shrink-0 pl-1 font-mono text-[9px] font-bold uppercase tracking-widest text-slate-600;
+}
+
+.jump-nav {
+  @apply flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto;
+}
+
+.jump-link {
+  @apply flex h-7 min-w-7 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.04] font-mono text-[10px] text-slate-500 transition-colors hover:border-white/15 hover:bg-white/10 hover:text-slate-200;
+}
+
+.caret {
+  @apply absolute z-20 animate-blink;
+}
+
+.caret-char {
+  @apply font-mono text-xl font-extrabold text-slate-300 lg:text-2xl;
+}
+
+.voice-select {
+  @apply rounded-md border border-white/[0.08] bg-slate-950/80 px-3 py-2 text-xs text-slate-300 outline-none transition-colors focus:border-white/25 focus:ring-2 focus:ring-white/10;
+}
+
+.current-paragraph-toggle {
+  @apply flex cursor-pointer items-center gap-2 text-xs text-slate-400 transition-colors hover:text-slate-200;
+}
+
+.current-paragraph-checkbox {
+  @apply h-4 w-4 accent-slate-300;
+}
+
+/* ------------------------------------------------------------------ */
+/* Playback panel (floating audio controls) - moved from src/app.rs     */
+/* ------------------------------------------------------------------ */
+.playback-panel {
+  @apply fixed bottom-5 right-5 z-50 flex items-center gap-4 rounded-md border border-white/10 bg-slate-950/85 p-3 shadow-lg shadow-black/30 backdrop-blur-md animate-slide-up;
+}
+
+.playback-icon {
+  @apply flex h-8 w-8 shrink-0 items-center justify-center rounded border border-white/10 bg-white/10 text-slate-200;
+}
+
+.playback-title {
+  @apply max-w-52 truncate font-semibold text-slate-100;
+}
+
+.playback-meta {
+  @apply flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-slate-500;
+}
+
+.playback-dot {
+  @apply h-1 w-1 rounded-full bg-slate-400/60;
+}
+
+.playback-info {
+  @apply flex min-w-0 flex-col gap-0.5 text-sm;
+}
+
+/* ------------------------------------------------------------------ */
+/* Input modal - moved from src/app.rs                                  */
+/* ------------------------------------------------------------------ */
+.modal-overlay {
+  @apply fixed inset-0 z-50 overflow-y-auto;
+}
+
+.modal-backdrop {
+  @apply fixed inset-0 bg-[#020408]/80 backdrop-blur-md transition-opacity animate-fade-in;
+}
+
+.modal-center {
+  @apply relative flex min-h-full items-center justify-center p-4 sm:p-6;
+}
+
+.modal-panel {
+  @apply relative w-full max-w-2xl overflow-hidden rounded-lg p-5 animate-slide-up;
+}
+
+.modal-head {
+  @apply relative mb-6 flex items-start justify-between gap-6;
+}
+
+.modal-title {
+  @apply mt-2 text-xl font-bold tracking-tight text-white;
+}
+
+.modal-sub {
+  @apply mt-1 text-sm text-slate-400;
+}
+
+.modal-close {
+  @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-lg text-slate-400 transition hover:bg-white/10 hover:text-white;
+}
+
+.modal-textarea {
+  @apply relative h-80 w-full resize-none rounded-md border border-white/[0.08] bg-black/25 p-5 font-mono text-sm leading-relaxed text-slate-200 placeholder-slate-600 outline-none transition focus:border-slate-400/60 focus:ring-4 focus:ring-white/10;
+}
+
+.modal-foot {
+  @apply mt-5 flex items-center justify-between gap-3;
+}
+
+.modal-hint {
+  @apply hidden font-mono text-[10px] uppercase tracking-widest text-slate-600 sm:block;
+}
+
+.modal-actions {
+  @apply ml-auto flex items-center gap-3;
+}
+
+/* ------------------------------------------------------------------ */
+/* Login page - moved from src/app.rs                                   */
+/* ------------------------------------------------------------------ */
+.login-wrap {
+  @apply grid min-h-screen w-full place-items-center px-5 py-10;
+}
+
+.login-panel {
+  @apply relative w-full max-w-md overflow-hidden rounded-lg p-5 animate-slide-up;
+}
+
+.login-logo {
+  @apply inline-flex items-center gap-3;
+}
+
+.brand-mark {
+  @apply flex items-center justify-center rounded border border-white/15 bg-slate-200 text-xs font-black text-slate-900;
+}
+
+.brand-mark--lg {
+  @apply h-9 w-9;
+}
+
+.brand-mark--sm {
+  @apply h-8 w-8;
+}
+
+.login-logo-name {
+  @apply block text-lg font-extrabold tracking-tight text-white;
+}
+
+.login-logo-tag {
+  @apply block font-mono text-[9px] uppercase tracking-[0.22em] text-slate-500;
+}
+
+.login-hero {
+  @apply my-10;
+}
+
+.login-title {
+  @apply mt-4 text-balance text-4xl font-bold tracking-[-0.04em] text-white;
+}
+
+.login-sub {
+  @apply mt-4 leading-relaxed text-slate-400;
+}
+
+.login-footer {
+  @apply mt-5 text-center font-mono text-[10px] uppercase tracking-widest text-slate-600;
+}
+
+/* ------------------------------------------------------------------ */
+/* Dashboard site header - moved from src/app.rs                        */
+/* ------------------------------------------------------------------ */
+.site-header {
+  @apply z-40 w-full border-b border-white/[0.06] bg-[#070a10]/75 backdrop-blur-md;
+}
+
+.site-header-inner {
+  @apply mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-2 px-4 sm:gap-3 sm:px-5 lg:px-6;
+}
+
+.brand {
+  @apply inline-flex items-center gap-3;
+}
+
+.brand-name {
+  @apply block text-base font-extrabold leading-none tracking-tight text-white;
+}
+
+.brand-tag {
+  @apply mt-1 block font-mono text-[8px] uppercase tracking-[0.22em] text-slate-500;
+}
+
+.header-actions {
+  @apply flex items-center gap-3;
+}
+
+.header-hint {
+  @apply hidden font-mono text-[10px] uppercase tracking-widest text-slate-600 md:block;
+}
+
+.sync-label-compact {
+  @apply flex items-center gap-1.5 sm:hidden;
+}
+
+.sync-label-full {
+  @apply hidden items-center gap-1.5 sm:flex;
+}
+
+.btn-icon {
+  @apply text-lg leading-none;
+}
+
+.btn-label {
+  @apply hidden sm:inline;
+}
+
+.dash-container {
+  @apply mx-auto flex w-full max-w-6xl flex-col px-4 pb-16 sm:px-5 lg:px-6;
+}
+
+.hero {
+  @apply grid gap-8 border-b border-white/[0.06] py-8 md:grid-cols-[1fr_auto] md:items-end lg:py-10;
+}
+
+.hero-text {
+  @apply max-w-3xl animate-slide-up;
+}
+
+.hero-title {
+  @apply mt-5 text-balance text-4xl font-bold tracking-[-0.045em] text-white sm:text-5xl lg:text-[3.5rem] lg:leading-[1.05];
+}
+
+.hero-title-accent {
+  @apply text-slate-500;
+}
+
+.hero-sub {
+  @apply mt-5 max-w-2xl text-base leading-relaxed text-slate-400 sm:text-lg;
+}
+
+.stats {
+  @apply grid min-w-0 grid-cols-3 divide-x divide-white/[0.07] rounded-md px-2 py-4 animate-float-in sm:min-w-[320px];
+}
+
+.stat {
+  @apply px-4;
+}
+
+.stat-num {
+  @apply text-xl font-bold text-white;
+}
+
+.stat-num--muted {
+  @apply text-slate-200;
+}
+
+.stat-label {
+  @apply mt-1 font-mono text-[9px] uppercase tracking-widest text-slate-500;
+}
+
+.collection-section {
+  @apply pt-9;
+}
+
+.collection-head {
+  @apply mb-6 flex items-end justify-between gap-6;
+}
+
+.collection-title {
+  @apply mt-2 text-xl font-bold tracking-tight text-white;
+}
+
+.collection-hint {
+  @apply hidden max-w-xs text-right text-sm leading-relaxed text-slate-500 sm:block;
+}
+
+.loading-panel {
+  @apply flex items-center justify-center gap-3 rounded-lg py-20 text-slate-500;
+}
+
+.spinner {
+  @apply h-5 w-5 animate-spin rounded-full border-2 border-slate-700 border-t-slate-300;
+}
+
+.loading-label {
+  @apply font-mono text-xs uppercase tracking-widest;
+}
+
+.loading-inline {
+  @apply flex items-center justify-center gap-3 py-20 text-zinc-500;
+}
+
+.spinner-zinc {
+  @apply h-5 w-5 animate-spin rounded-full border-2 border-zinc-700 border-t-indigo-400;
+}
+
+/* ------------------------------------------------------------------ */
+/* Properties page - moved from src/properties_page.rs                  */
+/* ------------------------------------------------------------------ */
+.props-wrap {
+  @apply mx-auto w-full max-w-2xl px-5 py-10 lg:px-6;
+}
+
+.props-panel {
+  @apply relative mt-6 overflow-hidden rounded-lg p-5 animate-slide-up;
+}
+
+.props-title {
+  @apply mt-3 text-2xl font-bold tracking-tight text-white;
+}
+
+.props-sub {
+  @apply mt-2 text-sm leading-relaxed text-slate-400;
+}
+
+.props-label {
+  @apply mt-7 block font-mono text-[10px] uppercase tracking-widest text-slate-500;
+}
+
+.props-select {
+  @apply mt-2 w-full rounded-md border border-white/[0.08] bg-slate-950/80 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-slate-400/60 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.props-hint {
+  @apply mt-1 text-xs text-slate-600;
+}
+
+.props-toggle-row {
+  @apply mt-7 flex items-start gap-3;
+}
+
+.props-checkbox {
+  @apply mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-white/20 bg-slate-950 accent-slate-300;
+}
+
+.props-toggle-name {
+  @apply block text-sm font-medium text-slate-200;
+}
+
+.props-toggle-desc {
+  @apply mt-0.5 block text-xs leading-relaxed text-slate-500;
+}
+
+.props-toggle-label {
+  cursor: pointer;
+  user-select: none;
+}
+
+.props-saved {
+  @apply mt-3 text-sm text-slate-300;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Pure black surfaces + mobile-specific handling on OLED displays.       */
+/* ---------------------------------------------------------------------- */
 @media (max-width: 1024px) {
   html,
   body {
@@ -145,5 +922,25 @@
   .bg-slate-950\/80,
   .bg-slate-950\/85 {
     background-color: #000;
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Mobile handling for components that used to be hidden via `is_mobile`. */
+/* Elements that were toggled with `is_mobile` are now controlled here.   */
+/* ---------------------------------------------------------------------- */
+@media (max-width: 1024px) {
+  .wpm-pill,
+  .jump-bar,
+  .caret {
+    display: none;
+  }
+
+  .typing-area {
+    font-family: inherit;
+    font-size: 1.125rem;
+    line-height: 1.85;
+    color: #94a3b8;
+    cursor: pointer;
   }
 }

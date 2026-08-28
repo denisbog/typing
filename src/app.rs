@@ -32,7 +32,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
     provide_meta_context();
     view! {
         <!DOCTYPE html> 
-        <html lang="en" class="snap-y snap-y-mandatory">
+        <html lang="en" class="app-html">
             <head>
                 <meta charset="utf-8"/>
                 <meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -54,7 +54,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <HydrationScripts options/>
                 <MetaTags/>
             </head>
-            <body class="min-h-screen bg-[#070a10] text-slate-300 antialiased"></body>
+            <body class="app-body"></body>
         </html>
     }
 }
@@ -67,15 +67,15 @@ fn PlaybackPanel(playback: PlaybackState) -> impl IntoView {
             when=move || playback.article_title.get().is_some()
             fallback=move || view! { <div class="hidden"></div> }
         >
-            <div class="fixed bottom-5 right-5 z-50 flex items-center gap-4 rounded-md border border-white/10 bg-slate-950/85 p-3 shadow-lg shadow-black/30 backdrop-blur-md animate-slide-up">
-                <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-white/10 bg-white/10 text-slate-200">
+            <div class="playback-panel">
+                <div class="playback-icon">
                     <span class="text-sm">"▶"</span>
                 </div>
-                <div class="flex min-w-0 flex-col gap-0.5 text-sm">
-                    <div class="max-w-52 truncate font-semibold text-slate-100">
+                <div class="playback-info">
+                    <div class="playback-title">
                         {move || playback.article_title.get().unwrap_or_default()}
                     </div>
-                    <div class="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-slate-500">
+                    <div class="playback-meta">
                         <span>
                             {move || {
                                 playback
@@ -86,7 +86,7 @@ fn PlaybackPanel(playback: PlaybackState) -> impl IntoView {
                             }}
 
                         </span>
-                        <span class="h-1 w-1 rounded-full bg-slate-400/60"></span>
+                        <span class="playback-dot"></span>
                         <span>
                             {move || {
                                 playback
@@ -274,22 +274,22 @@ pub fn App() -> impl IntoView {
     let input_popup_component = move |set_translation_post: WriteSignal<Data>| {
         if input_popup.get() {
             Either::Left(view! {
-                <div class="fixed inset-0 z-50 overflow-y-auto">
-                    <div class="fixed inset-0 bg-[#020408]/80 backdrop-blur-md transition-opacity animate-fade-in"></div>
-                    <div class="relative flex min-h-full items-center justify-center p-4 sm:p-6">
-                        <div class="glass-panel relative w-full max-w-2xl overflow-hidden rounded-lg p-5 animate-slide-up">
-                            <div class="relative mb-6 flex items-start justify-between gap-6">
+                <div class="modal-overlay">
+                    <div class="modal-backdrop"></div>
+                    <div class="modal-center">
+                        <div class="modal-panel glass-panel">
+                            <div class="modal-head">
                                 <div>
                                     <span class="eyebrow">"New material"</span>
-                                    <h2 class="mt-2 text-xl font-bold tracking-tight text-white">
+                                    <h2 class="modal-title">
                                         "Add an article"
                                     </h2>
-                                    <p class="mt-1 text-sm text-slate-400">
+                                    <p class="modal-sub">
                                         "Separate paragraphs with a new line. We’ll prepare the rest."
                                     </p>
                                 </div>
                                 <button
-                                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-lg text-slate-400 transition hover:bg-white/10 hover:text-white"
+                                    class="modal-close"
                                     aria-label="Close dialog"
                                     on:click=move |_event| set_input_popup.set(false)
                                 >
@@ -297,7 +297,7 @@ pub fn App() -> impl IntoView {
                                 </button>
                             </div>
                             <textarea
-                                class="relative h-80 w-full resize-none rounded-md border border-white/[0.08] bg-black/25 p-5 font-mono text-sm leading-relaxed text-slate-200 placeholder-slate-600 outline-none transition focus:border-slate-400/60 focus:ring-4 focus:ring-white/10"
+                                class="modal-textarea"
                                 placeholder="Paste or type your article here…"
                                 prop:value=translation_input
                                 on:input=move |event| {
@@ -305,11 +305,11 @@ pub fn App() -> impl IntoView {
                                 }
                             >
                             </textarea>
-                            <div class="mt-5 flex items-center justify-between gap-3">
-                                <span class="hidden font-mono text-[10px] uppercase tracking-widest text-slate-600 sm:block">
+                            <div class="modal-foot">
+                                <span class="modal-hint">
                                     "Plain text · UTF-8"
                                 </span>
-                                <div class="ml-auto flex items-center gap-3">
+                                <div class="modal-actions">
                                     <input
                                         class=BUTTON_CLASS
                                         type="button"
@@ -379,7 +379,7 @@ pub fn App() -> impl IntoView {
                     }
                 }
             }}
-            <main class="app-shell flex min-h-screen w-full flex-col items-center">
+            <main class="app-shell">
                 <Routes fallback=|| "Not found!">
                     <Route
                         path=path!("/login")
@@ -393,33 +393,33 @@ pub fn App() -> impl IntoView {
                                 }
                             }
                             view! {
-                                <div class="grid min-h-screen w-full place-items-center px-5 py-10">
-                                    <div class="glass-panel relative w-full max-w-md overflow-hidden rounded-lg p-5 animate-slide-up">
+                                <div class="login-wrap">
+                                    <div class="login-panel glass-panel">
                                         <div class="relative">
-                                            <a href="/" class="inline-flex items-center gap-3">
-                                                <span class="flex h-9 w-9 items-center justify-center rounded border border-white/15 bg-slate-200 text-xs font-black text-slate-900">
+                                            <a href="/" class="login-logo">
+                                                <span class="brand-mark brand-mark--lg">
                                                     "T/"
                                                 </span>
                                                 <span>
-                                                    <span class="block text-lg font-extrabold tracking-tight text-white">
+                                                    <span class="login-logo-name">
                                                         "Tippen"
                                                     </span>
-                                                    <span class="block font-mono text-[9px] uppercase tracking-[0.22em] text-slate-500">
+                                                    <span class="login-logo-tag">
                                                         "Fluency studio"
                                                     </span>
                                                 </span>
                                             </a>
-                                            <div class="my-10">
+                                            <div class="login-hero">
                                                 <span class="eyebrow">"Welcome back"</span>
-                                                <h1 class="mt-4 text-balance text-4xl font-bold tracking-[-0.04em] text-white">
+                                                <h1 class="login-title">
                                                     "Your daily language practice starts here."
                                                 </h1>
-                                                <p class="mt-4 leading-relaxed text-slate-400">
+                                                <p class="login-sub">
                                                     "Build rhythm, vocabulary, and confidence with focused bilingual typing sessions."
                                                 </p>
                                             </div>
                                             <button
-                                                class=format!("{} w-full", BUTTON_PRIMARY_CLASS)
+                                                class=format!("{} btn-block", BUTTON_PRIMARY_CLASS)
                                                 on:click=move |_event| {
                                                     window()
                                                         .location()
@@ -433,7 +433,7 @@ pub fn App() -> impl IntoView {
                                                 <span>"Continue with your account"</span>
                                                 <span>"→"</span>
                                             </button>
-                                            <p class="mt-5 text-center font-mono text-[10px] uppercase tracking-widest text-slate-600">
+                                            <p class="login-footer">
                                                 "Focused practice · Measurable progress"
                                             </p>
                                         </div>
@@ -447,23 +447,23 @@ pub fn App() -> impl IntoView {
                         path=path!("")
                         view=move || {
                             view! {
-                                <header class="z-40 w-full border-b border-white/[0.06] bg-[#070a10]/75 backdrop-blur-md">
-                                    <div class="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-2 px-4 sm:gap-3 sm:px-5 lg:px-6">
-                                        <a href="/" class="group inline-flex items-center gap-3">
-                                            <span class="flex h-8 w-8 items-center justify-center rounded border border-white/15 bg-slate-200 text-xs font-black text-slate-900">
+                                <header class="site-header">
+                                    <div class="site-header-inner">
+                                        <a href="/" class="brand group">
+                                            <span class="brand-mark brand-mark--sm">
                                                 "T/"
                                             </span>
                                             <span>
-                                                <span class="block text-base font-extrabold leading-none tracking-tight text-white">
+                                                <span class="brand-name">
                                                     "Tippen"
                                                 </span>
-                                                <span class="mt-1 block font-mono text-[8px] uppercase tracking-[0.22em] text-slate-500">
+                                                <span class="brand-tag">
                                                     "Fluency studio"
                                                 </span>
                                             </span>
                                         </a>
-                                        <div class="flex items-center gap-3">
-                                            <span class="hidden font-mono text-[10px] uppercase tracking-widest text-slate-600 md:block">
+                                        <div class="header-actions">
+                                            <span class="header-hint">
                                                 "Your practice library"
                                             </span>
                                             <button
@@ -479,7 +479,7 @@ pub fn App() -> impl IntoView {
                                                     fallback=|| view! { <span>Get data from server</span> }
                                                 >
                                                     // Compact label on phones, full timestamp on larger screens.
-                                                    <span class="flex items-center gap-1.5 sm:hidden">
+                                                    <span class="sync-label-compact">
                                                         {move || {
                                                             if refreshing.get() {
                                                                 "Refreshing…".to_string()
@@ -489,7 +489,7 @@ pub fn App() -> impl IntoView {
                                                         }}
 
                                                     </span>
-                                                    <span class="hidden items-center gap-1.5 sm:flex">
+                                                    <span class="sync-label-full">
                                                         {move || {
                                                             if refreshing.get() {
                                                                 "Refreshing…".to_string()
@@ -519,36 +519,36 @@ pub fn App() -> impl IntoView {
                                                 class=BUTTON_PRIMARY_CLASS
                                                 on:click=move |_event| set_input_popup.set(true)
                                             >
-                                                <span class="text-lg leading-none">"+"</span>
-                                                <span class="hidden sm:inline">"New article"</span>
+                                                <span class="btn-icon">"+"</span>
+                                                <span class="btn-label">"New article"</span>
                                             </button>
                                         </div>
                                     </div>
                                 </header>
 
-                                <div class="mx-auto flex w-full max-w-6xl flex-col px-4 pb-16 sm:px-5 lg:px-6">
-                                    <section class="grid gap-8 border-b border-white/[0.06] py-8 md:grid-cols-[1fr_auto] md:items-end lg:py-10">
-                                        <div class="max-w-3xl animate-slide-up">
+                                <div class="dash-container">
+                                    <section class="hero">
+                                        <div class="hero-text">
                                             <span class="eyebrow">"Practice dashboard"</span>
-                                            <h1 class="mt-5 text-balance text-4xl font-bold tracking-[-0.045em] text-white sm:text-5xl lg:text-[3.5rem] lg:leading-[1.05]">
+                                            <h1 class="hero-title">
                                                 "Read deeply. Type precisely. "
-                                                <span class="text-slate-500">"Learn naturally."</span>
+                                                <span class="hero-title-accent">"Learn naturally."</span>
                                             </h1>
-                                            <p class="mt-5 max-w-2xl text-base leading-relaxed text-slate-400 sm:text-lg">
+                                            <p class="hero-sub">
                                                 "Turn the articles you care about into focused bilingual typing sessions, with audio and live performance feedback."
                                             </p>
                                         </div>
-                                        <div class="glass-panel grid min-w-0 grid-cols-3 divide-x divide-white/[0.07] rounded-md px-2 py-4 animate-float-in sm:min-w-[320px]">
-                                            <div class="px-4">
-                                                <div class="text-xl font-bold text-white">
+                                        <div class="stats glass-panel">
+                                            <div class="stat">
+                                                <div class="stat-num">
                                                     {move || translation_post.get().articles.len()}
                                                 </div>
-                                                <div class="mt-1 font-mono text-[9px] uppercase tracking-widest text-slate-500">
+                                                <div class="stat-label">
                                                     "Articles"
                                                 </div>
                                             </div>
-                                            <div class="px-4">
-                                                <div class="text-xl font-bold text-white">
+                                            <div class="stat">
+                                                <div class="stat-num">
                                                     {move || {
                                                         translation_post
                                                             .get()
@@ -559,12 +559,12 @@ pub fn App() -> impl IntoView {
                                                     }}
 
                                                 </div>
-                                                <div class="mt-1 font-mono text-[9px] uppercase tracking-widest text-slate-500">
+                                                <div class="stat-label">
                                                     "Paragraphs"
                                                 </div>
                                             </div>
-                                            <div class="px-4">
-                                                <div class="text-xl font-bold text-slate-200">
+                                            <div class="stat">
+                                                <div class="stat-num stat-num--muted">
                                                     {move || {
                                                         translation_post
                                                             .get()
@@ -581,30 +581,30 @@ pub fn App() -> impl IntoView {
                                                     }}
 
                                                 </div>
-                                                <div class="mt-1 font-mono text-[9px] uppercase tracking-widest text-slate-500">
+                                                <div class="stat-label">
                                                     "Paired"
                                                 </div>
                                             </div>
                                         </div>
                                     </section>
 
-                                    <section class="pt-9">
-                                        <div class="mb-6 flex items-end justify-between gap-6">
+                                    <section class="collection-section">
+                                        <div class="collection-head">
                                             <div>
                                                 <span class="eyebrow">"Your collection"</span>
-                                                <h2 class="mt-2 text-xl font-bold tracking-tight text-white">
+                                                <h2 class="collection-title">
                                                     "Continue practicing"
                                                 </h2>
                                             </div>
-                                            <p class="hidden max-w-xs text-right text-sm leading-relaxed text-slate-500 sm:block">
+                                            <p class="collection-hint">
                                                 "Choose an article and pick up where you left off."
                                             </p>
                                         </div>
                                         <Suspense fallback=move || {
                                             view! {
-                                                <div class="glass-panel flex items-center justify-center gap-3 rounded-lg py-20 text-slate-500">
-                                                    <div class="h-5 w-5 animate-spin rounded-full border-2 border-slate-700 border-t-slate-300"></div>
-                                                    <span class="font-mono text-xs uppercase tracking-widest">
+                                                <div class="loading-panel glass-panel">
+                                                    <div class="spinner"></div>
+                                                    <span class="loading-label">
                                                         "Loading library"
                                                     </span>
                                                 </div>
@@ -659,8 +659,8 @@ pub fn App() -> impl IntoView {
                             view! {
                                 <Suspense fallback=move || {
                                     view! {
-                                        <div class="flex items-center justify-center gap-3 py-20 text-zinc-500">
-                                            <div class="h-5 w-5 animate-spin rounded-full border-2 border-zinc-700 border-t-indigo-400"></div>
+                                        <div class="loading-inline">
+                                            <div class="spinner-zinc"></div>
                                             "Loading…"
                                         </div>
                                     }

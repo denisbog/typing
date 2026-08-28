@@ -16,18 +16,18 @@ pub fn PropertiesPage() -> impl IntoView {
 
     view! {
         <Title text="Properties — Tippen"/>
-        <div class="mx-auto w-full max-w-2xl px-5 py-10 lg:px-6">
+        <div class="props-wrap">
             <a href="/" class=BUTTON_CLASS>
                 "← Library"
             </a>
 
-            <div class="glass-panel relative mt-6 overflow-hidden rounded-lg p-5 animate-slide-up">
+            <div class="props-panel glass-panel">
                 <div class="relative">
                     <span class="eyebrow">"Properties"</span>
-                    <h1 class="mt-3 text-2xl font-bold tracking-tight text-white">
+                    <h1 class="props-title">
                         "Sound preferences"
                     </h1>
-                    <p class="mt-2 text-sm leading-relaxed text-slate-400">
+                    <p class="props-sub">
                         "Choose the voice used when reading articles aloud. If the preferred
                         voice is not available for an article, it falls back to "default ".
                         If the article has no audio, the voice selector is disabled."
@@ -35,13 +35,13 @@ pub fn PropertiesPage() -> impl IntoView {
 
                     <label
                         for="preferred-voice"
-                        class="mt-7 block font-mono text-[10px] uppercase tracking-widest text-slate-500"
+                        class="props-label"
                     >
                         "Preferred voice"
                     </label>
                     <select
                         id="preferred-voice"
-                        class="mt-2 w-full rounded-md border border-white/[0.08] bg-slate-950/80 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-slate-400/60 disabled:cursor-not-allowed disabled:opacity-50"
+                        class="props-select"
                         prop:value=move || {
                             if voice.get().is_empty() { "default".to_string() } else { voice.get() }
                         }
@@ -64,15 +64,15 @@ pub fn PropertiesPage() -> impl IntoView {
                             })
                             .collect_view()}
                     </select>
-                    <p class="mt-1 text-xs text-slate-600">
+                    <p class="props-hint">
                         "Available: default, " {KNOWN_VOICES.join(", ")}
                     </p>
 
-                    <div class="mt-7 flex items-start gap-3">
+                    <div class="props-toggle-row">
                         <input
                             id="current-paragraph-only"
                             type="checkbox"
-                            class="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-white/20 bg-slate-950 accent-slate-300"
+                            class="props-checkbox"
                             prop:checked=move || current_paragraph_only.get()
                             on:change=move |event| {
                                 let checked = event_target_checked(&event);
@@ -82,11 +82,11 @@ pub fn PropertiesPage() -> impl IntoView {
                             }
                         />
 
-                        <label for="current-paragraph-only" class="cursor-pointer select-none">
-                            <span class="block text-sm font-medium text-slate-200">
+                        <label for="current-paragraph-only" class="props-toggle-label">
+                            <span class="props-toggle-name">
                                 "Play only current paragraph"
                             </span>
-                            <span class="mt-0.5 block text-xs leading-relaxed text-slate-500">
+                            <span class="props-toggle-desc">
                                 "When enabled, audio playback stops at the end of the paragraph
                                 you started it in instead of continuing through the article."
                             </span>
@@ -94,7 +94,7 @@ pub fn PropertiesPage() -> impl IntoView {
                     </div>
 
                     <Show when=move || saved.get() fallback=|| ()>
-                        <p class="mt-3 text-sm text-slate-300">"Saved ✓"</p>
+                        <p class="props-saved">"Saved ✓"</p>
                     </Show>
                 </div>
             </div>

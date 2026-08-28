@@ -402,35 +402,35 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                     .unwrap_or_else(|| (title.to_string(), None));
 
                 view! {
-                    <article class="article-card group flex flex-col rounded-lg p-4 transition-colors duration-150 hover:border-white/15 animate-fade-in sm:p-5">
+                    <article class="article-list-card article-card group">
                         <a
-                            class="flex flex-1 flex-col outline-none"
+                            class="article-link"
                             href=format!("/article/{}", index)
                             on:click=move |_| window().scroll_to_with_x_and_y(0.0, 0.0)
                         >
-                            <div class="flex items-start justify-between gap-4">
-                                <div class="flex items-center gap-3">
-                                    <span class="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">
+                            <div class="article-link-head">
+                                <div class="article-link-badges">
+                                    <span class="article-index">
                                         {format!("Article {:02}", index + 1)}
                                     </span>
-                                    <span class="h-1 w-1 rounded-full bg-slate-700"></span>
-                                    <span class="font-mono text-[10px] uppercase tracking-wider text-slate-500">
+                                    <span class="dot-sep"></span>
+                                    <span class="article-meta">
                                         {format!("{} paragraphs", paragraph_count)}
                                     </span>
                                 </div>
-                                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/[0.07] bg-white/[0.04] text-slate-500 transition-all group-hover:border-white/15 group-hover:bg-white/10 group-hover:text-slate-200">
+                                <span class="article-arrow">
                                     "↗"
                                 </span>
                             </div>
 
-                            <div class="my-7">
-                                <h3 class="text-balance text-xl font-bold leading-snug tracking-[-0.02em] text-slate-100 transition-colors group-hover:text-white">
+                            <div class="article-card-body">
+                                <h3 class="article-title">
                                     {headline}
                                 </h3>
                                 {summary
                                     .map(|summary| {
                                         view! {
-                                            <p class="mt-3 line-clamp-2 text-sm leading-relaxed text-slate-500">
+                                            <p class="article-summary">
                                                 {summary}
                                             </p>
                                         }
@@ -438,28 +438,28 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
 
                             </div>
 
-                            <div class="mt-auto">
-                                <div class="mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-widest text-slate-600">
+                            <div class="article-card-foot">
+                                <div class="article-coverage-label">
                                     <span>"Translation coverage"</span>
-                                    <span class="text-slate-400">{format!("{}%", progress)}</span>
+                                    <span class="article-coverage-value">{format!("{}%", progress)}</span>
                                 </div>
-                                <div class="h-1 overflow-hidden rounded-full bg-white/[0.05]">
+                                <div class="article-coverage-track">
                                     <div
-                                        class="h-full rounded-sm bg-slate-400"
+                                        class="article-coverage-bar"
                                         style=format!("width: {}%", progress)
                                     ></div>
                                 </div>
                             </div>
                         </a>
 
-                        <div class="mt-5 flex items-center justify-between gap-3 border-t border-white/[0.06] pt-4">
-                            <div class="flex items-center gap-2 text-xs text-slate-500">
-                                <span class="flex h-7 min-w-7 items-center justify-center rounded-lg bg-white/[0.06] px-2 font-mono font-bold text-slate-300">
+                        <div class="article-actions">
+                            <div class="article-pairs">
+                                <span class="article-pairs-count">
                                     {pair_count}
                                 </span>
                                 <span>"saved pairs"</span>
                             </div>
-                            <div class="flex items-center gap-2">
+                            <div class="article-action-buttons">
                                 <button
                                     class=BUTTON_CLASS
                                     title="Save this article’s word pairs"
@@ -513,12 +513,12 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
             when=move || !data.get().articles.is_empty()
             fallback=move || {
                 view! {
-                    <div class="glass-panel flex min-h-72 flex-col items-center justify-center rounded-lg px-6 text-center">
-                        <span class="flex h-14 w-14 items-center justify-center rounded-md border border-white/10 bg-white/[0.06] text-2xl text-slate-200">
+                    <div class="library-empty glass-panel">
+                        <span class="library-empty-icon">
                             "＋"
                         </span>
-                        <h3 class="mt-5 text-xl font-bold text-white">"Your library is ready"</h3>
-                        <p class="mt-2 max-w-sm text-sm leading-relaxed text-slate-500">
+                        <h3 class="library-empty-title">"Your library is ready"</h3>
+                        <p class="library-empty-sub">
                             "Add your first article to create a focused typing and translation practice session."
                         </p>
                     </div>
@@ -526,7 +526,7 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
             }
         >
 
-            <div class="grid w-full gap-5 lg:grid-cols-2">{views}</div>
+            <div class="library-grid">{views}</div>
         </Show>
     }
 }
@@ -677,7 +677,7 @@ pub fn ArticlePage(
                 .map(|(index, _item)| {
                     view! {
                         <a
-                            class="flex h-7 min-w-7 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.04] font-mono text-[10px] text-slate-500 transition-colors hover:border-white/15 hover:bg-white/10 hover:text-slate-200"
+                            class="jump-link"
                             href=format!("#{}", index + 1)
                         >
                             {index + 1}
@@ -861,7 +861,7 @@ pub fn ArticlePage(
             let voice_dropdown = if has_audio_directory {
                 view! {
                     <select
-                        class="rounded-md border border-white/[0.08] bg-slate-950/80 px-3 py-2 text-xs text-slate-300 outline-none transition-colors focus:border-white/25 focus:ring-2 focus:ring-white/10"
+                        class="voice-select"
                         prop:value=move || {
                             playback.selected_voice.get().unwrap_or_else(|| "default".to_string())
                         }
@@ -966,9 +966,9 @@ pub fn ArticlePage(
             let voice_dropdown = view! { <div class="hidden"></div> }.into_any();
             #[cfg(feature = "hydrate")]
             let current_paragraph_toggle = view! {
-                <label class="flex cursor-pointer items-center gap-2 text-xs text-slate-400 transition-colors hover:text-slate-200">
+                <label class="current-paragraph-toggle">
                     <input
-                        class="h-4 w-4 accent-slate-300"
+                        class="current-paragraph-checkbox"
                         type="checkbox"
                         prop:checked=move || playback.current_paragraph_only.get()
                         on:change=move |event| {
@@ -984,29 +984,29 @@ pub fn ArticlePage(
             let current_paragraph_toggle = view! { <div class="hidden"></div> }.into_any();
 
             Either::Left(view! {
-                <header class="w-full border-b border-white/[0.06] bg-[#070a10] animate-fade-in">
-                    <div class="mx-auto grid h-14 w-full max-w-6xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 sm:px-6">
+                <header class="page-header">
+                    <div class="page-header-inner">
                         <a
                             href="/"
-                            class="group inline-flex items-center gap-2 text-sm font-semibold text-slate-400 transition-colors hover:text-white"
+                            class="back-link group"
                             on:click=move |_| on_back(pairs)
                         >
-                            <span class="flex h-9 w-9 items-center justify-center rounded-md border border-white/[0.08] bg-white/[0.04] transition group-hover:border-white/15 group-hover:bg-white/10 group-hover:text-slate-200">
+                            <span class="back-icon">
                                 "←"
                             </span>
-                            <span class="hidden sm:block">"Library"</span>
+                            <span class="back-link-label">"Library"</span>
                         </a>
-                        <div class="min-w-0 text-center">
-                            <div class="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                        <div class="page-title-wrap">
+                            <div class="page-title-eyebrow">
                                 "Now practicing"
                             </div>
-                            <div class="mt-1 truncate text-sm font-semibold text-slate-300 sm:text-base">
+                            <div class="page-title">
                                 {article.title.clone()}
                             </div>
                         </div>
-                        <div class="rounded-md border border-white/[0.07] bg-white/[0.04] px-3 py-2 text-right">
-                            <div class="font-mono text-xs font-bold text-slate-400">{total}</div>
-                            <div class="font-mono text-[7px] uppercase tracking-widest text-slate-600">
+                        <div class="page-count">
+                            <div class="page-count-num">{total}</div>
+                            <div class="page-count-label">
                                 "Paragraphs"
                             </div>
                         </div>
@@ -1019,27 +1019,21 @@ pub fn ArticlePage(
                     completed_typing_speeds
                     mistyped_characters
                 />
-                <div class=move || {
-                    if is_mobile.get() {
-                        "hidden"
-                    } else {
-                        "fixed bottom-4 left-1/2 z-40 flex w-[calc(100%-2rem)] max-w-6xl -translate-x-1/2 items-center gap-3 rounded-md border border-white/10 bg-slate-950/85 p-2.5 text-sm text-slate-300 shadow-lg shadow-black/30 backdrop-blur-md animate-slide-up"
-                    }
-                }>
-                    <div class="hidden shrink-0 items-center gap-3 border-r border-white/[0.07] pr-3 sm:flex">
+                <div class="jump-bar">
+                    <div class="jump-bar-options">
                         {voice_dropdown} {current_paragraph_toggle}
                     </div>
-                    <span class="shrink-0 pl-1 font-mono text-[9px] font-bold uppercase tracking-widest text-slate-600">
+                    <span class="jump-label">
                         "Jump to"
                     </span>
-                    <nav class="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
+                    <nav class="jump-nav">
                         {link}
                     </nav>
                 </div>
                 <div
                     class=move || {
                         if typing_speed_paragraph.get().is_some() {
-                            "absolute z-20 animate-blink"
+                            "caret"
                         } else {
                             "hidden"
                         }
@@ -1047,7 +1041,7 @@ pub fn ArticlePage(
 
                     style=caret_position
                 >
-                    <span class="font-mono text-xl font-extrabold text-slate-300 lg:text-2xl">
+                    <span class="caret-char">
                         _
                     </span>
                 </div>
@@ -1056,5 +1050,5 @@ pub fn ArticlePage(
             Either::Right(())
         }
     };
-    view! { <div class="flex w-full flex-col">{views}</div> }
+    view! { <div class="article-page">{views}</div> }
 }
