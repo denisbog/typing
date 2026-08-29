@@ -21,6 +21,7 @@ pub mod translation_page;
 pub mod local_store;
 pub mod properties_page;
 pub mod matching_page;
+pub mod rebuild_page;
 
 pub const BUTTON_CLASS: &str = "btn";
 

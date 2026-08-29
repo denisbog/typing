@@ -539,6 +539,14 @@ pub fn App() -> impl IntoView {
                                                 </Show>
                                             </button>
                                             <a
+                                                href="/rebuild"
+                                                class=BUTTON_CLASS
+                                                title="Restore original text from saved pairs"
+                                            >
+                                                <span class="btn-icon">"↶"</span>
+                                                <span class="btn-label">"Rebuild text"</span>
+                                            </a>
+                                            <a
                                                 href="/match"
                                                 class=BUTTON_CLASS
                                                 title="Match saved pairs"
@@ -730,6 +738,35 @@ pub fn App() -> impl IntoView {
                         view=move || {
                             view! {
                                 <crate::properties_page::PropertiesPage></crate::properties_page::PropertiesPage>
+                            }
+                        }
+                    />
+
+                    <Route
+                        path=path!("/rebuild")
+                        view=move || {
+                            view! {
+                                <Suspense fallback=move || {
+                                    view! {
+                                        <div class="loading-inline">
+                                            <div class="spinner-zinc"></div>
+                                            "Loading…"
+                                        </div>
+                                    }
+                                }>
+                                    {move || {
+                                        if data_ready.get() {
+                                            Some(
+                                                view! {
+                                                    <crate::rebuild_page::RebuildPage data=translation_post/>
+                                                },
+                                            )
+                                        } else {
+                                            None
+                                        }
+                                    }}
+
+                                </Suspense>
                             }
                         }
                     />
