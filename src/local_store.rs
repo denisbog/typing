@@ -8,6 +8,7 @@ const SYNC_KEY: &str = "typing.data.sync_ts";
 const VOICE_KEY: &str = "typing.preferred_voice";
 const VOICES_KEY: &str = "typing.known_voices";
 const CURRENT_PARAGRAPH_ONLY_KEY: &str = "typing.current_paragraph_only";
+const GROUP_MATCHING_BY_PARAGRAPH_KEY: &str = "typing.group_matching_by_paragraph";
 
 #[cfg(feature = "hydrate")]
 fn set_storage(key: &str, value: &str) {
@@ -139,6 +140,29 @@ pub fn current_paragraph_only() -> bool {
     #[cfg(feature = "hydrate")]
     {
         return get_storage(CURRENT_PARAGRAPH_ONLY_KEY).is_some_and(|v| v == "1");
+    }
+    #[cfg(not(feature = "hydrate"))]
+    {
+        false
+    }
+}
+
+/// Whether the Matching page should group saved pairs per paragraph (instead
+/// of per article), so each exercise is smaller and easier to complete.
+pub fn save_group_matching_by_paragraph(value: bool) {
+    #[cfg(feature = "hydrate")]
+    set_storage(
+        GROUP_MATCHING_BY_PARAGRAPH_KEY,
+        if value { "1" } else { "0" },
+    );
+    #[cfg(not(feature = "hydrate"))]
+    let _ = value;
+}
+
+pub fn group_matching_by_paragraph() -> bool {
+    #[cfg(feature = "hydrate")]
+    {
+        return get_storage(GROUP_MATCHING_BY_PARAGRAPH_KEY).is_some_and(|v| v == "1");
     }
     #[cfg(not(feature = "hydrate"))]
     {

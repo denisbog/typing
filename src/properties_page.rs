@@ -12,6 +12,8 @@ pub fn PropertiesPage() -> impl IntoView {
     let (voice, set_voice) = signal(local_store::preferred_voice().unwrap_or_default());
     let (current_paragraph_only, set_current_paragraph_only) =
         signal(local_store::current_paragraph_only());
+    let (group_matching_by_paragraph, set_group_matching_by_paragraph) =
+        signal(local_store::group_matching_by_paragraph());
     let (saved, set_saved) = signal(false);
 
     view! {
@@ -89,6 +91,32 @@ pub fn PropertiesPage() -> impl IntoView {
                             <span class="props-toggle-desc">
                                 "When enabled, audio playback stops at the end of the paragraph
                                 you started it in instead of continuing through the article."
+                            </span>
+                        </label>
+                    </div>
+
+                    <div class="props-toggle-row">
+                        <input
+                            id="group-matching-by-paragraph"
+                            type="checkbox"
+                            class="props-checkbox"
+                            prop:checked=move || group_matching_by_paragraph.get()
+                            on:change=move |event| {
+                                let checked = event_target_checked(&event);
+                                set_group_matching_by_paragraph.set(checked);
+                                local_store::save_group_matching_by_paragraph(checked);
+                                set_saved.set(true);
+                            }
+                        />
+
+                        <label for="group-matching-by-paragraph" class="props-toggle-label">
+                            <span class="props-toggle-name">
+                                "Group matching pairs by paragraph"
+                            </span>
+                            <span class="props-toggle-desc">
+                                "On the Match the pairs page, group saved words per paragraph
+                                instead of per article, so each exercise stays small and
+                                easier to complete."
                             </span>
                         </label>
                     </div>

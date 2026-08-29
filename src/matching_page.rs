@@ -5,6 +5,7 @@ use leptos::prelude::*;
 use leptos_meta::Title;
 
 use crate::application_types::Data;
+use crate::local_store;
 use crate::BUTTON_CLASS;
 use crate::BUTTON_PRIMARY_CLASS;
 
@@ -28,72 +29,104 @@ fn shuffled(seed: u32, len: usize) -> Vec<usize> {
     idx
 }
 
-/// Extract every saved pair across all articles, grouped per article.
+/// Extract the saved pairs from a single paragraph.
+fn extract_paragraph_items(paragraph: &crate::application_types::Paragraph) -> Vec<MatchItem> {
+    let mut items: Vec<MatchItem> = Vec::new();
+    let original_words: Vec<&str> = paragraph.original.split(' ').collect();
+    let translation_words: Vec<&str> = paragraph
+        .translation
+        .as_deref()
+        .unwrap_or("")
+        .split(' ')
+        .collect();
+    if let Some(pairs) = &paragraph.pairs {
+        for pair in pairs {
+            let original: Vec<String> = pair
+                .original
+                .iter()
+                .filter_map(|i| original_words.get(*i))
+                .map(|w| w.to_string())
+                .collect();
+            let translation: Vec<String> = pair
+                .translation
+                .iter()
+                .filter_map(|i| translation_words.get(*i))
+                .map(|w| w.to_string())
+                .collect();
+            let original = original.join(" ");
+            let translation = translation.join(" ");
+            if original.is_empty() && translation.is_empty() {
+                continue;
+            }
+            items.push(MatchItem {
+                original,
+                translation,
+            });
+        }
+    }
+    items
+}
+
+/// A single exercise: one article (or, when grouping by paragraph, one
+/// paragraph of an article) with its saved pairs.
+struct MatchGroup {
+    article_title: String,
+    eyebrow: String,
+    items: Vec<MatchItem>,
+}
+
+/// Extract every saved pair, grouped per article or per paragraph.
 ///
-/// Returns `(article_index, title, items)` for each article that has at
-/// least one pair.
-fn collect_groups(data: &Data) -> Vec<(usize, String, Vec<MatchItem>)> {
-    data.articles
-        .iter()
-        .enumerate()
-        .filter_map(|(ai, article)| {
-            let mut items: Vec<MatchItem> = Vec::new();
-            for paragraph in &article.paragraphs {
-                let original_words: Vec<&str> = paragraph.original.split(' ').collect();
-                let translation_words: Vec<&str> = paragraph
-                    .translation
-                    .as_deref()
-                    .unwrap_or("")
-                    .split(' ')
-                    .collect();
-                if let Some(pairs) = &paragraph.pairs {
-                    for pair in pairs {
-                        let original: Vec<String> = pair
-                            .original
-                            .iter()
-                            .filter_map(|i| original_words.get(*i))
-                            .map(|w| w.to_string())
-                            .collect();
-                        let translation: Vec<String> = pair
-                            .translation
-                            .iter()
-                            .filter_map(|i| translation_words.get(*i))
-                            .map(|w| w.to_string())
-                            .collect();
-                        let original = original.join(" ");
-                        let translation = translation.join(" ");
-                        if original.is_empty() && translation.is_empty() {
-                            continue;
-                        }
-                        items.push(MatchItem {
-                            original,
-                            translation,
-                        });
-                    }
+/// When `group_by_paragraph` is false, each article becomes one group. When
+/// true, each paragraph that has at least one pair becomes its own group so
+/// the exercise stays small.
+fn collect_groups(data: &Data, group_by_paragraph: bool) -> Vec<MatchGroup> {
+    let mut out: Vec<MatchGroup> = Vec::new();
+    for (ai, article) in data.articles.iter().enumerate() {
+        let mut article_items: Vec<MatchItem> = Vec::new();
+        for (pi, paragraph) in article.paragraphs.iter().enumerate() {
+            let items = extract_paragraph_items(paragraph);
+            if group_by_paragraph {
+                if !items.is_empty() {
+                    out.push(MatchGroup {
+                        article_title: article.title.clone(),
+                        eyebrow: format!(
+                            "Article {:02} · Paragraph {:02}",
+                            ai + 1,
+                            pi + 1,
+                        ),
+                        items,
+                    });
                 }
-            }
-            if items.is_empty() {
-                None
             } else {
-                Some((ai, article.title.clone(), items))
+                article_items.extend(items);
             }
-        })
-        .collect()
+        }
+        if !group_by_paragraph && !article_items.is_empty() {
+            out.push(MatchGroup {
+                article_title: article.title.clone(),
+                eyebrow: format!("Article {:02}", ai + 1),
+                items: article_items,
+            });
+        }
+    }
+    out
 }
 
 #[component]
 fn ArticleMatchSection(
-    article_index: usize,
+    group_index: usize,
+    eyebrow: String,
     title: String,
     items: Vec<MatchItem>,
     run_id: ReadSignal<u32>,
 ) -> impl IntoView {
     let n = items.len();
     let (left_order, set_left_order) = signal(
-        shuffled(run_id.get().wrapping_add(101 + article_index as u32 * 7), n),
+        shuffled(run_id.get().wrapping_add(101 + group_index as u32 * 7), n),
     );
     let (right_order, set_right_order) = signal(
-        shuffled(run_id.get().wrapping_add(599 + article_index as u32 * 11), n),
+        shuffled(run_id.get().wrapping_add(599 + group_index as u32 * 11), n),
     );
     let (matched, set_matched) = signal(BTreeSet::<usize>::new());
     let (sel_left, set_sel_left) = signal(None::<usize>);
@@ -101,11 +134,11 @@ fn ArticleMatchSection(
     let (wrong, set_wrong) = signal(None::<(usize, usize)>);
 
     // Every time the run id changes (global "Reset" button) we re-shuffle
-    // and clear all matching state for this article's section.
+    // and clear all matching state for this section.
     Effect::new(move |_| {
         let run = run_id.get();
-        set_left_order.set(shuffled(run.wrapping_add(101 + article_index as u32 * 7), n));
-        set_right_order.set(shuffled(run.wrapping_add(599 + article_index as u32 * 11), n));
+        set_left_order.set(shuffled(run.wrapping_add(101 + group_index as u32 * 7), n));
+        set_right_order.set(shuffled(run.wrapping_add(599 + group_index as u32 * 11), n));
         set_matched.set(BTreeSet::new());
         set_sel_left.set(None);
         set_sel_right.set(None);
@@ -261,7 +294,7 @@ fn ArticleMatchSection(
         <section class="match-section">
             <div class="match-section-head">
                 <div class="match-section-heading">
-                    <span class="eyebrow">{format!("Article {:02}", article_index + 1)}</span>
+                    <span class="eyebrow">{eyebrow.clone()}</span>
                     <h2 class="match-section-title">{title.clone()}</h2>
                 </div>
                 <div class="match-section-progress">
@@ -301,24 +334,49 @@ fn ArticleMatchSection(
 pub fn MatchingPage(data: ReadSignal<Data>) -> impl IntoView {
     let (run_id, set_run_id) = signal(0u32);
     let (flash_reset, set_flash_reset) = signal(false);
+    // Grouping preference comes from the Properties page (localStorage). On
+    // the server it is always false, so SSR always renders the article view;
+    // the client hydrate step picks up the real preference reactively.
+    #[cfg(feature = "hydrate")]
+    let (group_by_paragraph, _set_group_by_paragraph) =
+        signal(local_store::group_matching_by_paragraph());
+    #[cfg(not(feature = "hydrate"))]
+    let (group_by_paragraph, _set_group_by_paragraph) = signal(false);
 
-    let groups = move || collect_groups(&data.get());
+    let groups = move || collect_groups(&data.get(), group_by_paragraph.get());
 
     let total_pairs = move || {
         groups()
             .iter()
-            .map(|(_, _, items)| items.len())
+            .map(|g| g.items.len())
             .sum::<usize>()
     };
     let total_articles = move || groups().len();
     let has_any = move || total_articles() > 0;
+    let section_label = move || {
+        if group_by_paragraph.get() {
+            "Paragraphs"
+        } else {
+            "Articles"
+        }
+    };
 
     let sections = move || {
         groups()
             .into_iter()
-            .map(move |(ai, title, items)| {
+            .enumerate()
+            .map(move |(gi, group)| {
+                let eyebrow = group.eyebrow.clone();
+                let title = group.article_title.clone();
+                let items = group.items.clone();
                 view! {
-                    <ArticleMatchSection article_index=ai title items run_id/>
+                    <ArticleMatchSection
+                        group_index=gi
+                        eyebrow
+                        title
+                        items
+                        run_id
+                    />
                 }
             })
             .collect_view()
@@ -369,13 +427,14 @@ pub fn MatchingPage(data: ReadSignal<Data>) -> impl IntoView {
                     <p class="match-sub">
                         "Pick a card on the left and the matching card on the right. Correct
                         pairs lock in green; wrong guesses shake red. Pairs are grouped by
-                        article — press Reset to shuffle everything and start over."
+                        article (or by paragraph, if you switched it on in Properties) — press
+                        Reset to shuffle everything and start over."
                     </p>
                 </div>
                 <div class="match-stats glass-panel">
                     <div class="stat">
                         <div class="stat-num">{move || total_articles()}</div>
-                        <div class="stat-label">"Articles"</div>
+                        <div class="stat-label">{section_label}</div>
                     </div>
                     <div class="stat">
                         <div class="stat-num">{move || total_pairs()}</div>
