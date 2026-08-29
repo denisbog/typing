@@ -44,6 +44,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                     content="A focused workspace for typing practice and language fluency."
                 />
                 <link rel="manifest" href="/manifest.webmanifest"/>
+                <link rel="icon" type="image/x-icon" href="/favicon.ico"/>
                 <link rel="apple-touch-icon" href="/icons/icon-192.png"/>
                 <Meta name="mobile-web-app-capable" content="yes"/>
                 <Meta name="apple-mobile-web-app-capable" content="yes"/>
