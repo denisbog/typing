@@ -419,6 +419,16 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                                     <span class="article-meta">
                                         {format!("{} paragraphs", paragraph_count)}
                                     </span>
+                                    {item
+                                        .audio_directory
+                                        .as_ref()
+                                        .map(|_| {
+                                            view! {
+                                                <span class="article-voice-badge" title="This article has audio">
+                                                    "🔊 Voice"
+                                                </span>
+                                            }
+                                        })}
                                 </div>
                                 <span class="article-arrow">
                                     "↗"
