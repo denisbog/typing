@@ -471,6 +471,14 @@
   @apply flex items-center gap-2;
 }
 
+.btn-fav {
+  @apply flex items-center justify-center gap-1 text-amber-300/70 transition-colors duration-150 hover:border-amber-300/40 hover:text-amber-300;
+}
+
+.btn-fav.is-fav {
+  @apply border-amber-300/40 bg-amber-400/15 text-amber-300;
+}
+
 .article-pairs {
   @apply flex items-center gap-2 text-xs text-slate-500;
 }

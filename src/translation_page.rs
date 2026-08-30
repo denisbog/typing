@@ -371,31 +371,60 @@ async fn start_paragraph_audio(
 pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl IntoView {
     let (search, set_search) = signal(crate::local_store::saved_search());
     let search_query = move || search.get().trim().to_lowercase();
+    let (favorites, set_favorites) = signal(crate::local_store::favorites());
+
+    // Keys used to identify a single article for favorites. created_at doubles
+    // as the unique primary key per user in the backend.
+    fn favorite_key(article: &crate::application_types::Article) -> String {
+        article.created_at.to_string()
+    }
+
+    let toggle_favorite = move |key: String| {
+        let mut favs = favorites.get_untracked();
+        if favs.contains(&key) {
+            favs.remove(&key);
+        } else {
+            favs.insert(key);
+        }
+        set_favorites.set(favs);
+        crate::local_store::save_favorites(&favorites.get_untracked());
+    };
 
     let views = move || {
         let query = search_query();
-        data.get()
+        // Keep the original article index (used for routes / save / delete)
+        // but only render cards that match the search query.
+        let mut indexed: Vec<(usize, crate::application_types::Article)> = data
+            .get()
             .articles
             .clone()
             .into_iter()
             .enumerate()
-            // Keep the original article index (used for routes / save / delete)
-            // but only render cards that match the search query.
-            .filter(move |(_, item)| {
-                if query.is_empty() {
-                    return true;
-                }
-                if item.title.to_lowercase().contains(&query) {
-                    return true;
-                }
-                item.paragraphs.iter().any(|paragraph| {
-                    paragraph.original.to_lowercase().contains(&query)
-                        || paragraph
-                            .translation
-                            .as_ref()
-                            .is_some_and(|t| t.to_lowercase().contains(&query))
-                })
+            .collect();
+        indexed.retain(|(_, item)| {
+            if query.is_empty() {
+                return true;
+            }
+            if item.title.to_lowercase().contains(&query) {
+                return true;
+            }
+            item.paragraphs.iter().any(|paragraph| {
+                paragraph.original.to_lowercase().contains(&query)
+                    || paragraph
+                        .translation
+                        .as_ref()
+                        .is_some_and(|t| t.to_lowercase().contains(&query))
             })
+        });
+        // Favorited articles first, keeping stable original order within each
+        // group so the routes/actions don't reorder unexpectedly.
+        let favs = favorites.get();
+        indexed.sort_by_key(|(idx, item)| {
+            let is_fav = favs.contains(&favorite_key(item));
+            (if is_fav { 0u8 } else { 1u8 }, *idx)
+        });
+        indexed
+            .into_iter()
             .map(move |(index, item)| {
                 let (saving, set_saving) = signal(false);
                 let (deleting, set_deleting) = signal(false);
@@ -416,6 +445,10 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                 } else {
                     translated_count * 100 / paragraph_count
                 };
+                let fav_key = favorite_key(&item);
+                let class_fav_key = fav_key.clone();
+                let title_fav_key = fav_key.clone();
+                let click_fav_key = fav_key.clone();
                 let title = item.title.trim();
                 let (headline, summary) = title
                     .split_once("||")
@@ -493,6 +526,37 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                                 <span>"saved pairs"</span>
                             </div>
                             <div class="article-action-buttons">
+                                <button
+                                    class=move || {
+                                        if favorites.get().contains(&class_fav_key) {
+                                            format!("{} btn-fav is-fav", BUTTON_CLASS)
+                                        } else {
+                                            format!("{} btn-fav", BUTTON_CLASS)
+                                        }
+                                    }
+
+                                    title=move || {
+                                        if favorites.get().contains(&title_fav_key) {
+                                            "Remove from favorites"
+                                        } else {
+                                            "Mark as favorite"
+                                        }
+                                    }
+
+                                    on:click=move |_event| {
+                                        toggle_favorite(click_fav_key.clone());
+                                    }
+                                >
+
+                                    {move || {
+                                        if favorites.get().contains(&fav_key) {
+                                            view! { <span>"★"</span> }.into_any()
+                                        } else {
+                                            view! { <span>"☆"</span> }.into_any()
+                                        }
+                                    }}
+
+                                </button>
                                 <button
                                     class=move || {
                                         if saving.get() {

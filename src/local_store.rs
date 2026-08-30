@@ -8,6 +8,7 @@ const SYNC_KEY: &str = "typing.data.sync_ts";
 const VOICE_KEY: &str = "typing.preferred_voice";
 const VOICES_KEY: &str = "typing.known_voices";
 const SEARCH_KEY: &str = "typing.search";
+const FAVORITES_KEY: &str = "typing.favorites";
 const CURRENT_PARAGRAPH_ONLY_KEY: &str = "typing.current_paragraph_only";
 const GROUP_MATCHING_BY_PARAGRAPH_KEY: &str = "typing.group_matching_by_paragraph";
 
@@ -90,6 +91,30 @@ pub fn merge_voices(new: &[String]) {
     }
     #[cfg(not(feature = "hydrate"))]
     let _ = &all;
+}
+
+/// The set of favorited article keys (articles marked by the user). Stored
+/// as JSON so it survives navigation and offline reloads.
+pub fn save_favorites(set: &std::collections::HashSet<String>) {
+    #[cfg(feature = "hydrate")]
+    if let Ok(json) = serde_json::to_string(set) {
+        set_storage(FAVORITES_KEY, &json);
+    }
+    #[cfg(not(feature = "hydrate"))]
+    let _ = set;
+}
+
+pub fn favorites() -> std::collections::HashSet<String> {
+    #[cfg(feature = "hydrate")]
+    {
+        return get_storage(FAVORITES_KEY)
+            .and_then(|raw| serde_json::from_str(&raw).ok())
+            .unwrap_or_default();
+    }
+    #[cfg(not(feature = "hydrate"))]
+    {
+        std::collections::HashSet::new()
+    }
 }
 
 /// The last article-search query, persisted so it survives navigation.
