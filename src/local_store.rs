@@ -7,6 +7,7 @@ const DATA_KEY: &str = "typing.data.cache";
 const SYNC_KEY: &str = "typing.data.sync_ts";
 const VOICE_KEY: &str = "typing.preferred_voice";
 const VOICES_KEY: &str = "typing.known_voices";
+const SEARCH_KEY: &str = "typing.search";
 const CURRENT_PARAGRAPH_ONLY_KEY: &str = "typing.current_paragraph_only";
 const GROUP_MATCHING_BY_PARAGRAPH_KEY: &str = "typing.group_matching_by_paragraph";
 
@@ -89,6 +90,25 @@ pub fn merge_voices(new: &[String]) {
     }
     #[cfg(not(feature = "hydrate"))]
     let _ = &all;
+}
+
+/// The last article-search query, persisted so it survives navigation.
+pub fn save_search(query: &str) {
+    #[cfg(feature = "hydrate")]
+    set_storage(SEARCH_KEY, query);
+    #[cfg(not(feature = "hydrate"))]
+    let _ = query;
+}
+
+pub fn saved_search() -> String {
+    #[cfg(feature = "hydrate")]
+    {
+        return get_storage(SEARCH_KEY).unwrap_or_default();
+    }
+    #[cfg(not(feature = "hydrate"))]
+    {
+        String::new()
+    }
 }
 
 /// Current time in unix milliseconds.

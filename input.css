@@ -387,6 +387,22 @@
   @apply flex flex-col rounded-lg p-4 transition-colors duration-150 hover:border-white/15 animate-fade-in sm:p-5;
 }
 
+.article-search {
+  @apply mb-5 flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 transition-colors focus-within:border-white/20 focus-within:bg-white/[0.06];
+}
+
+.article-search-icon {
+  @apply shrink-0 text-sm text-slate-500;
+}
+
+.article-search-input {
+  @apply w-full bg-transparent text-sm text-slate-200 outline-none placeholder:text-slate-500;
+}
+
+.article-search-clear {
+  @apply flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full text-sm text-slate-400 transition-colors hover:bg-white/10 hover:text-slate-100;
+}
+
 .article-link {
   @apply flex flex-1 flex-col outline-none;
 }
@@ -532,6 +548,18 @@
 
 .jump-bar {
   @apply fixed bottom-4 left-1/2 z-40 flex w-[calc(100%-2rem)] max-w-6xl -translate-x-1/2 items-center gap-3 rounded-md border border-white/10 bg-slate-950/85 p-2.5 text-sm text-slate-300 shadow-lg shadow-black/30 backdrop-blur-md animate-slide-up;
+}
+
+.jump-back {
+  @apply inline-flex shrink-0 items-center gap-2 rounded-md border border-white/[0.06] bg-white/[0.04] px-2.5 py-1.5 text-xs font-semibold text-slate-400 transition-colors hover:border-white/15 hover:bg-white/10 hover:text-white;
+}
+
+.jump-back-icon {
+  @apply flex h-5 w-5 items-center justify-center rounded border border-white/[0.08] bg-white/[0.04] text-slate-400 transition group-hover:text-slate-100;
+}
+
+.jump-back-label {
+  @apply hidden font-mono text-[10px] font-bold uppercase tracking-wider sm:block;
 }
 
 .jump-bar-options {

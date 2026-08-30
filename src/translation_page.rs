@@ -369,12 +369,33 @@ async fn start_paragraph_audio(
 
 #[component]
 pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl IntoView {
+    let (search, set_search) = signal(crate::local_store::saved_search());
+    let search_query = move || search.get().trim().to_lowercase();
+
     let views = move || {
+        let query = search_query();
         data.get()
             .articles
             .clone()
             .into_iter()
             .enumerate()
+            // Keep the original article index (used for routes / save / delete)
+            // but only render cards that match the search query.
+            .filter(move |(_, item)| {
+                if query.is_empty() {
+                    return true;
+                }
+                if item.title.to_lowercase().contains(&query) {
+                    return true;
+                }
+                item.paragraphs.iter().any(|paragraph| {
+                    paragraph.original.to_lowercase().contains(&query)
+                        || paragraph
+                            .translation
+                            .as_ref()
+                            .is_some_and(|t| t.to_lowercase().contains(&query))
+                })
+            })
             .map(move |(index, item)| {
                 let (saving, set_saving) = signal(false);
                 let (deleting, set_deleting) = signal(false);
@@ -580,7 +601,68 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
             }
         >
 
-            <div class="library-grid">{views}</div>
+            <div class="article-search">
+                <span class="article-search-icon">"🔍"</span>
+                <input
+                    type="search"
+                    class="article-search-input"
+                    placeholder="Search articles by title, text or translation…"
+                    prop:value=search
+                    on:input=move |event| {
+                        let value = event_target_value(&event);
+                        set_search.set(value.clone());
+                        crate::local_store::save_search(&value);
+                    }
+                />
+                {move || {
+                    if search_query().is_empty() {
+                        view! {}.into_any()
+                    } else {
+                        view! {
+                            <button
+                                class="article-search-clear"
+                                aria-label="Clear search"
+                                on:click=move |_| {
+                                    set_search.set(String::new());
+                                    crate::local_store::save_search("");
+                                }
+                            >
+                                "×"
+                            </button>
+                        }
+                            .into_any()
+                    }
+                }}
+            </div>
+
+            <Show
+                when=move || {
+                    let query = search_query();
+                    query.is_empty()
+                        || data.get().articles.iter().any(|item| {
+                            item.title.to_lowercase().contains(&query)
+                                || item.paragraphs.iter().any(|paragraph| {
+                                    paragraph.original.to_lowercase().contains(&query)
+                                        || paragraph.translation.as_ref().is_some_and(|t| {
+                                            t.to_lowercase().contains(&query)
+                                        })
+                                })
+                        })
+                }
+                fallback=move || {
+                    view! {
+                        <div class="library-empty glass-panel">
+                            <h3 class="library-empty-title">"No articles match your search"</h3>
+                            <p class="library-empty-sub">
+                                "Try a different keyword, or clear the search to see everything."
+                            </p>
+                        </div>
+                    }
+                }
+            >
+
+                <div class="library-grid">{views}</div>
+            </Show>
         </Show>
     }
 }
@@ -1074,6 +1156,15 @@ pub fn ArticlePage(
                     mistyped_characters
                 />
                 <div class="jump-bar">
+                    <a
+                        class="jump-back group"
+                        href="/"
+                        title="Return to the articles list"
+                        on:click=move |_| on_back(pairs)
+                    >
+                        <span class="jump-back-icon">"←"</span>
+                        <span class="jump-back-label">"Articles"</span>
+                    </a>
                     <div class="jump-bar-options">
                         {voice_dropdown} {current_paragraph_toggle}
                     </div>
