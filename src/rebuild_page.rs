@@ -15,7 +15,7 @@ use leptos::prelude::*;
 use leptos_meta::Title;
 
 use crate::application_types::Data;
-use crate::BUTTON_CLASS;
+use crate::{BUTTON_CLASS, BUTTON_PRIMARY_CLASS};
 
 /// A single inline blank where a whole saved pair has been replaced by its
 /// translation and must be restored with its original phrase.
@@ -467,7 +467,7 @@ pub fn RebuildPage(data: ReadSignal<Data>) -> impl IntoView {
                 </div>
                 <Show when=move || selected.get().is_some() fallback=|| ()>
                     <button
-                        class=BUTTON_CLASS
+                        class=BUTTON_PRIMARY_CLASS
                         title="Go back and choose another article"
                         on:click=move |_| set_selected.set(None)
                     >
