@@ -479,7 +479,7 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                                         .map(|_| {
                                             view! {
                                                 <span class="article-voice-badge" title="This article has audio">
-                                                    "🔊 Voice"
+                                                    "🔊"
                                                 </span>
                                             }
                                         })}

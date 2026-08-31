@@ -382,13 +382,16 @@ pub fn App() -> impl IntoView {
                     let location = use_location();
                     let hash = location.hash.get();
                     if !hash.is_empty() {
+                        // Incoming OAuth redirect carrying a session token.
                         let hash = parse_hash(hash);
                         log!("hash {:?}", hash);
                         spawn_local(async move {
                             let user_info = get_user_info(hash);
                             set_session_id.set(Some(user_info.await.sub));
                         });
-                    } else {
+                    } else if !data_ready.get() {
+                        // No session cookie and no locally cached library, so we
+                        // have nothing to show yet — ask the user to log in.
                         #[cfg(feature = "hydrate")]
                         {
                             use leptos_router::hooks::use_navigate;
@@ -396,6 +399,8 @@ pub fn App() -> impl IntoView {
                             navigate("/login", Default::default());
                         }
                     }
+                    // Otherwise (session missing but local cache present) we stay
+                    // on the app and render the offline cached library.
                 }
             }}
             <main class="app-shell">
