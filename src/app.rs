@@ -8,11 +8,11 @@ use leptos_router::path;
 use leptos_use::use_cookie_with_options;
 use leptos_use::UseCookieOptions;
 
-use crate::ORIGIN;
 use crate::get_user_info;
 use crate::parse_hash;
 use crate::translation_page::PlaybackState;
 use crate::translation_page::TranslationPage;
+use crate::ORIGIN;
 use crate::{
     application_types::{Article, Data},
     translation::{get_data, store_article},
@@ -181,6 +181,26 @@ pub fn App() -> impl IntoView {
     let (refreshing, set_refreshing) = signal(false);
     // bump to force a server refresh on demand
     let (refresh_request, set_refresh_request) = signal(0u32);
+    // Set by the data loader when server data can't be obtained without a
+    // (valid) session; the <Router> watches it and sends the user to /login.
+    let (redirect_to_login, set_redirect_to_login) = signal(false);
+    // True while an incoming OAuth callback is being processed (the session is
+    // set asynchronously after a userInfo round-trip). Suppresses the loader's
+    // "no session → /login" redirect so it doesn't clobber the access token in
+    // the URL hash before we've had a chance to exchange it for a session.
+    //
+    // IMPORTANT: this MUST be initialized from the URL hash here, BEFORE the
+    // Resource below is created. The resource's fetcher is polled synchronously
+    // (via `ArcAsyncDerived`'s `now_or_never`) inside `Resource::new()`, so its
+    // no-session branch runs before the <Router> render block can set this.
+    #[cfg(feature = "hydrate")]
+    let (auth_pending, set_auth_pending) = signal(
+        web_sys::window()
+            .and_then(|w| w.location().hash().ok())
+            .is_some_and(|h| !h.is_empty()),
+    );
+    #[cfg(not(feature = "hydrate"))]
+    let (auth_pending, set_auth_pending) = signal(false);
 
     // Persist every mutated library to the local cache so we always have the
     // latest offline snapshot.
@@ -189,7 +209,7 @@ pub fn App() -> impl IntoView {
         let data = translation_post.get();
         if !data.articles.is_empty() {
             crate::local_store::cache_data(&data);
-        }else {
+        } else {
             log!("dafault data will not be stored");
         };
     });
@@ -240,20 +260,59 @@ pub fn App() -> impl IntoView {
     let resource = Resource::new(
         move || (session_id.get(), refresh_request.get()),
         move |(session, _refresh)| async move {
-            log!("got the session check it data refresh is needed");
-            // Auto-fetch only when there is no local cache; once we are sitting on
-            // a cached snapshot, data updates require an explicit refresh.
-            if let Some(session) = session {
+            log!("trigger resource");
+            // No session token at all.
+            let Some(session) = session else {
+                log!("session is missing");
+                // Initial offline load straight from the local cache → stay put.
                 if from_cache.get_untracked() && refresh_request.get_untracked() == 0 {
-                    None
-                } else {
-                    set_refreshing.set(true);
-                    let out = get_data(session).await.ok();
-                    set_refreshing.set(false);
-                    out
+                    log!("initial load skipping");
+                    return None;
                 }
-            } else {
-                None
+                // An OAuth callback is still in flight — wait for it to finish
+                // instead of redirecting and dropping the access token.
+                if auth_pending.get_untracked() {
+                    log!("is auth flow");
+                    return None;
+                }
+
+                log!("redirect to login");
+                // A server refresh was explicitly requested (or there is no cached
+                // copy) but we have no way to authenticate → go log in.
+                // Only decide this on the client: during SSR the OAuth token is
+                // never in the URL (the fragment isn't sent to the server) and
+                // there is no cache, so a redirect set here would be serialized
+                // into the hydration payload and fire before the client reads it.
+                if cfg!(feature = "hydrate") {
+                    set_redirect_to_login.set(true);
+                }
+                return None;
+            };
+            log!("session {}", session);
+            // Sitting on a cached snapshot; only fetch on an explicit refresh.
+            if from_cache.get_untracked() && refresh_request.get_untracked() == 0 {
+                log!("initial load skipping");
+                return None;
+            }
+            log!("reading data from the server");
+            set_refreshing.set(true);
+            match get_data(session).await {
+                Ok(data) => {
+                    set_refreshing.set(false);
+                    log!("got results");
+                    Some(data)
+                }
+                Err(_) => {
+                    // The server rejected the token (expired/revoked) → drop it
+                    // and require a fresh login.
+                    log!("error fetching data from the server, reseting the data, redirect to login page");
+                    set_refreshing.set(false);
+                    set_session_id.set(None);
+                    if cfg!(feature = "hydrate") {
+                        set_redirect_to_login.set(true);
+                    }
+                    None
+                }
             }
         },
     );
@@ -267,7 +326,6 @@ pub fn App() -> impl IntoView {
             set_last_sync.set(Some(now));
             set_from_cache.set(false);
             set_data_ready.set(true);
-            set_refreshing.set(false);
             #[cfg(feature = "hydrate")]
             crate::local_store::cache_data_with_sync(&data, now);
         }
@@ -378,6 +436,20 @@ pub fn App() -> impl IntoView {
     view! {
         <Router>
             {move || {
+                // The data loader owns all the auth decisions; when it determines
+                // we need a (re)login it flips `redirect_to_login`, which we turn
+                // into an actual navigation here (inside the <Router>, where
+                // use_navigate has access to RouterContext).
+                if redirect_to_login.get() {
+                    set_redirect_to_login.set(false);
+                    #[cfg(feature = "hydrate")]
+                    {
+                        log!("navigate to login page");
+                        use leptos_router::hooks::use_navigate;
+                        let navigate = use_navigate();
+                        navigate("/login", Default::default());
+                    }
+                }
                 if session_id.get().is_none() {
                     let location = use_location();
                     let hash = location.hash.get();
@@ -385,22 +457,15 @@ pub fn App() -> impl IntoView {
                         // Incoming OAuth redirect carrying a session token.
                         let hash = parse_hash(hash);
                         log!("hash {:?}", hash);
+                        set_auth_pending.set(true);
                         spawn_local(async move {
                             let user_info = get_user_info(hash);
                             set_session_id.set(Some(user_info.await.sub));
+                            set_auth_pending.set(false);
                         });
-                    } else if !data_ready.get() {
-                        // No session cookie and no locally cached library, so we
-                        // have nothing to show yet — ask the user to log in.
-                        #[cfg(feature = "hydrate")]
-                        {
-                            use leptos_router::hooks::use_navigate;
-                            let navigate = use_navigate();
-                            navigate("/login", Default::default());
-                        }
                     }
-                    // Otherwise (session missing but local cache present) we stay
-                    // on the app and render the offline cached library.
+                    // The "no session, nothing to show → login" redirect is now
+                    // decided inside the data loader (the Resource above), not here.
                 }
             }}
             <main class="app-shell">
@@ -460,6 +525,10 @@ pub fn App() -> impl IntoView {
                                             <p class="login-footer">
                                                 "Focused practice · Measurable progress"
                                             </p>
+                                            <p class="login-build">
+                                                "build "
+                                                {crate::BUILD_NUMBER}
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
@@ -493,7 +562,6 @@ pub fn App() -> impl IntoView {
                                             <button
                                                 class=BUTTON_CLASS
                                                 on:click=move |_event| {
-                                                    set_refreshing.set(true);
                                                     set_refresh_request.update(|n| *n += 1);
                                                 }
                                             >
@@ -513,7 +581,7 @@ pub fn App() -> impl IntoView {
                                                                     },
                                                                 )
                                                             } else {
-                                                                Either::Right(view! { "Synced ✓" })
+                                                                Either::Right(view! { "✓" })
                                                             }
                                                         }}
 

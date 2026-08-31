@@ -735,6 +735,10 @@
   @apply mt-5 text-center font-mono text-[10px] uppercase tracking-widest text-slate-600;
 }
 
+.login-build {
+  @apply mt-4 text-center font-mono text-[9px] tracking-widest text-slate-700;
+}
+
 /* ------------------------------------------------------------------ */
 /* Dashboard site header - moved from src/app.rs                        */
 /* ------------------------------------------------------------------ */

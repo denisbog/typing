@@ -31,6 +31,13 @@ pub const BUTTON_DANGER_CLASS: &str = "btn-danger";
 
 pub const ORIGIN: &str = "fluencystudio.link";
 
+/// Per-deployment build identifier, baked in at compile time by `build.rs`.
+/// Stamped fresh on every deployment (see the `TYPING_BUILD` build variable).
+mod build_info {
+    include!(concat!(env!("OUT_DIR"), "/build_info.rs"));
+}
+pub use build_info::BUILD_NUMBER;
+
 #[cfg(feature = "ssr")]
 #[derive(Clone, Debug)]
 pub struct AppState {

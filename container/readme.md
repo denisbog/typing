@@ -8,6 +8,14 @@ docker build -t build .
 docker run --rm -v/home/denis/projects/rust/typing:/app build
 ```
 
+The build command stamps a per-deployment build number (`TYPING_BUILD` set to the
+current unix time) into the binary; it's shown on the login page as `build <n>`.
+For local/manual builds you can do the same:
+```bash
+TYPING_BUILD=$(date -u +%s) cargo leptos build --release
+```
+If `TYPING_BUILD` is unset, the build falls back to `<crate-version> (<git-short-hash>)`.
+
 ### copy applicaton on remove server
 ```bash
 scp  -i ~/Downloads/rust.pem target/release/typing ec2-user@ec2-3-65-101-155.eu-central-1.compute.amazonaws.com:/typing/
