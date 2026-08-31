@@ -17,12 +17,12 @@ use leptos_meta::Title;
 use crate::application_types::Data;
 use crate::{BUTTON_CLASS, BUTTON_PRIMARY_CLASS};
 
-/// A single inline blank where a whole saved pair has been replaced by its
-/// translation and must be restored with its original phrase.
+/// A single inline blank where an original word has been replaced by its
+/// translation and must be restored.
 #[derive(Clone, Debug)]
 struct BlankSlot {
     slot_id: usize,
-    /// The original phrase that belongs here (the correct answer).
+    /// The original word that belongs here (the correct answer).
     expected: String,
     /// The translation currently shown in that position (the hint).
     hint: String,
@@ -44,11 +44,11 @@ struct BuildData {
     /// punctuation, matching how pairs were saved).
     words: Vec<String>,
     /// For each word position, the slot id of the pair that covers it (or
-    /// None). A whole pair is one slot, never split into its words.
+    /// None).
     word_to_slot: Vec<Option<usize>>,
-    /// The blanks, one per saved pair, indexed by slot id.
+    /// The blanks, indexed by slot id.
     blanks: Vec<BlankSlot>,
-    /// The shuffled word bank (one entry per pair's original phrase).
+    /// The shuffled word bank (one entry per paired word).
     bank: Vec<BankWord>,
 }
 
@@ -84,16 +84,6 @@ impl BuildData {
         let mut blanks: Vec<BlankSlot> = Vec::new();
         if let Some(pairs) = &paragraph.pairs {
             for pair in pairs {
-                let original_phrase: Vec<String> = pair
-                    .original
-                    .iter()
-                    .filter_map(|i| words.get(*i))
-                    .cloned()
-                    .collect();
-                // A pair with no original words has nothing to restore.
-                if original_phrase.is_empty() {
-                    continue;
-                }
                 let hint = pair
                     .translation
                     .iter()
@@ -101,16 +91,17 @@ impl BuildData {
                     .cloned()
                     .collect::<Vec<_>>()
                     .join(" ");
-                let slot_id = blanks.len();
-                blanks.push(BlankSlot {
-                    slot_id,
-                    expected: original_phrase.join(" "),
-                    hint,
-                });
                 for &wi in &pair.original {
-                    if wi < words.len() {
-                        word_to_slot[wi] = Some(slot_id);
+                    if wi >= words.len() || word_to_slot[wi].is_some() {
+                        continue;
                     }
+                    let slot_id = blanks.len();
+                    blanks.push(BlankSlot {
+                        slot_id,
+                        expected: words[wi].clone(),
+                        hint: hint.clone(),
+                    });
+                    word_to_slot[wi] = Some(slot_id);
                 }
             }
         }
@@ -220,25 +211,20 @@ fn ParagraphExercise(data: BuildData) -> impl IntoView {
     };
 
     // The paragraph with each paired position either a locked original word
-    // or an inline translation blank waiting to be restored. Each saved pair
-    // is rendered once, as a single whole, at the first word that belongs to
-    // it; its remaining words are skipped so the pair is never split.
+    // or an inline translation blank waiting to be restored. Each paired word
+    // is rendered as its own blank; each word not part of a pair gets its own
+    // plain span so the paragraph wraps word-by-word to the end of the line.
     let paragraph_view = move || {
         let d = data.read();
-        let mut emitted: Vec<bool> = vec![false; d.blanks.len()];
-        let mut out: Vec<AnyView> = Vec::new();
-        for (pos, w) in d.words.iter().enumerate() {
-            match d.word_to_slot[pos] {
+        d.words
+            .iter()
+            .enumerate()
+            .map(|(pos, w)| match d.word_to_slot[pos] {
                 Some(slot_id) => {
-                    if emitted[slot_id] {
-                        continue;
-                    }
                     if placed.get().contains_key(&slot_id) {
                         let expected = d.blanks[slot_id].expected.clone();
-                        out.push(
-                            view! { <span class="rebuild-locked">{expected}</span> }
-                            .into_any(),
-                        );
+                        view! { <span class="rebuild-locked">{expected}</span> }
+                        .into_any()
                     } else {
                         let hint = d.blanks[slot_id].hint.clone();
                         let class = move || {
@@ -250,32 +236,23 @@ fn ParagraphExercise(data: BuildData) -> impl IntoView {
                                 "rebuild-blank"
                             }
                         };
-                        out.push(
-                            view! {
-                                <button
-                                    type="button"
-                                    class=class
-                                    title="Restore the original phrase"
-                                    on:click=move |_| on_slot(slot_id)
-                                >
-                                    {hint}
-                                </button>
-                            }
-                            .into_any(),
-                        );
+                        view! {
+                            <button
+                                type="button"
+                                class=class
+                                title="Restore the original word"
+                                on:click=move |_| on_slot(slot_id)
+                            >
+                                {hint}
+                            </button>
+                        }
+                        .into_any()
                     }
-                    emitted[slot_id] = true;
                 }
-                // Each word not part of a pair gets its own span so the
-                // paragraph wraps word-by-word to the end of the line.
-                None => {
-                    out.push(
-                        view! { <span class="rebuild-word-plain">{w.clone()}</span> }.into_any(),
-                    );
-                }
-            }
-        }
-        out
+                None => view! { <span class="rebuild-word-plain">{w.clone()}</span> }
+                .into_any(),
+            })
+            .collect_view()
     };
 
     let bank_view = move || {
