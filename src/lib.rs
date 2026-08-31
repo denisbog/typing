@@ -93,16 +93,14 @@ pub async fn get_user_info(hash: HashMap<String, String>) -> UserInfo {
     body.send().await.unwrap().json::<UserInfo>().await.unwrap()
 }
 
+/// Parse an OAuth `#key=value&...` fragment into a map, tolerating malformed
+/// input (no leading `#`, entries without `=`) instead of panicking.
 pub fn parse_hash(hash: String) -> HashMap<String, String> {
-    let hash = &hash[1..];
-    let hash = hash
-        .split("&")
-        .fold(HashMap::<String, String>::new(), |mut acc, item| {
-            let parts: Vec<&str> = item.split("=").collect();
-            acc.insert(parts[0].to_string(), parts[1].to_string());
-            acc
-        });
-    hash
+    let hash = hash.trim_start_matches('#');
+    hash.split('&')
+        .filter_map(|item| item.split_once('='))
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect()
 }
 
 pub type TypePairs = BTreeMap<usize, BTreeSet<Association>>;

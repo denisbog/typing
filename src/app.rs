@@ -10,6 +10,7 @@ use leptos_use::UseCookieOptions;
 
 use crate::get_user_info;
 use crate::parse_hash;
+use serde::{Deserialize, Serialize};
 use crate::translation_page::PlaybackState;
 use crate::translation_page::TranslationPage;
 use crate::ORIGIN;
@@ -156,6 +157,48 @@ fn PlaybackPanel() -> impl IntoView {
     view! { <div class="hidden"></div> }
 }
 
+/// Whether to skip a load attempt because we already have a cached snapshot
+/// and the user hasn't explicitly asked for a refresh ("seed from cache; only
+/// fall back to the server when there is no cache").
+fn initial_skip(has_cache: bool, refresh_requested: u32) -> bool {
+    has_cache && refresh_requested == 0
+}
+
+/// Outcome of a server data-loading attempt. The resource returns one of these
+/// and a single consumer `Effect` owns all the side effects (applying data,
+/// clearing the session, navigation), keeping the fetcher a pure data producer.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+enum LoadOutcome {
+    /// Nothing to do: showing the cached snapshot, or an OAuth callback in flight.
+    Noop,
+    /// Fresh server data arrived and should be rendered + persisted.
+    Applied(Data),
+    /// A session is required before anything can be loaded.
+    AuthRequired,
+    /// The server rejected the stored session; it must be dropped and re-logged-in.
+    AuthFailed,
+}
+
+/// Renders `children` only once library data is available, sharing the same
+/// loading fallback across every route that depends on the article library.
+#[component]
+fn DataGate(data_ready: Signal<bool>, children: ChildrenFn) -> impl IntoView {
+    view! {
+        <Suspense
+            fallback=move || {
+                view! {
+                    <div class="loading-inline">
+                        <div class="spinner-zinc"></div>
+                        "Loading…"
+                    </div>
+                }
+            }
+        >
+            {move || if data_ready.get() { Some(children().into_any()) } else { None }}
+        </Suspense>
+    }
+}
+
 #[component]
 pub fn App() -> impl IntoView {
     let (translation_input, set_translation_input) = signal("".to_string());
@@ -259,75 +302,84 @@ pub fn App() -> impl IntoView {
     let playback = PlaybackState;
     let resource = Resource::new(
         move || (session_id.get(), refresh_request.get()),
-        move |(session, _refresh)| async move {
+        move |(session, refresh)| async move {
             log!("trigger resource");
-            // No session token at all.
+            // Seed from the cache; only fetch when there is no cached copy, or
+            // when the user explicitly asked for a refresh.
+            let skip_initial = initial_skip(from_cache.get_untracked(), refresh);
             let Some(session) = session else {
                 log!("session is missing");
                 // Initial offline load straight from the local cache → stay put.
-                if from_cache.get_untracked() && refresh_request.get_untracked() == 0 {
+                if skip_initial {
                     log!("initial load skipping");
-                    return None;
+                    return LoadOutcome::Noop;
                 }
                 // An OAuth callback is still in flight — wait for it to finish
                 // instead of redirecting and dropping the access token.
                 if auth_pending.get_untracked() {
                     log!("is auth flow");
-                    return None;
+                    return LoadOutcome::Noop;
                 }
-
-                log!("redirect to login");
-                // A server refresh was explicitly requested (or there is no cached
-                // copy) but we have no way to authenticate → go log in.
-                // Only decide this on the client: during SSR the OAuth token is
-                // never in the URL (the fragment isn't sent to the server) and
-                // there is no cache, so a redirect set here would be serialized
-                // into the hydration payload and fire before the client reads it.
-                if cfg!(feature = "hydrate") {
-                    set_redirect_to_login.set(true);
-                }
-                return None;
+                // A server refresh was requested (or there is no cache) but we
+                // have no way to authenticate → go log in.
+                log!("session required");
+                return LoadOutcome::AuthRequired;
             };
             log!("session {}", session);
             // Sitting on a cached snapshot; only fetch on an explicit refresh.
-            if from_cache.get_untracked() && refresh_request.get_untracked() == 0 {
+            if skip_initial {
                 log!("initial load skipping");
-                return None;
+                return LoadOutcome::Noop;
             }
             log!("reading data from the server");
             set_refreshing.set(true);
             match get_data(session).await {
                 Ok(data) => {
-                    set_refreshing.set(false);
                     log!("got results");
-                    Some(data)
+                    LoadOutcome::Applied(data)
                 }
                 Err(_) => {
-                    // The server rejected the token (expired/revoked) → drop it
-                    // and require a fresh login.
-                    log!("error fetching data from the server, reseting the data, redirect to login page");
-                    set_refreshing.set(false);
-                    set_session_id.set(None);
-                    if cfg!(feature = "hydrate") {
-                        set_redirect_to_login.set(true);
-                    }
-                    None
+                    // The server rejected the token (expired/revoked) → the
+                    // consumer Effect drops the session and requires a re-login.
+                    log!("error fetching data from the server, resetting to login");
+                    LoadOutcome::AuthFailed
                 }
             }
         },
     );
+    // Single place where load outcomes translate into side effects (applying
+    // data, clearing the session, navigation). Keeps the resource above a pure
+    // data producer.
     Effect::new(move |_| {
-        // The resource future only ever resolves to Some(Some(data)) when a
-        // fresh server fetch actually happened (no cache, or explicit refresh),
-        // so whenever we reach this branch the result should always be applied.
-        if let Some(Some(data)) = resource.get() {
-            let now = crate::local_store::now_ms();
-            set_translation_post.set(data.clone());
-            set_last_sync.set(Some(now));
-            set_from_cache.set(false);
-            set_data_ready.set(true);
-            #[cfg(feature = "hydrate")]
-            crate::local_store::cache_data_with_sync(&data, now);
+        use LoadOutcome::*;
+        match resource.get() {
+            // A fresh server fetch actually happened → apply and persist it.
+            Some(Applied(data)) => {
+                let now = crate::local_store::now_ms();
+                set_translation_post.set(data.clone());
+                set_last_sync.set(Some(now));
+                set_from_cache.set(false);
+                set_data_ready.set(true);
+                #[cfg(feature = "hydrate")]
+                crate::local_store::cache_data_with_sync(&data, now);
+                set_refreshing.set(false);
+            }
+            // The server rejected the session → drop it and re-login.
+            Some(AuthFailed) => {
+                set_refreshing.set(false);
+                set_session_id.set(None);
+                #[cfg(feature = "hydrate")]
+                set_redirect_to_login.set(true);
+            }
+            // No usable session → go log in. Only decided on the client: the
+            // OAuth token never appears in the URL during SSR, so a redirect set
+            // here would be serialized into the hydration payload and fire
+            // before the client reads it.
+            Some(AuthRequired) => {
+                #[cfg(feature = "hydrate")]
+                set_redirect_to_login.set(true);
+            }
+            _ => {}
         }
     });
     let input_popup_component = move |set_translation_post: WriteSignal<Data>| {
@@ -777,31 +829,13 @@ pub fn App() -> impl IntoView {
                         path=path!("/article/:id")
                         view=move || {
                             view! {
-                                <Suspense fallback=move || {
-                                    view! {
-                                        <div class="loading-inline">
-                                            <div class="spinner-zinc"></div>
-                                            "Loading…"
-                                        </div>
-                                    }
-                                }>
-                                    {move || {
-                                        if data_ready.get() {
-                                            Some(
-                                                view! {
-                                                    <ArticlePage
-                                                        data=translation_post
-                                                        set_data=set_translation_post
-                                                        playback=playback
-                                                    />
-                                                },
-                                            )
-                                        } else {
-                                            None
-                                        }
-                                    }}
-
-                                </Suspense>
+                                <DataGate data_ready=data_ready.into()>
+                                    <ArticlePage
+                                        data=translation_post
+                                        set_data=set_translation_post
+                                        playback=playback
+                                    />
+                                </DataGate>
                             }
                         }
                     />
@@ -819,27 +853,9 @@ pub fn App() -> impl IntoView {
                         path=path!("/rebuild")
                         view=move || {
                             view! {
-                                <Suspense fallback=move || {
-                                    view! {
-                                        <div class="loading-inline">
-                                            <div class="spinner-zinc"></div>
-                                            "Loading…"
-                                        </div>
-                                    }
-                                }>
-                                    {move || {
-                                        if data_ready.get() {
-                                            Some(
-                                                view! {
-                                                    <crate::rebuild_page::RebuildPage data=translation_post/>
-                                                },
-                                            )
-                                        } else {
-                                            None
-                                        }
-                                    }}
-
-                                </Suspense>
+                                <DataGate data_ready=data_ready.into()>
+                                    <crate::rebuild_page::RebuildPage data=translation_post/>
+                                </DataGate>
                             }
                         }
                     />
@@ -848,27 +864,9 @@ pub fn App() -> impl IntoView {
                         path=path!("/match")
                         view=move || {
                             view! {
-                                <Suspense fallback=move || {
-                                    view! {
-                                        <div class="loading-inline">
-                                            <div class="spinner-zinc"></div>
-                                            "Loading…"
-                                        </div>
-                                    }
-                                }>
-                                    {move || {
-                                        if data_ready.get() {
-                                            Some(
-                                                view! {
-                                                    <crate::matching_page::MatchingPage data=translation_post/>
-                                                },
-                                            )
-                                        } else {
-                                            None
-                                        }
-                                    }}
-
-                                </Suspense>
+                                <DataGate data_ready=data_ready.into()>
+                                    <crate::matching_page::MatchingPage data=translation_post/>
+                                </DataGate>
                             }
                         }
                     />
