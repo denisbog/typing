@@ -16,6 +16,13 @@ TYPING_BUILD=$(date -u +%s) cargo leptos build --release
 ```
 If `TYPING_BUILD` is unset, the build falls back to `<crate-version> (<git-short-hash>)`.
 
+The same value is also written by `build.rs` to `public/build.json`
+(`{"build": "..."}`), which cargo-leptos asset-syncs into `target/site`. Because
+`target/site` is what gets deployed and served by the binary, the build number is
+then available from any static client at `/build.json` **without loading the
+wasm bundle** — handy for scripts, uptime/health checks, the service worker, or
+checking which build is live.
+
 ### copy applicaton on remove server
 ```bash
 scp  -i ~/Downloads/rust.pem target/release/typing ec2-user@ec2-3-65-101-155.eu-central-1.compute.amazonaws.com:/typing/
