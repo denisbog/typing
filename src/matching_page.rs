@@ -132,6 +132,8 @@ fn ArticleMatchSection(
     let (sel_left, set_sel_left) = signal(None::<usize>);
     let (sel_right, set_sel_right) = signal(None::<usize>);
     let (wrong, set_wrong) = signal(None::<(usize, usize)>);
+    // The pair revealed by the Hint button (persists until matched/reset).
+    let (hint, set_hint) = signal(None::<usize>);
 
     // Every time the run id changes (global "Reset" button) we re-shuffle
     // and clear all matching state for this section.
@@ -143,6 +145,7 @@ fn ArticleMatchSection(
         set_sel_left.set(None);
         set_sel_right.set(None);
         set_wrong.set(None);
+        set_hint.set(None);
     });
 
     let clear_wrong_after = move |run: u32| {
@@ -171,6 +174,9 @@ fn ArticleMatchSection(
                 set_matched.update(|m| {
                     m.insert(left_pair);
                 });
+                if hint.get() == Some(left_pair) {
+                    set_hint.set(None);
+                }
                 set_sel_left.set(None);
                 set_sel_right.set(None);
                 set_wrong.set(None);
@@ -198,6 +204,9 @@ fn ArticleMatchSection(
                 set_matched.update(|m| {
                     m.insert(right_pair);
                 });
+                if hint.get() == Some(right_pair) {
+                    set_hint.set(None);
+                }
                 set_sel_left.set(None);
                 set_sel_right.set(None);
                 set_wrong.set(None);
@@ -228,6 +237,8 @@ fn ArticleMatchSection(
                         "match-card match-card--wrong"
                     } else if matched.get().contains(&pair) {
                         "match-card match-card--matched"
+                    } else if hint.get() == Some(pair) {
+                        "match-card match-card--hint"
                     } else if sel_left.get() == Some(pos) {
                         "match-card match-card--selected"
                     } else {
@@ -265,6 +276,8 @@ fn ArticleMatchSection(
                         "match-card match-card--wrong"
                     } else if matched.get().contains(&pair) {
                         "match-card match-card--matched"
+                    } else if hint.get() == Some(pair) {
+                        "match-card match-card--hint"
                     } else if sel_right.get() == Some(pos) {
                         "match-card match-card--selected"
                     } else {
@@ -288,6 +301,22 @@ fn ArticleMatchSection(
             .collect_view()
     };
 
+    // Reveal the selected card's counterpart as a hint. Only reachable while a
+    // card is selected (the button only shows then). Persists until the pair
+    // is matched or the run is reset (no timeout).
+    let on_hint = move |_| {
+        let pair = if let Some(lp) = sel_left.get() {
+            Some(left_order.get()[lp])
+        } else if let Some(rp) = sel_right.get() {
+            Some(right_order.get()[rp])
+        } else {
+            None
+        };
+        if let Some(p) = pair {
+            set_hint.set(Some(p));
+        }
+    };
+
     let is_done = move || matched.get().len() == n && n > 0;
 
     view! {
@@ -297,15 +326,31 @@ fn ArticleMatchSection(
                     <span class="eyebrow">{eyebrow.clone()}</span>
                     <h2 class="match-section-title">{title.clone()}</h2>
                 </div>
-                <div class="match-section-progress">
-                    {move || {
-                        let done = matched.get().len();
-                        if done == n {
-                            "Done ✓".to_string()
-                        } else {
-                            format!("{} / {} matched", done, n)
-                        }
-                    }}
+                <div class="match-section-actions">
+                    <Show
+                        when=move || sel_left.get().is_some() || sel_right.get().is_some()
+                        fallback=|| ()
+                    >
+                        <button
+                            type="button"
+                            class="match-hint-btn"
+                            title="Reveal this pair as a hint"
+                            on:click=on_hint
+                        >
+                            <span>"💡"</span>
+                            <span>"Hint"</span>
+                        </button>
+                    </Show>
+                    <div class="match-section-progress">
+                        {move || {
+                            let done = matched.get().len();
+                            if done == n {
+                                "Done ✓".to_string()
+                            } else {
+                                format!("{} / {} matched", done, n)
+                            }
+                        }}
+                    </div>
                 </div>
             </div>
 
