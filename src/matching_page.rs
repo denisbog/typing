@@ -75,11 +75,26 @@ struct MatchGroup {
     items: Vec<MatchItem>,
 }
 
-/// Extract every saved pair, grouped per article or per paragraph.
+/// Maximum number of pairs a single matching group may contain. Larger
+/// collections are split into multiple groups of at most this many pairs.
+const MAX_PAIRS_PER_GROUP: usize = 10;
+
+/// Split a list of pairs into consecutive groups of at most
+/// `MAX_PAIRS_PER_GROUP` pairs each, preserving order.
+fn chunk_pairs(items: Vec<MatchItem>) -> Vec<Vec<MatchItem>> {
+    items
+        .chunks(MAX_PAIRS_PER_GROUP)
+        .map(<[MatchItem]>::to_vec)
+        .collect()
+}
+
+/// Extract every saved pair, grouped per article or per paragraph, and split
+/// so no group holds more than `MAX_PAIRS_PER_GROUP` pairs.
 ///
 /// When `group_by_paragraph` is false, each article becomes one group. When
 /// true, each paragraph that has at least one pair becomes its own group so
-/// the exercise stays small.
+/// the exercise stays small. Either way the pairs are further chunked into
+/// groups of at most `MAX_PAIRS_PER_GROUP` pairs.
 fn collect_groups(data: &Data, group_by_paragraph: bool) -> Vec<MatchGroup> {
     let mut out: Vec<MatchGroup> = Vec::new();
     for (ai, article) in data.articles.iter().enumerate() {
@@ -87,27 +102,47 @@ fn collect_groups(data: &Data, group_by_paragraph: bool) -> Vec<MatchGroup> {
         for (pi, paragraph) in article.paragraphs.iter().enumerate() {
             let items = extract_paragraph_items(paragraph);
             if group_by_paragraph {
-                if !items.is_empty() {
+                for (ci, chunk) in chunk_pairs(items).into_iter().enumerate() {
                     out.push(MatchGroup {
                         article_title: article.title.clone(),
-                        eyebrow: format!(
-                            "Article {:02} · Paragraph {:02}",
-                            ai + 1,
-                            pi + 1,
-                        ),
-                        items,
+                        eyebrow: match (chunk.len() > 1, ci) {
+                            (true, part) => format!(
+                                "Article {:02} · Paragraph {:02} · Part {}",
+                                ai + 1,
+                                pi + 1,
+                                part + 1,
+                            ),
+                            (false, _) => format!(
+                                "Article {:02} · Paragraph {:02}",
+                                ai + 1,
+                                pi + 1,
+                            ),
+                        },
+                        items: chunk,
                     });
                 }
             } else {
                 article_items.extend(items);
             }
         }
-        if !group_by_paragraph && !article_items.is_empty() {
-            out.push(MatchGroup {
-                article_title: article.title.clone(),
-                eyebrow: format!("Article {:02}", ai + 1),
-                items: article_items,
-            });
+        if !group_by_paragraph {
+            let chunks = chunk_pairs(article_items);
+            let num_chunks = chunks.len();
+            for (ci, chunk) in chunks.into_iter().enumerate() {
+                if chunk.is_empty() {
+                    continue;
+                }
+                out.push(MatchGroup {
+                    article_title: article.title.clone(),
+                    eyebrow: match (num_chunks > 1, ci) {
+                        (true, part) => {
+                            format!("Article {:02} · Part {}", ai + 1, part + 1)
+                        }
+                        (false, _) => format!("Article {:02}", ai + 1),
+                    },
+                    items: chunk,
+                });
+            }
         }
     }
     out
@@ -472,8 +507,8 @@ pub fn MatchingPage(data: ReadSignal<Data>) -> impl IntoView {
                     <p class="match-sub">
                         "Pick a card on the left and the matching card on the right. Correct
                         pairs lock in green; wrong guesses shake red. Pairs are grouped by
-                        article (or by paragraph, if you switched it on in Properties) — press
-                        Reset to shuffle everything and start over."
+                        article (or by paragraph, if you switched it on in Properties), in
+                        groups of at most 10 — press Reset to shuffle everything and start over."
                     </p>
                 </div>
                 <div class="match-stats glass-panel">
