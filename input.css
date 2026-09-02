@@ -250,6 +250,16 @@
   @apply flex flex-wrap break-words min-w-0 text-[0.9rem] italic leading-[1.8] text-slate-500 sm:text-base;
 }
 
+/* Plain, non-interactive stand-in for a paragraph that has not been
+   mounted yet (lazy rendering). Mirrors .typing-area so the layout does
+   not shift when the real interactive paragraph mounts. */
+.sentence-placeholder-text {
+  @apply flex flex-wrap break-words min-w-0 text-slate-500/90;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
 /* word state chips */
 .word-word-pair {
   @apply relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-white/[0.08] text-slate-400;

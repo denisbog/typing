@@ -25,7 +25,9 @@ use leptos::prelude::*;
 use leptos::wasm_bindgen::JsCast;
 use leptos::web_sys;
 use serde_json::Value;
-use crate::application_types::Article;
+use crate::application_types::{Article, Paragraph};
+use leptos_use::use_intersection_observer_with_options;
+use leptos_use::UseIntersectionObserverOptions;
 
 #[cfg(feature = "hydrate")]
 use wasm_bindgen::{closure::Closure, JsValue};
@@ -529,38 +531,36 @@ pub fn TranslationPage(
                                         .as_ref()
                                         .map(|_| {
                                             view! {
-                                                <span class="article-voice-badge" title="This article has audio">
+                                                <span
+                                                    class="article-voice-badge"
+                                                    title="This article has audio"
+                                                >
                                                     "🔊"
                                                 </span>
                                             }
                                         })}
-                                    {has_unsaved.then(|| {
-                                        view! {
-                                            <span
-                                                class="article-unsaved-badge"
-                                                title="Pairs edited in this article aren't saved to the server yet"
-                                            >
-                                                {format!("{} unsaved", unsaved_count)}
-                                            </span>
-                                        }
-                                    })}
+
+                                    {has_unsaved
+                                        .then(|| {
+                                            view! {
+                                                <span
+                                                    class="article-unsaved-badge"
+                                                    title="Pairs edited in this article aren't saved to the server yet"
+                                                >
+                                                    {format!("{} unsaved", unsaved_count)}
+                                                </span>
+                                            }
+                                        })}
+
                                 </div>
-                                <span class="article-arrow">
-                                    "↗"
-                                </span>
+                                <span class="article-arrow">"↗"</span>
                             </div>
 
                             <div class="article-card-body">
-                                <h3 class="article-title">
-                                    {headline}
-                                </h3>
+                                <h3 class="article-title">{headline}</h3>
                                 {summary
                                     .map(|summary| {
-                                        view! {
-                                            <p class="article-summary">
-                                                {summary}
-                                            </p>
-                                        }
+                                        view! { <p class="article-summary">{summary}</p> }
                                     })}
 
                             </div>
@@ -568,7 +568,9 @@ pub fn TranslationPage(
                             <div class="article-card-foot">
                                 <div class="article-coverage-label">
                                     <span>"Translation coverage"</span>
-                                    <span class="article-coverage-value">{format!("{}%", progress)}</span>
+                                    <span class="article-coverage-value">
+                                        {format!("{}%", progress)}
+                                    </span>
                                 </div>
                                 <div class="article-coverage-track">
                                     <div
@@ -581,9 +583,7 @@ pub fn TranslationPage(
 
                         <div class="article-actions">
                             <div class="article-pairs">
-                                <span class="article-pairs-count">
-                                    {pair_count}
-                                </span>
+                                <span class="article-pairs-count">{pair_count}</span>
                                 <span>"saved pairs"</span>
                             </div>
                             <div class="article-action-buttons">
@@ -639,16 +639,15 @@ pub fn TranslationPage(
                                                 .unwrap()
                                                 .clone();
                                             let _ = store_pairs(article_to_store.clone()).await;
-                                            // Bring the server snapshot in line with what we
-                                            // just persisted, so the "unsaved" badge clears.
-                                            set_saved.update(|snapshot| {
-                                                snapshot
-                                                    .articles
-                                                    .retain(|article| {
-                                                        article.created_at != article_to_store.created_at
-                                                    });
-                                                snapshot.articles.push(article_to_store.clone());
-                                            });
+                                            set_saved
+                                                .update(|snapshot| {
+                                                    snapshot
+                                                        .articles
+                                                        .retain(|article| {
+                                                            article.created_at != article_to_store.created_at
+                                                        });
+                                                    snapshot.articles.push(article_to_store.clone());
+                                                });
                                             set_saving.set(false);
                                         });
                                     }
@@ -724,9 +723,7 @@ pub fn TranslationPage(
             fallback=move || {
                 view! {
                     <div class="library-empty glass-panel">
-                        <span class="library-empty-icon">
-                            "＋"
-                        </span>
+                        <span class="library-empty-icon">"＋"</span>
                         <h3 class="library-empty-title">"Your library is ready"</h3>
                         <p class="library-empty-sub">
                             "Add your first article to create a focused typing and translation practice session."
@@ -749,6 +746,7 @@ pub fn TranslationPage(
                         crate::local_store::save_search(&value);
                     }
                 />
+
                 {move || {
                     if search_query().is_empty() {
                         view! {}.into_any()
@@ -762,28 +760,39 @@ pub fn TranslationPage(
                                     crate::local_store::save_search("");
                                 }
                             >
+
                                 "×"
                             </button>
                         }
                             .into_any()
                     }
                 }}
+
             </div>
 
             <Show
                 when=move || {
                     let query = search_query();
                     query.is_empty()
-                        || data.get().articles.iter().any(|item| {
-                            item.title.to_lowercase().contains(&query)
-                                || item.paragraphs.iter().any(|paragraph| {
-                                    paragraph.original.to_lowercase().contains(&query)
-                                        || paragraph.translation.as_ref().is_some_and(|t| {
-                                            t.to_lowercase().contains(&query)
+                        || data
+                            .get()
+                            .articles
+                            .iter()
+                            .any(|item| {
+                                item.title.to_lowercase().contains(&query)
+                                    || item
+                                        .paragraphs
+                                        .iter()
+                                        .any(|paragraph| {
+                                            paragraph.original.to_lowercase().contains(&query)
+                                                || paragraph
+                                                    .translation
+                                                    .as_ref()
+                                                    .is_some_and(|t| { t.to_lowercase().contains(&query) })
                                         })
-                                })
-                        })
+                            })
                 }
+
                 fallback=move || {
                     view! {
                         <div class="library-empty glass-panel">
@@ -802,6 +811,136 @@ pub fn TranslationPage(
     }
 }
 
+/// How many paragraphs at the top of an article are interactive immediately.
+/// Everything below that is a lightweight placeholder until it scrolls near
+/// the viewport.
+const INITIALLY_MOUNTED: usize = 3;
+
+/// Distance from the viewport (px) at which a paragraph starts loading, so it
+/// is already interactive by the time the reader scrolls to it.
+const PARAGRAPH_LOAD_MARGIN: &str = "800px";
+
+/// Renders one interactive [`Sentance`] lazily.
+///
+/// Articles can hold ~100 paragraphs. Each `Sentance` carries its own typing
+/// state, per-word character spans, timers and effects, so instantiating all
+/// of them up front makes the first paint (and the hydration pass) do a lot of
+/// wasted work. This wrapper keeps a cheap, readable placeholder on screen and
+/// only mounts the full `Sentance` once its sentinel scrolls near the viewport.
+///
+/// Mounting is one-way: a paragraph that has been mounted stays mounted, so the
+/// in-progress typing state is never discarded when the reader scrolls back up,
+/// and `children` (which builds the `Sentance`) is only ever invoked once per
+/// paragraph.
+#[component]
+fn LazyParagraph(
+    /// Paragraph data, used for the placeholder text while unmounted.
+    paragraph: Paragraph,
+    /// 0-based paragraph index.
+    index: usize,
+    /// Total number of paragraphs in the article.
+    total: usize,
+    is_mobile: Signal<bool>,
+    pairing_mode: ReadSignal<bool>,
+    children: ChildrenFn,
+) -> impl IntoView {
+    let (mounted, set_mounted) = signal(index < INITIALLY_MOUNTED);
+
+    // Sentinel wrapper is always in the DOM for the paragraph's whole lifetime,
+    // so the IntersectionObserver never needs to be recreated. `mounted` is
+    // sticky (only ever set to true), so `children()` below runs at most once.
+    let sentinel = NodeRef::<Div>::new();
+
+    let _observer = use_intersection_observer_with_options(
+        sentinel,
+        move |entries, _| {
+            if entries.iter().any(|entry| {
+                let rect = entry.bounding_client_rect();
+                (rect.width() > 0.0 || rect.height() > 0.0) && entry.is_intersecting()
+            }) {
+                set_mounted.set(true);
+            }
+        },
+        UseIntersectionObserverOptions::default().root_margin(PARAGRAPH_LOAD_MARGIN),
+    );
+
+    let paragraph_for_placeholder = paragraph.clone();
+    view! {
+        <div node_ref=sentinel>
+            {move || {
+                if mounted.get() {
+                    Either::Left(children())
+                } else {
+                    let placeholder = view! {
+                        <section class="sentence-section parent" id=index + 1>
+                            <div class="sentence-card article-card">
+                                <div class="sentence-header">
+                                    <div class="sentence-header-left">
+                                        <span class="badge-index">
+                                            {format!("Paragraph {:02}", index + 1)}
+                                        </span>
+                                        <span class="dot-sep"></span>
+                                        <span class="badge-count">
+                                            {format!("{:02} / {:02}", index + 1, total)}
+                                        </span>
+                                    </div>
+                                    <span class=move || {
+                                        if pairing_mode.get() {
+                                            "mode-badge mode-badge--active"
+                                        } else {
+                                            "mode-badge"
+                                        }
+                                    }>
+                                        {move || {
+                                            if is_mobile.get() {
+                                                "Reading mode"
+                                            } else if pairing_mode.get() {
+                                                "Pairing mode"
+                                            } else {
+                                                "Typing mode"
+                                            }
+                                        }}
+
+                                    </span>
+                                </div>
+                                <div class="sentence-grid">
+                                    <div class="sentence-col-original">
+                                        <div class="sentence-label-row">
+                                            <span class="sentence-label">"Original · German"</span>
+                                        </div>
+                                        <div class="sentence-placeholder-text">
+                                            {paragraph_for_placeholder.original.clone()}
+                                        </div>
+                                    </div>
+                                    {paragraph_for_placeholder
+                                        .translation
+                                        .as_ref()
+                                        .map(|translation| {
+                                            view! {
+                                                <div class="sentence-col-translation">
+                                                    <div class="sentence-label-row">
+                                                        <span class="sentence-label">"Translation · English"</span>
+                                                    </div>
+                                                    <div class="sentence-placeholder-text">
+                                                        {translation.clone()}
+                                                    </div>
+                                                </div>
+                                            }
+                                                .into_any()
+                                        })}
+
+                                </div>
+                            </div>
+                        </section>
+                    };
+                    Either::Right(placeholder.into_any())
+                }
+            }}
+
+        </div>
+    }
+}
+
 #[component]
 pub fn ArticlePage(
     data: ReadSignal<Data>,
@@ -810,7 +949,13 @@ pub fn ArticlePage(
     playback: PlaybackState,
 ) -> impl IntoView {
     let params = use_params::<ArticleParams>();
-    let article_id = params.with(|param| param.as_ref().unwrap().id).unwrap();
+    // The route param never changes while this page is mounted (navigating to
+    // another article re-creates the component), so this is a one-time read.
+    // `with_untracked` makes that explicit and avoids the "access outside a
+    // reactive tracking context" warning.
+    let article_id = params
+        .with_untracked(|param| param.as_ref().ok().and_then(|p| p.id))
+        .unwrap();
     log!("render article");
     #[cfg(feature = "hydrate")]
     let location = use_location();
@@ -988,10 +1133,7 @@ pub fn ArticlePage(
                 .filter(|(index, _item)| *index == 0 || (*index + 1) % 5 == 0)
                 .map(|(index, _item)| {
                     view! {
-                        <a
-                            class="jump-link"
-                            href=format!("#{}", index + 1)
-                        >
+                        <a class="jump-link" href=format!("#{}", index + 1)>
                             {index + 1}
                         </a>
                     }
@@ -1134,43 +1276,50 @@ pub fn ArticlePage(
                 .into_iter()
                 .enumerate()
                 .map(|(index, item)| {
+                    // Owned per-iteration copies: the `LazyParagraph` children
+                    // closure is `move` and reusable, so it can't borrow from
+                    // this `FnMut` closure's by-reference captures.
+                    let audio_directory = audio_directory.clone();
+                    let saved_article_pairs = saved_article_pairs.clone();
                     view! {
-                        <Sentance
-                            paragraph=item
-                            article_index=article_id
-                            index
-                            total
-                            pairs
-                            set_pairs
-                            div_ref
-                            speech_cursor
-                            audio_directory=if has_audio_directory {
-                                Some(audio_directory.clone())
-                            } else {
-                                None
-                            }
+                        <LazyParagraph paragraph=item.clone() index total is_mobile pairing_mode>
+                            <Sentance
+                                paragraph=item.clone()
+                                article_index=article_id
+                                index
+                                total
+                                pairs
+                                set_pairs
+                                div_ref
+                                speech_cursor
+                                audio_directory=if has_audio_directory {
+                                    Some(audio_directory.clone())
+                                } else {
+                                    None
+                                }
 
-                            on_audio_click=on_audio_click.clone()
-                            on_replay_word=on_replay_word.clone()
-                            on_current_paragraph=on_current_paragraph.clone()
-                            audio_current_article
-                            audio_current_paragraph
-                            audio_is_playing
-                            is_mobile
-                            typing_speed_paragraph
-                            set_typing_speed_paragraph
-                            typing_speed_samples
-                            set_typing_speed_samples
-                            completed_typing_speeds
-                            set_completed_typing_speeds
-                            set_mistyped_characters
-                            pairing_mode
-                            set_pairing_mode
-                            saved_pairs=saved_article_pairs
-                                .get(index)
-                                .cloned()
-                                .unwrap_or_default()
-                        />
+                                on_audio_click=on_audio_click.clone()
+                                on_replay_word=on_replay_word.clone()
+                                on_current_paragraph=on_current_paragraph.clone()
+                                audio_current_article
+                                audio_current_paragraph
+                                audio_is_playing
+                                is_mobile
+                                typing_speed_paragraph
+                                set_typing_speed_paragraph
+                                typing_speed_samples
+                                set_typing_speed_samples
+                                completed_typing_speeds
+                                set_completed_typing_speeds
+                                set_mistyped_characters
+                                pairing_mode
+                                set_pairing_mode
+                                saved_pairs=saved_article_pairs
+                                    .get(index)
+                                    .cloned()
+                                    .unwrap_or_default()
+                            />
+                        </LazyParagraph>
                     }
                 })
                 .collect_view();
@@ -1242,6 +1391,14 @@ pub fn ArticlePage(
                                             // workaround for the selection issue, options are being
                                             // rendered after the select value is set, we need to force the
                                             // selction maker on the selected item
+
+                                            // workaround for the selection issue, options are being
+                                            // rendered after the select value is set, we need to force the
+                                            // selction maker on the selected item
+
+                                            // workaround for the selection issue, options are being
+                                            // rendered after the select value is set, we need to force the
+                                            // selction maker on the selected item
                                             <option value=value>{voice}</option>
                                         }
                                             .into_any()
@@ -1280,29 +1437,17 @@ pub fn ArticlePage(
             Either::Left(view! {
                 <header class="page-header">
                     <div class="page-header-inner">
-                        <a
-                            href="/"
-                            class="back-link group"
-                            on:click=move |_| on_back(pairs)
-                        >
-                            <span class="back-icon">
-                                "←"
-                            </span>
+                        <a href="/" class="back-link group" on:click=move |_| on_back(pairs)>
+                            <span class="back-icon">"←"</span>
                             <span class="back-link-label">"Library"</span>
                         </a>
                         <div class="page-title-wrap">
-                            <div class="page-title-eyebrow">
-                                "Now practicing"
-                            </div>
-                            <div class="page-title">
-                                {article.title.clone()}
-                            </div>
+                            <div class="page-title-eyebrow">"Now practicing"</div>
+                            <div class="page-title">{article.title.clone()}</div>
                         </div>
                         <div class="page-count">
                             <div class="page-count-num">{total}</div>
-                            <div class="page-count-label">
-                                "Paragraphs"
-                            </div>
+                            <div class="page-count-label">"Paragraphs"</div>
                         </div>
                     </div>
                 </header>
@@ -1323,30 +1468,18 @@ pub fn ArticlePage(
                         <span class="jump-back-icon">"←"</span>
                         <span class="jump-back-label">"Articles"</span>
                     </a>
-                    <div class="jump-bar-options">
-                        {voice_dropdown} {current_paragraph_toggle}
-                    </div>
-                    <span class="jump-label">
-                        "Jump to"
-                    </span>
-                    <nav class="jump-nav">
-                        {link}
-                    </nav>
+                    <div class="jump-bar-options">{voice_dropdown} {current_paragraph_toggle}</div>
+                    <span class="jump-label">"Jump to"</span>
+                    <nav class="jump-nav">{link}</nav>
                 </div>
                 <div
                     class=move || {
-                        if typing_speed_paragraph.get().is_some() {
-                            "caret"
-                        } else {
-                            "hidden"
-                        }
+                        if typing_speed_paragraph.get().is_some() { "caret" } else { "hidden" }
                     }
 
                     style=caret_position
                 >
-                    <span class="caret-char">
-                        _
-                    </span>
+                    <span class="caret-char">_</span>
                 </div>
             })
         } else {
