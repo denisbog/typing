@@ -842,6 +842,7 @@ pub fn App() -> impl IntoView {
                                     <ArticlePage
                                         data=translation_post
                                         set_data=set_translation_post
+                                        saved=saved_data
                                         playback=playback
                                     />
                                 </DataGate>

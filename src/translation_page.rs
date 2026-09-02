@@ -1,5 +1,6 @@
 use std::ops::Sub;
 use std::time::Duration;
+use std::collections::BTreeSet;
 
 use crate::application_types::Pair;
 use crate::components::Association;
@@ -805,6 +806,7 @@ pub fn TranslationPage(
 pub fn ArticlePage(
     data: ReadSignal<Data>,
     set_data: WriteSignal<Data>,
+    saved: ReadSignal<Data>,
     playback: PlaybackState,
 ) -> impl IntoView {
     let params = use_params::<ArticleParams>();
@@ -930,6 +932,42 @@ pub fn ArticlePage(
                 });
 
             let (pairs, set_pairs) = signal(article_pairs);
+
+            // Server-known pairs for this article, per paragraph, as
+            // (original, translation) word-index sets. Used to tell which pairs
+            // created here are brand-new and not yet saved to the server.
+            let saved_article_pairs: Vec<Vec<(BTreeSet<usize>, BTreeSet<usize>)>> = saved
+                .get()
+                .articles
+                .iter()
+                .find(|item| item.created_at == article.created_at)
+                .map(|item| {
+                    item.paragraphs
+                        .iter()
+                        .map(|paragraph| {
+                            paragraph
+                                .pairs
+                                .as_ref()
+                                .map(|pairs| {
+                                    pairs
+                                        .iter()
+                                        .map(|pair| {
+                                            (
+                                                pair.original.iter().copied().collect::<BTreeSet<_>>(),
+                                                pair
+                                                    .translation
+                                                    .iter()
+                                                    .copied()
+                                                    .collect::<BTreeSet<_>>(),
+                                            )
+                                        })
+                                        .collect::<Vec<_>>()
+                                })
+                                .unwrap_or_default()
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
 
             // Pairing/typing mode is a single article-wide setting: toggling it
             // on any paragraph switches every paragraph together.
@@ -1128,6 +1166,10 @@ pub fn ArticlePage(
                             set_mistyped_characters
                             pairing_mode
                             set_pairing_mode
+                            saved_pairs=saved_article_pairs
+                                .get(index)
+                                .cloned()
+                                .unwrap_or_default()
                         />
                     }
                 })

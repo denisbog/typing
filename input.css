@@ -313,7 +313,15 @@
 }
 
 .word-pair-index {
-  @apply absolute -top-2.5 right-0.5 rounded border border-white/15 bg-slate-950 px-1 py-px font-sans text-[10px] font-semibold leading-none text-slate-400 shadow;
+  @apply absolute -top-2.5 rounded border bg-slate-950 px-1 py-px font-sans text-[10px] font-semibold leading-none shadow;
+}
+
+.word-pair-index--new {
+  @apply left-0.5 border-amber-400/40 text-amber-300;
+}
+
+.word-pair-index--saved {
+  @apply right-0.5 border-white/15 text-slate-400;
 }
 
 .sentence-footer {

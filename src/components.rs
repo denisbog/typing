@@ -420,6 +420,10 @@ pub fn Sentance(
     set_mistyped_characters: WriteSignal<usize>,
     pairing_mode: ReadSignal<bool>,
     set_pairing_mode: WriteSignal<bool>,
+    // Pairs for this paragraph that are already persisted on the server, as
+    // (original, translation) word-index sets. Anything in the live pair set
+    // that isn't here is brand-new and not yet saved.
+    saved_pairs: Vec<(BTreeSet<usize>, BTreeSet<usize>)>,
 ) -> impl IntoView {
     let mut typing_state = TypingState::default();
     if let Some(pairs_for_paragraph) = pairs.read().get(&index) {
@@ -434,6 +438,25 @@ pub fn Sentance(
         if !pairing_mode.get() {
             set_sentace_state.update(|state| state.clear_selection());
         }
+    });
+
+    // 0-based indices of the pairs that exist locally but are not yet on the
+    // server (new pairings). Recomputed reactively as pairs are created/removed.
+    let new_pairs = Memo::new(move |_| {
+        sentace_state
+            .read()
+            .pairs
+            .iter()
+            .enumerate()
+            .filter(|(_, assoc)| {
+                !saved_pairs
+                    .iter()
+                    .any(|(original, translation)| {
+                        assoc.original == *original && assoc.translation == *translation
+                    })
+            })
+            .map(|(pair_index, _)| pair_index)
+            .collect::<Vec<_>>()
     });
 
     let pair_button = move || {
@@ -931,10 +954,17 @@ pub fn Sentance(
                                                         {
                                                             Either::Left(
                                                                 view! {
-                                                                    <div class="word-pair-index">
+                                                                    <div
+                                                                        class=if new_pairs.get().contains(&index) {
+                                                                            "word-pair-index word-pair-index--new"
+                                                                        } else {
+                                                                            "word-pair-index word-pair-index--saved"
+                                                                        }
+                                                                    >
                                                                         {index + 1}
                                                                     </div>
-                                                                },
+                                                                }
+                                                                    .into_any(),
                                                             )
                                                         } else {
                                                             Either::Right(view! { <div class="absolute"></div> })
@@ -1033,10 +1063,17 @@ pub fn Sentance(
                                                 {
                                                     Either::Left(
                                                         view! {
-                                                            <div class="word-pair-index">
+                                                            <div
+                                                                class=if new_pairs.get().contains(&index) {
+                                                                    "word-pair-index word-pair-index--new"
+                                                                } else {
+                                                                    "word-pair-index word-pair-index--saved"
+                                                                }
+                                                            >
                                                                 {index + 1}
                                                             </div>
-                                                        },
+                                                        }
+                                                            .into_any(),
                                                     )
                                                 } else {
                                                     Either::Right(view! { <div class="absolute"></div> })
