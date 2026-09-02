@@ -367,8 +367,26 @@ async fn start_paragraph_audio(
     Ok(())
 }
 
+/// Extract every saved pair (word-index lists of original + translation) from
+/// an article, in order. Used to tell whether an article's live pairs still
+/// differ from what is persisted on the server.
+fn article_pairs(article: &crate::application_types::Article) -> Vec<(Vec<usize>, Vec<usize>)> {
+    article
+        .paragraphs
+        .iter()
+        .filter_map(|paragraph| paragraph.pairs.as_ref())
+        .flatten()
+        .map(|pair| (pair.original.clone(), pair.translation.clone()))
+        .collect()
+}
+
 #[component]
-pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> impl IntoView {
+pub fn TranslationPage(
+    data: ReadSignal<Data>,
+    set_data: WriteSignal<Data>,
+    saved: ReadSignal<Data>,
+    set_saved: WriteSignal<Data>,
+) -> impl IntoView {
     let (search, set_search) = signal(crate::local_store::saved_search());
     let search_query = move || search.get().trim().to_lowercase();
     let (favorites, set_favorites) = signal(crate::local_store::favorites());
@@ -416,12 +434,42 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                         .is_some_and(|t| t.to_lowercase().contains(&query))
             })
         });
-        // Favorited articles first, keeping stable original order within each
-        // group so the routes/actions don't reorder unexpectedly.
+        // Snapshot of each article's pairs as last persisted on the server,
+        // keyed by created_at (the article's unique primary key).
+        let saved_pairs_by_key: std::collections::HashMap<String, Vec<(Vec<usize>, Vec<usize>)>> =
+            saved
+                .get()
+                .articles
+                .iter()
+                .map(|article| (article.created_at.to_string(), article_pairs(article)))
+                .collect();
+        // Number of pairs in the live article that are not yet on the server.
+        let unsaved_by_index: std::collections::HashMap<usize, usize> = indexed
+            .iter()
+            .map(|(idx, item)| {
+                let local_pairs = article_pairs(item);
+                let unsaved = match saved_pairs_by_key.get(&item.created_at.to_string()) {
+                    Some(saved_pairs) => local_pairs
+                        .iter()
+                        .filter(|lp| !saved_pairs.contains(lp))
+                        .count(),
+                    // Article unknown to the server: every pair counts as unsaved.
+                    None => local_pairs.len(),
+                };
+                (*idx, unsaved)
+            })
+            .collect();
+        // Articles with unsaved pairs first, then favorites, then the rest —
+        // stable within each group so routes/actions don't reorder unexpectedly.
         let favs = favorites.get();
         indexed.sort_by_key(|(idx, item)| {
+            let is_unsaved = unsaved_by_index.get(idx).copied().unwrap_or(0) > 0;
             let is_fav = favs.contains(&favorite_key(item));
-            (if is_fav { 0u8 } else { 1u8 }, *idx)
+            (
+                if is_unsaved { 0u8 } else { 1u8 },
+                if is_fav { 0u8 } else { 1u8 },
+                *idx,
+            )
         });
         indexed
             .into_iter()
@@ -440,6 +488,8 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                     .filter_map(|paragraph| paragraph.pairs.as_ref())
                     .map(Vec::len)
                     .sum::<usize>();
+                let unsaved_count = unsaved_by_index.get(&index).copied().unwrap_or(0);
+                let has_unsaved = unsaved_count > 0;
                 let progress = if paragraph_count == 0 {
                     0
                 } else {
@@ -483,6 +533,16 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                                                 </span>
                                             }
                                         })}
+                                    {has_unsaved.then(|| {
+                                        view! {
+                                            <span
+                                                class="article-unsaved-badge"
+                                                title="Pairs edited in this article aren't saved to the server yet"
+                                            >
+                                                {format!("{} unsaved", unsaved_count)}
+                                            </span>
+                                        }
+                                    })}
                                 </div>
                                 <span class="article-arrow">
                                     "↗"
@@ -577,7 +637,17 @@ pub fn TranslationPage(data: ReadSignal<Data>, set_data: WriteSignal<Data>) -> i
                                                 .get(index)
                                                 .unwrap()
                                                 .clone();
-                                            let _ = store_pairs(article_to_store).await;
+                                            let _ = store_pairs(article_to_store.clone()).await;
+                                            // Bring the server snapshot in line with what we
+                                            // just persisted, so the "unsaved" badge clears.
+                                            set_saved.update(|snapshot| {
+                                                snapshot
+                                                    .articles
+                                                    .retain(|article| {
+                                                        article.created_at != article_to_store.created_at
+                                                    });
+                                                snapshot.articles.push(article_to_store.clone());
+                                            });
                                             set_saving.set(false);
                                         });
                                     }
@@ -1121,30 +1191,6 @@ pub fn ArticlePage(
                                             .into_any()
                                     } else {
                                         view! {
-                                            // workaround for the selection issue, options are being
-                                            // rendered after the select value is set, we need to force the
-                                            // selction maker on the selected item
-
-                                            // workaround for the selection issue, options are being
-                                            // rendered after the select value is set, we need to force the
-                                            // selction maker on the selected item
-
-                                            // workaround for the selection issue, options are being
-                                            // rendered after the select value is set, we need to force the
-                                            // selction maker on the selected item
-
-                                            // workaround for the selection issue, options are being
-                                            // rendered after the select value is set, we need to force the
-                                            // selction maker on the selected item
-
-                                            // workaround for the selection issue, options are being
-                                            // rendered after the select value is set, we need to force the
-                                            // selction maker on the selected item
-
-                                            // workaround for the selection issue, options are being
-                                            // rendered after the select value is set, we need to force the
-                                            // selction maker on the selected item
-
                                             // workaround for the selection issue, options are being
                                             // rendered after the select value is set, we need to force the
                                             // selction maker on the selected item

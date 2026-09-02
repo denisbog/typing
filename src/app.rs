@@ -216,6 +216,10 @@ pub fn App() -> impl IntoView {
     #[cfg(not(feature = "hydrate"))]
     let cached = None;
     let (translation_post, set_translation_post) = signal(cached.clone().unwrap_or_default());
+    // Mirror of the library as last known to the server (a fresh fetch or a
+    // completed "Save pairs" round-trip). It is used to tell which articles
+    // have pairs created/edited locally but not yet persisted to the server.
+    let (saved_data, set_saved_data) = signal(cached.clone().unwrap_or_default());
     let (last_sync, set_last_sync) = signal(crate::local_store::cached_last_sync());
     let (from_cache, set_from_cache) = signal(cached.is_some());
     // Becomes true as soon as we have something to render: immediately when the
@@ -357,6 +361,7 @@ pub fn App() -> impl IntoView {
             Some(Applied(data)) => {
                 let now = crate::local_store::now_ms();
                 set_translation_post.set(data.clone());
+                set_saved_data.set(data.clone());
                 set_last_sync.set(Some(now));
                 set_from_cache.set(false);
                 set_data_ready.set(true);
@@ -791,6 +796,8 @@ pub fn App() -> impl IntoView {
                                                                 <TranslationPage
                                                                     data=translation_post
                                                                     set_data=set_translation_post
+                                                                    saved=saved_data
+                                                                    set_saved=set_saved_data
                                                                 />
                                                                 <PlaybackPanel playback=playback/>
                                                                 <div>{input_popup_component(set_translation_post)}</div>
@@ -808,6 +815,8 @@ pub fn App() -> impl IntoView {
                                                                 <TranslationPage
                                                                     data=translation_post
                                                                     set_data=set_translation_post
+                                                                    saved=saved_data
+                                                                    set_saved=set_saved_data
                                                                 />
                                                                 <div>{input_popup_component(set_translation_post)}</div>
                                                             },
