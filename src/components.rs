@@ -100,7 +100,6 @@ struct TypingState {
     translated_selected: BTreeSet<usize>,
     pairs: BTreeSet<Association>,
     clicked: Clicked,
-    enable_selection: bool,
 }
 
 impl TypingState {
@@ -110,7 +109,6 @@ impl TypingState {
             translated_selected: BTreeSet::new(),
             pairs: BTreeSet::new(),
             clicked: Clicked::None,
-            enable_selection: false,
         }
     }
 
@@ -146,9 +144,6 @@ impl TypingState {
     /// check if clicked or if activate hightligh
     ///
     fn set_selection_click(&mut self, index: usize, evaluation_for: EvaluationFor) {
-        if !self.enable_selection {
-            return;
-        }
         log!("click in new state {}", index);
         match evaluation_for {
             EvaluationFor::Original => {
@@ -391,14 +386,10 @@ impl TypingState {
         }
     }
 
-    fn toogle_enable_pair(&mut self) {
-        if self.enable_selection {
-            self.original_selected.clear();
-            self.translated_selected.clear();
-            self.clicked = Clicked::None;
-        }
-
-        self.enable_selection = !self.enable_selection;
+    fn clear_selection(&mut self) {
+        self.original_selected.clear();
+        self.translated_selected.clear();
+        self.clicked = Clicked::None;
     }
 }
 
@@ -427,12 +418,23 @@ pub fn Sentance(
     completed_typing_speeds: ReadSignal<Vec<Option<f32>>>,
     set_completed_typing_speeds: WriteSignal<Vec<Option<f32>>>,
     set_mistyped_characters: WriteSignal<usize>,
+    pairing_mode: ReadSignal<bool>,
+    set_pairing_mode: WriteSignal<bool>,
 ) -> impl IntoView {
     let mut typing_state = TypingState::default();
     if let Some(pairs_for_paragraph) = pairs.read().get(&index) {
         typing_state.set_initial_pairs(pairs_for_paragraph.clone());
     }
     let (sentace_state, set_sentace_state) = signal(typing_state);
+
+    // The article switches pairing/typing mode globally: every paragraph shares
+    // the same flag. Word selections only make sense in pairing mode, so when
+    // the global mode drops back to typing we clear them across all paragraphs.
+    Effect::new(move |_| {
+        if !pairing_mode.get() {
+            set_sentace_state.update(|state| state.clear_selection());
+        }
+    });
 
     let pair_button = move || {
         if sentace_state.read().pair_enabled() {
@@ -588,7 +590,7 @@ pub fn Sentance(
         }
     };
     let class = move || {
-        if sentace_state.read().enable_selection {
+        if pairing_mode.get() {
             "sentence-card article-card sentence-card--selecting"
         } else {
             "sentence-card article-card"
@@ -612,7 +614,7 @@ pub fn Sentance(
                         </span>
                     </div>
                     <span class=move || {
-                        if sentace_state.read().enable_selection {
+                        if pairing_mode.get() {
                             "mode-badge mode-badge--active"
                         } else {
                             "mode-badge"
@@ -621,7 +623,7 @@ pub fn Sentance(
                         {move || {
                             if is_mobile.get() {
                                 "Reading mode"
-                            } else if sentace_state.read().enable_selection {
+                            } else if pairing_mode.get() {
                                 "Pairing mode"
                             } else {
                                 "Typing mode"
@@ -650,7 +652,7 @@ pub fn Sentance(
                         <div class="typing-area"
                             tabindex=move || if is_mobile.get() { -1 } else { 1 }
                             on:click=move |_| {
-                                if is_mobile.get() && !sentace_state.read().enable_selection {
+                                if is_mobile.get() && !pairing_mode.get() {
                                     if let Some(on_audio_click) = on_audio_click.clone() {
                                         on_audio_click.run(index);
                                     }
@@ -760,7 +762,7 @@ pub fn Sentance(
                                     return;
                                 }
                                 switch_to_paragraph(index);
-                                if !sentace_state.read().enable_selection {
+                                if !pairing_mode.get() {
                                     set_store.update(|store| store.focus = true)
                                 }
                             }
@@ -848,7 +850,7 @@ pub fn Sentance(
                                                             .get_state_for_word(word_index, EvaluationFor::Original),
                                                     )
                                                     .to_string();
-                                                if sentace_state.read().enable_selection {
+                                                if pairing_mode.get() {
                                                     class.push_str(" word-selectable");
                                                 }
                                                 if speech_active() {
@@ -860,7 +862,7 @@ pub fn Sentance(
                                                 <div
                                                     class=class
                                                     on:click=move |_| {
-                                                        if sentace_state.read().enable_selection {
+                                                        if pairing_mode.get() {
                                                             set_sentace_state
                                                                 .update(|state| {
                                                                     state
@@ -997,7 +999,7 @@ pub fn Sentance(
                                                     .get_state_for_word(word_index, EvaluationFor::Translation),
                                             )
                                             .to_string();
-                                        if sentace_state.read().enable_selection {
+                                        if pairing_mode.get() {
                                             class.push_str(" word-selectable");
                                         }
                                         class
@@ -1006,7 +1008,7 @@ pub fn Sentance(
                                         <div
                                             class=class
                                             on:click=move |_| {
-                                                if sentace_state.read().enable_selection {
+                                                if pairing_mode.get() {
                                                     set_sentace_state
                                                         .update(|state| {
                                                             state
@@ -1080,7 +1082,7 @@ pub fn Sentance(
 
             {
                 let label = move || {
-                    if sentace_state.read().enable_selection {
+                    if pairing_mode.get() {
                         "Back to typing"
                     } else {
                         "Pair words"
@@ -1144,10 +1146,7 @@ pub fn Sentance(
                         <div
                             class=BUTTON_CLASS
                             on:click=move |_event| {
-                                set_sentace_state
-                                    .update(|state| {
-                                        state.toogle_enable_pair();
-                                    });
+                                set_pairing_mode.update(|mode| *mode = !*mode);
                             }
                         >
 

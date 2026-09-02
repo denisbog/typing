@@ -931,6 +931,10 @@ pub fn ArticlePage(
 
             let (pairs, set_pairs) = signal(article_pairs);
 
+            // Pairing/typing mode is a single article-wide setting: toggling it
+            // on any paragraph switches every paragraph together.
+            let (pairing_mode, set_pairing_mode) = signal(false);
+
             let total = article.paragraphs.len();
             let (typing_speed_paragraph, set_typing_speed_paragraph) =
                 signal(Option::<usize>::None);
@@ -1122,6 +1126,8 @@ pub fn ArticlePage(
                             completed_typing_speeds
                             set_completed_typing_speeds
                             set_mistyped_characters
+                            pairing_mode
+                            set_pairing_mode
                         />
                     }
                 })
