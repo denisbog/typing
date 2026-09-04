@@ -587,6 +587,22 @@ pub fn TranslationPage(
                                 <span>"saved pairs"</span>
                             </div>
                             <div class="article-action-buttons">
+                                <a
+                                    class=BUTTON_CLASS
+                                    href=format!("/article/{}/match", index)
+                                    title="Match this article’s saved pairs"
+                                >
+                                    <span class="btn-icon">"⧉"</span>
+                                    <span class="btn-label">"Match"</span>
+                                </a>
+                                <a
+                                    class=BUTTON_CLASS
+                                    href=format!("/article/{}/rebuild", index)
+                                    title="Rebuild this article’s original text"
+                                >
+                                    <span class="btn-icon">"↶"</span>
+                                    <span class="btn-label">"Rebuild"</span>
+                                </a>
                                 <button
                                     class=move || {
                                         if favorites.get().contains(&class_fav_key) {

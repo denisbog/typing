@@ -669,22 +669,6 @@ pub fn App() -> impl IntoView {
                                                 </Show>
                                             </button>
                                             <a
-                                                href="/rebuild"
-                                                class=BUTTON_CLASS
-                                                title="Restore original text from saved pairs"
-                                            >
-                                                <span class="btn-icon">"↶"</span>
-                                                <span class="btn-label">"Rebuild text"</span>
-                                            </a>
-                                            <a
-                                                href="/match"
-                                                class=BUTTON_CLASS
-                                                title="Match saved pairs"
-                                            >
-                                                <span class="btn-icon">"⧉"</span>
-                                                <span class="btn-label">"Match pairs"</span>
-                                            </a>
-                                            <a
                                                 href="/properties"
                                                 class=BUTTON_CLASS
                                                 aria-label="Properties"
@@ -835,6 +819,28 @@ pub fn App() -> impl IntoView {
                     />
 
                     <Route
+                        path=path!("/article/:id/match")
+                        view=move || {
+                            view! {
+                                <DataGate data_ready=data_ready.into()>
+                                    <crate::matching_page::MatchingPage data=translation_post/>
+                                </DataGate>
+                            }
+                        }
+                    />
+
+                    <Route
+                        path=path!("/article/:id/rebuild")
+                        view=move || {
+                            view! {
+                                <DataGate data_ready=data_ready.into()>
+                                    <crate::rebuild_page::RebuildPage data=translation_post/>
+                                </DataGate>
+                            }
+                        }
+                    />
+
+                    <Route
                         path=path!("/article/:id")
                         view=move || {
                             view! {
@@ -855,28 +861,6 @@ pub fn App() -> impl IntoView {
                         view=move || {
                             view! {
                                 <crate::properties_page::PropertiesPage></crate::properties_page::PropertiesPage>
-                            }
-                        }
-                    />
-
-                    <Route
-                        path=path!("/rebuild")
-                        view=move || {
-                            view! {
-                                <DataGate data_ready=data_ready.into()>
-                                    <crate::rebuild_page::RebuildPage data=translation_post/>
-                                </DataGate>
-                            }
-                        }
-                    />
-
-                    <Route
-                        path=path!("/match")
-                        view=move || {
-                            view! {
-                                <DataGate data_ready=data_ready.into()>
-                                    <crate::matching_page::MatchingPage data=translation_post/>
-                                </DataGate>
                             }
                         }
                     />

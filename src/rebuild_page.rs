@@ -1,11 +1,12 @@
-//! "Rebuild the text" — pick an article that has saved word pairs, then
-//! reconstruct the original paragraph.
+//! "Rebuild the text" — reconstruct an article's original paragraph text
+//! from its saved word pairs.
 //!
 //! The original paragraph is shown with the translation of every saved pair
 //! inserted inline in place of the original words. The user picks the correct
 //! original word for each inserted translation from a shuffled word bank.
 //! When every insertion has been replaced the paragraph is back to its
-//! original form.
+//! original form. The page is scoped to a single article (chosen from its
+//! library card).
 
 use std::collections::BTreeMap;
 #[cfg(feature = "hydrate")]
@@ -13,9 +14,19 @@ use std::time::Duration;
 
 use leptos::prelude::*;
 use leptos_meta::Title;
+use leptos_router::hooks::use_params;
+use leptos_router::params::Params;
 
 use crate::application_types::Data;
-use crate::{BUTTON_CLASS, BUTTON_PRIMARY_CLASS};
+use crate::BUTTON_CLASS;
+
+/// Route params: the article id this rebuild session is scoped to. Rebuilding
+/// is always triggered per-article from the library card, so `id` is always
+/// present.
+#[derive(Params, PartialEq)]
+pub struct RebuildParams {
+    id: Option<usize>,
+}
 
 /// A single inline blank where an original word has been replaced by its
 /// translation and must be restored.
@@ -140,7 +151,8 @@ fn ParagraphExercise(data: BuildData) -> impl IntoView {
     let (sel_slot, set_sel_slot) = signal(None::<usize>);
     let (sel_word, set_sel_word) = signal(None::<usize>);
     let (wrong_slot, set_wrong_slot) = signal(None::<usize>);
-    let (done, set_done) = signal(false);
+    // The pair revealed by the Hint button (persists until placed).
+    let (hint, set_hint) = signal(None::<usize>);
 
     let clear_wrong_after = move |slot: usize| {
         #[cfg(feature = "hydrate")]
@@ -176,7 +188,9 @@ fn ParagraphExercise(data: BuildData) -> impl IntoView {
             set_sel_slot.set(None);
             set_sel_word.set(None);
             set_wrong_slot.set(None);
-            set_done.set(placed.get().len() == n);
+            if hint.get() == Some(slot_id) {
+                set_hint.set(None);
+            }
         } else {
             set_wrong_slot.set(Some(slot_id));
             set_sel_slot.set(None);
@@ -210,6 +224,18 @@ fn ParagraphExercise(data: BuildData) -> impl IntoView {
         }
     };
 
+    // Reveal the selected side's counterpart as a hint. Only reachable while
+    // a blank or a bank word is selected (the button only shows then).
+    // Persists until that pair is placed. The bank word ids equal the blank
+    // slot ids, so one value covers both sides.
+    let on_hint = move |_| {
+        if let Some(slot_id) = sel_slot.get() {
+            set_hint.set(Some(slot_id));
+        } else if let Some(word_id) = sel_word.get() {
+            set_hint.set(Some(word_id));
+        }
+    };
+
     // The paragraph with each paired position either a locked original word
     // or an inline translation blank waiting to be restored. Each paired word
     // is rendered as its own blank; each word not part of a pair gets its own
@@ -226,12 +252,14 @@ fn ParagraphExercise(data: BuildData) -> impl IntoView {
                         view! { <span class="rebuild-locked">{expected}</span> }
                         .into_any()
                     } else {
-                        let hint = d.blanks[slot_id].hint.clone();
+                        let hint_text = d.blanks[slot_id].hint.clone();
                         let class = move || {
                             if wrong_slot.get() == Some(slot_id) {
                                 "rebuild-blank rebuild-blank--wrong"
                             } else if sel_slot.get() == Some(slot_id) {
                                 "rebuild-blank rebuild-blank--selected"
+                            } else if hint.get() == Some(slot_id) {
+                                "rebuild-blank rebuild-blank--hint"
                             } else {
                                 "rebuild-blank"
                             }
@@ -243,7 +271,7 @@ fn ParagraphExercise(data: BuildData) -> impl IntoView {
                                 title="Restore the original word"
                                 on:click=move |_| on_slot(slot_id)
                             >
-                                {hint}
+                                {hint_text}
                             </button>
                         }
                         .into_any()
@@ -265,6 +293,8 @@ fn ParagraphExercise(data: BuildData) -> impl IntoView {
                 let class = move || {
                     if sel_word.get() == Some(id) {
                         "rebuild-word rebuild-word--selected"
+                    } else if hint.get() == Some(id) {
+                        "rebuild-word rebuild-word--hint"
                     } else {
                         "rebuild-word"
                     }
@@ -278,7 +308,6 @@ fn ParagraphExercise(data: BuildData) -> impl IntoView {
             .collect_view()
     };
 
-    let is_done = move || done.get();
     let label = move || {
         let ai = data.read().article_index;
         let pi = data.read().paragraph_index;
@@ -295,16 +324,34 @@ fn ParagraphExercise(data: BuildData) -> impl IntoView {
                         "The translation is inserted below — pick the correct original word for each highlighted spot from the bank."
                     </p>
                 </div>
-                <div class="rebuild-progress">
-                    {move || {
-                        let done = placed.get().len();
-                        if done == n {
-                            "Done ✓".to_string()
-                        } else {
-                            format!("{} / {} restored", done, n)
+                <div class="rebuild-head-actions">
+                    <button
+                        type="button"
+                        class=move || {
+                            if sel_slot.get().is_some() || sel_word.get().is_some() {
+                                "rebuild-hint-btn"
+                            } else {
+                                "rebuild-hint-btn rebuild-hint-btn--hidden"
+                            }
                         }
-                    }}
 
+                        title="Reveal this pair as a hint"
+                        on:click=on_hint
+                    >
+                        <span>"💡"</span>
+                        <span>"Hint"</span>
+                    </button>
+                    <div class="rebuild-progress">
+                        {move || {
+                            let done = placed.get().len();
+                            if done == n {
+                                "Done ✓".to_string()
+                            } else {
+                                format!("{} / {} restored", done, n)
+                            }
+                        }}
+
+                    </div>
                 </div>
             </div>
 
@@ -322,113 +369,59 @@ fn ParagraphExercise(data: BuildData) -> impl IntoView {
                     </div>
                 </Show>
             </div>
-
-            <Show when=is_done fallback=|| view! { <div class="hidden"></div> }>
-                <div class="rebuild-done">
-                    <span class="rebuild-done-icon">"✓"</span>
-                    "The paragraph is back to its original text."
-                </div>
-            </Show>
         </section>
     }
 }
 
 #[component]
 pub fn RebuildPage(data: ReadSignal<Data>) -> impl IntoView {
-    let (selected, set_selected) = signal(None::<usize>);
+    let params = use_params::<RebuildParams>();
+    // The route param never changes while this page is mounted, so this is a
+    // one-time untracked read.
+    let article_id = params
+        .with_untracked(|param| param.as_ref().ok().and_then(|p| p.id))
+        .unwrap();
 
-    // Articles that have at least one saved pair.
-    let pickable = move || {
-        data.get()
-            .articles
-            .iter()
-            .enumerate()
-            .filter_map(|(ai, a)| {
-                let paragraphs_with_pairs = a
-                    .paragraphs
-                    .iter()
-                    .filter(|p| p.pairs.as_ref().is_some_and(|x| !x.is_empty()))
-                    .count();
-                let pair_count: usize = a
-                    .paragraphs
-                    .iter()
-                    .filter_map(|p| p.pairs.as_ref())
-                    .map(Vec::len)
-                    .sum();
-                if paragraphs_with_pairs == 0 {
-                    None
-                } else {
-                    Some((ai, a.title.clone(), paragraphs_with_pairs, pair_count))
-                }
-            })
-            .collect::<Vec<_>>()
-    };
-    let total_pairs = move || pickable().iter().map(|(_, _, _, c)| c).sum::<usize>();
+    // The article being rebuilt, cloned out for rendering.
+    let chosen = move || data.get().articles.get(article_id).cloned();
 
-    // The currently selected article, cloned out for rendering.
-    let chosen = move || {
-        let idx = selected.get()?;
-        data.get().articles.get(idx).cloned()
+    // The article has at least one paragraph with saved pairs.
+    let has_any = move || {
+        chosen().is_some_and(|a| {
+            a.paragraphs
+                .iter()
+                .any(|p| p.pairs.as_ref().is_some_and(|x| !x.is_empty()))
+        })
     };
 
-    let picker_views = move || {
-        pickable()
-            .into_iter()
-            .map(move |(ai, title, paras, pairs)| {
-                let (headline, summary) = title
-                    .split_once("||")
-                    .map(|(h, s)| (h.trim().to_string(), Some(s.trim().to_string())))
-                    .unwrap_or_else(|| (title, None));
-                let (headline, summary) = (headline, summary);
-                let is_sel = move || selected.get() == Some(ai);
-                let class = move || {
-                    if is_sel() {
-                        "rebuild-pick rebuild-pick--selected"
-                    } else {
-                        "rebuild-pick"
-                    }
-                };
-                view! {
-                    <button type="button" class=class on:click=move |_| set_selected.set(Some(ai))>
-                        <span class="rebuild-pick-top">
-                            <span class="rebuild-pick-index">
-                                {format!("Article {:02}", ai + 1)}
-                            </span>
-                            <span class="rebuild-pick-check">
-                                {move || if is_sel() { "✓" } else { "" }}
-                            </span>
-                        </span>
-                        <span class="rebuild-pick-body">
-                            <span class="rebuild-pick-title">{headline}</span>
-                            {summary
-                                .map(|s| view! { <span class="rebuild-pick-summary">{s}</span> })}
-                        </span>
-                        <span class="rebuild-pick-meta">
-                            {format!("{} paragraphs · {} pairs", paras, pairs)}
-                        </span>
-                    </button>
+    // (paragraphs_with_pairs, total_pairs) for the stats panel.
+    let pairs_summary = move || {
+        let Some(article) = chosen() else { return (0, 0) };
+        let mut paragraphs = 0;
+        let mut pairs = 0;
+        for paragraph in &article.paragraphs {
+            if let Some(list) = paragraph.pairs.as_ref() {
+                if !list.is_empty() {
+                    paragraphs += 1;
+                    pairs += list.len();
                 }
-            })
-            .collect_view()
+            }
+        }
+        (paragraphs, pairs)
     };
 
     let exercise_views = move || {
-        let article = chosen()?;
+        let Some(article) = chosen() else { return None };
         let mut views: Vec<AnyView> = Vec::new();
         for (pi, paragraph) in article.paragraphs.iter().enumerate() {
             let has_pairs = paragraph.pairs.as_ref().is_some_and(|x| !x.is_empty());
             if has_pairs {
-                let build = BuildData::build(selected.get().unwrap_or(0) as usize, pi, paragraph);
-                views.push(
-                    view! { <ParagraphExercise data=build/> }
-                    .into_any(),
-                );
+                let build = BuildData::build(article_id, pi, paragraph);
+                views.push(view! { <ParagraphExercise data=build/> }.into_any());
             }
         }
         Some(views)
     };
-
-    let has_any = move || !pickable().is_empty();
 
     view! {
         <Title text="Rebuild the text — Tippen"/>
@@ -439,105 +432,77 @@ pub fn RebuildPage(data: ReadSignal<Data>) -> impl IntoView {
                     <span class="back-link-label">"Library"</span>
                 </a>
                 <div class="page-title-wrap">
-                    <div class="page-title-eyebrow">"Reconstruction drill"</div>
-                    <div class="page-title">"Rebuild the text"</div>
+                    <div class="page-title-eyebrow">
+                        {move || format!("Reconstruction drill · Article {:02}", article_id + 1)}
+                    </div>
+                    <div class="page-title">
+                        {move || {
+                            data.get()
+                                .articles
+                                .get(article_id)
+                                .map(|a| a.title.clone())
+                                .unwrap_or_else(|| "Rebuild the text".to_string())
+                        }}
+
+                    </div>
                 </div>
-                <Show when=move || selected.get().is_some() fallback=|| ()>
-                    <button
-                        class=BUTTON_PRIMARY_CLASS
-                        title="Go back and choose another article"
-                        on:click=move |_| set_selected.set(None)
-                    >
-                        <span class="btn-icon">"←"</span>
-                        <span class="btn-label">"All articles"</span>
-                    </button>
-                </Show>
             </div>
         </header>
 
         <div class="dash-container">
+            <section class="match-intro">
+                <div class="match-intro-text">
+                    <span class="eyebrow">"Reconstruct the original text"</span>
+                    <h1 class="match-title">
+                        "Reconnect every pair of this article."
+                    </h1>
+                    <p class="match-sub">
+                        "Each saved pair hides its original word behind its translation.
+                        Rebuild the original paragraphs by picking the correct word from the
+                        bank for every highlighted spot — until the whole text reads naturally
+                        again. Correct choices lock in place; the article is reconstructed one
+                        word at a time."
+                    </p>
+                </div>
+                <div class="match-stats glass-panel">
+                    <div class="stat">
+                        <div class="stat-num">{move || pairs_summary().0}</div>
+                        <div class="stat-label">"Paragraphs"</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-num">{move || pairs_summary().1}</div>
+                        <div class="stat-label">"Pairs"</div>
+                    </div>
+                </div>
+            </section>
+
             <Show
                 when=has_any
                 fallback=move || {
                     view! {
                         <div class="library-empty glass-panel">
                             <span class="library-empty-icon">"⧉"</span>
-                            <h3 class="library-empty-title">"No articles with saved pairs"</h3>
+                            <h3 class="library-empty-title">"No saved pairs in this article"</h3>
                             <p class="library-empty-sub">
-                                "Open an article, switch to Pair words mode, and save at least
-                                one pair. Then come back here to reconstruct the originals."
+                                "This article has no saved word pairs yet. Open it,
+                                switch to Pair words mode, and save at least one pair,
+                                then come back here to reconstruct the originals."
                             </p>
-                            <a href="/" class=BUTTON_CLASS>
-                                "← Back to library"
-                            </a>
+                            <a href="/" class=BUTTON_CLASS>"← Back to library"</a>
                         </div>
                     }
                 }
             >
 
-                <Show
-                    when=move || chosen().is_some()
-                    fallback=move || {
-                        view! {
-                            <section class="rebuild-intro">
-                                <div class="rebuild-intro-text">
-                                    <span class="eyebrow">"Pick an article with saved pairs"</span>
-                                    <h1 class="rebuild-title">
-                                        "Choose which text to reconstruct."
-                                    </h1>
-                                    <p class="match-sub">
-                                        "Each saved pair hides its original word behind the
-                                        translation. Pick the right word from the bank to put the
-                                        original paragraph back together, word by word."
-                                    </p>
-                                </div>
-                                <div class="match-stats glass-panel">
-                                    <div class="stat">
-                                        <div class="stat-num">{move || pickable().len()}</div>
-                                        <div class="stat-label">"Articles"</div>
-                                    </div>
-                                    <div class="stat">
-                                        <div class="stat-num">{move || total_pairs()}</div>
-                                        <div class="stat-label">"Pairs"</div>
-                                    </div>
-                                </div>
-                            </section>
-                            <div class="rebuild-picks">{picker_views}</div>
-                        }
-                    }
-                >
-
+                <section class="rebuild-exercises">
                     {move || {
                         match exercise_views() {
-                            Some(v) => {
-                                view! {
-                                    <section class="rebuild-exercises">
-                                        <div class="rebuild-article-head">
-                                            <span class="eyebrow">"Selected article"</span>
-                                            <h2 class="rebuild-article-title">
-                                                {move || {
-                                                    chosen()
-                                                        .map(|a| {
-                                                            a.title
-                                                                .split_once("||")
-                                                                .map(|(h, _)| h.trim().to_string())
-                                                                .unwrap_or(a.title)
-                                                        })
-                                                        .unwrap_or_default()
-                                                }}
-
-                                            </h2>
-                                        </div>
-                                        {v}
-                                    </section>
-                                }
-                                    .into_any()
-                            }
+                            Some(v) => view! { {v} }.into_any(),
                             None => ().into_any(),
                         }
                     }}
 
-                </Show>
+                </section>
             </Show>
         </div>
     }

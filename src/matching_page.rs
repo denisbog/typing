@@ -3,11 +3,21 @@ use std::time::Duration;
 
 use leptos::prelude::*;
 use leptos_meta::Title;
+use leptos_router::hooks::use_params;
+use leptos_router::params::Params;
 
 use crate::application_types::Data;
 use crate::local_store;
 use crate::BUTTON_CLASS;
 use crate::BUTTON_PRIMARY_CLASS;
+
+/// Route params: the article id this matching session is scoped to. Matching
+/// is always triggered per-article from the library card, so `id` is always
+/// present.
+#[derive(Params, PartialEq)]
+pub struct MatchParams {
+    id: Option<usize>,
+}
 
 /// A single drivable pair extracted from an article paragraph.
 #[derive(Clone, Debug)]
@@ -88,61 +98,65 @@ fn chunk_pairs(items: Vec<MatchItem>) -> Vec<Vec<MatchItem>> {
         .collect()
 }
 
-/// Extract every saved pair, grouped per article or per paragraph, and split
-/// so no group holds more than `MAX_PAIRS_PER_GROUP` pairs.
+/// Extract every saved pair of a single article, grouped per article or per
+/// paragraph, and split so no group holds more than `MAX_PAIRS_PER_GROUP`
+/// pairs.
 ///
-/// When `group_by_paragraph` is false, each article becomes one group. When
+/// When `group_by_paragraph` is false, the article becomes one group. When
 /// true, each paragraph that has at least one pair becomes its own group so
 /// the exercise stays small. Either way the pairs are further chunked into
-/// groups of at most `MAX_PAIRS_PER_GROUP` pairs.
-fn collect_groups(data: &Data, group_by_paragraph: bool) -> Vec<MatchGroup> {
+/// groups of at most `MAX_PAIRS_PER_GROUP` pairs. Article index labels keep
+/// the real article number even though only one article is ever shown.
+fn collect_groups(data: &Data, group_by_paragraph: bool, article_id: usize) -> Vec<MatchGroup> {
     let mut out: Vec<MatchGroup> = Vec::new();
-    for (ai, article) in data.articles.iter().enumerate() {
-        let mut article_items: Vec<MatchItem> = Vec::new();
-        for (pi, paragraph) in article.paragraphs.iter().enumerate() {
-            let items = extract_paragraph_items(paragraph);
-            if group_by_paragraph {
-                for (ci, chunk) in chunk_pairs(items).into_iter().enumerate() {
-                    out.push(MatchGroup {
-                        article_title: article.title.clone(),
-                        eyebrow: match (chunk.len() > 1, ci) {
-                            (true, part) => format!(
-                                "Article {:02} · Paragraph {:02} · Part {}",
-                                ai + 1,
-                                pi + 1,
-                                part + 1,
-                            ),
-                            (false, _) => format!(
-                                "Article {:02} · Paragraph {:02}",
-                                ai + 1,
-                                pi + 1,
-                            ),
-                        },
-                        items: chunk,
-                    });
-                }
-            } else {
-                article_items.extend(items);
-            }
-        }
-        if !group_by_paragraph {
-            let chunks = chunk_pairs(article_items);
-            let num_chunks = chunks.len();
-            for (ci, chunk) in chunks.into_iter().enumerate() {
-                if chunk.is_empty() {
-                    continue;
-                }
+    let Some(article) = data.articles.get(article_id) else {
+        return out;
+    };
+    let ai = article_id;
+    let mut article_items: Vec<MatchItem> = Vec::new();
+    for (pi, paragraph) in article.paragraphs.iter().enumerate() {
+        let items = extract_paragraph_items(paragraph);
+        if group_by_paragraph {
+            for (ci, chunk) in chunk_pairs(items).into_iter().enumerate() {
                 out.push(MatchGroup {
                     article_title: article.title.clone(),
-                    eyebrow: match (num_chunks > 1, ci) {
-                        (true, part) => {
-                            format!("Article {:02} · Part {}", ai + 1, part + 1)
-                        }
-                        (false, _) => format!("Article {:02}", ai + 1),
+                    eyebrow: match (chunk.len() > 1, ci) {
+                        (true, part) => format!(
+                            "Article {:02} · Paragraph {:02} · Part {}",
+                            ai + 1,
+                            pi + 1,
+                            part + 1,
+                        ),
+                        (false, _) => format!(
+                            "Article {:02} · Paragraph {:02}",
+                            ai + 1,
+                            pi + 1,
+                        ),
                     },
                     items: chunk,
                 });
             }
+        } else {
+            article_items.extend(items);
+        }
+    }
+    if !group_by_paragraph {
+        let chunks = chunk_pairs(article_items);
+        let num_chunks = chunks.len();
+        for (ci, chunk) in chunks.into_iter().enumerate() {
+            if chunk.is_empty() {
+                continue;
+            }
+            out.push(MatchGroup {
+                article_title: article.title.clone(),
+                eyebrow: match (num_chunks > 1, ci) {
+                    (true, part) => {
+                        format!("Article {:02} · Part {}", ai + 1, part + 1)
+                    }
+                    (false, _) => format!("Article {:02}", ai + 1),
+                },
+                items: chunk,
+            });
         }
     }
     out
@@ -412,6 +426,12 @@ fn ArticleMatchSection(
 
 #[component]
 pub fn MatchingPage(data: ReadSignal<Data>) -> impl IntoView {
+    let params = use_params::<MatchParams>();
+    // The route param never changes while this page is mounted, so this is a
+    // one-time untracked read.
+    let article_id = params
+        .with_untracked(|param| param.as_ref().ok().and_then(|p| p.id))
+        .unwrap();
     let (run_id, set_run_id) = signal(0u32);
     let (flash_reset, set_flash_reset) = signal(false);
     // Grouping preference comes from the Properties page (localStorage). On
@@ -423,7 +443,7 @@ pub fn MatchingPage(data: ReadSignal<Data>) -> impl IntoView {
     #[cfg(not(feature = "hydrate"))]
     let (group_by_paragraph, _set_group_by_paragraph) = signal(false);
 
-    let groups = move || collect_groups(&data.get(), group_by_paragraph.get());
+    let groups = move || collect_groups(&data.get(), group_by_paragraph.get(), article_id);
 
     let total_pairs = move || {
         groups()
@@ -437,7 +457,7 @@ pub fn MatchingPage(data: ReadSignal<Data>) -> impl IntoView {
         if group_by_paragraph.get() {
             "Paragraphs"
         } else {
-            "Articles"
+            "Parts"
         }
     };
 
@@ -483,8 +503,19 @@ pub fn MatchingPage(data: ReadSignal<Data>) -> impl IntoView {
                     <span class="back-link-label">"Library"</span>
                 </a>
                 <div class="page-title-wrap">
-                    <div class="page-title-eyebrow">"Vocabulary drill"</div>
-                    <div class="page-title">"Match the pairs"</div>
+                    <div class="page-title-eyebrow">
+                        {move || format!("Vocabulary drill · Article {:02}", article_id + 1)}
+                    </div>
+                    <div class="page-title">
+                        {move || {
+                            data.get()
+                                .articles
+                                .get(article_id)
+                                .map(|a| a.title.clone())
+                                .unwrap_or_else(|| "Match the pairs".to_string())
+                        }}
+
+                    </div>
                 </div>
                 <button
                     class=BUTTON_PRIMARY_CLASS
@@ -502,7 +533,7 @@ pub fn MatchingPage(data: ReadSignal<Data>) -> impl IntoView {
                 <div class="match-intro-text">
                     <span class="eyebrow">"Match each word to its translation"</span>
                     <h1 class="match-title">
-                        "Reconnect every pair across your library."
+                        "Reconnect every pair of this article."
                     </h1>
                     <p class="match-sub">
                         "Pick a card on the left and the matching card on the right. Correct
@@ -529,10 +560,13 @@ pub fn MatchingPage(data: ReadSignal<Data>) -> impl IntoView {
                     view! {
                         <div class="library-empty glass-panel">
                             <span class="library-empty-icon">"⧉"</span>
-                            <h3 class="library-empty-title">"No saved pairs yet"</h3>
+                            <h3 class="library-empty-title">
+                                "No saved pairs in this article"
+                            </h3>
                             <p class="library-empty-sub">
-                                "Open an article, switch to Pair words mode, and save at least
-                                one pair. Then come back here to match them."
+                                "This article has no saved word pairs yet. Open it,
+                                switch to Pair words mode, and save at least one pair,
+                                then come back here to match them."
                             </p>
                             <a href="/" class=BUTTON_CLASS>"← Back to library"</a>
                         </div>
