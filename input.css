@@ -339,7 +339,7 @@
 }
 
 .wpm-pill {
-  @apply rounded-md border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 font-mono text-xs text-slate-300;
+  @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-white/[0.08] bg-white/[0.045] px-3 py-1.5 text-sm font-semibold text-slate-400 transition-colors duration-150 hover:border-white/25 hover:bg-white/[0.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/50 cursor-pointer text-nowrap whitespace-nowrap select-none disabled:pointer-events-none disabled:opacity-40;
 }
 
 .wpm-unit {
@@ -577,15 +577,15 @@
 }
 
 .jump-bar {
-  @apply fixed bottom-4 left-1/2 z-40 flex w-[calc(100%-2rem)] max-w-6xl -translate-x-1/2 items-center gap-3 rounded-md border border-white/10 bg-slate-950/85 p-2.5 text-sm text-slate-300 shadow-lg shadow-black/30 backdrop-blur-md animate-slide-up;
+  @apply fixed bottom-4 right-4 z-40 flex max-w-6xl -translate-x-1/2 items-center gap-3 rounded-md border border-white/10 p-2.5 text-sm text-slate-300 shadow-lg shadow-black/30 backdrop-blur-md animate-slide-up;
 }
 
 .jump-back {
-  @apply inline-flex shrink-0 items-center gap-2 rounded-md border border-white/[0.06] bg-white/[0.04] px-2.5 py-1.5 text-xs font-semibold text-slate-400 transition-colors hover:border-white/15 hover:bg-white/10 hover:text-white;
+  @apply flex shrink-0 items-baseline gap-2 rounded-md border border-white/[0.06] bg-white/[0.04] px-2.5 py-1.5 text-xs font-semibold text-slate-400 transition-colors hover:border-white/15 hover:bg-white/10 hover:text-white;
 }
 
 .jump-back-icon {
-  @apply flex h-5 w-5 items-center justify-center rounded border border-white/[0.08] bg-white/[0.04] text-slate-400 transition group-hover:text-slate-100;
+  @apply flex items-center justify-center text-slate-400 transition group-hover:text-slate-100;
 }
 
 .jump-back-label {
@@ -617,7 +617,7 @@
 }
 
 .voice-select {
-  @apply rounded-md border border-white/[0.08] bg-slate-950/80 px-3 py-2 text-xs text-slate-300 outline-none transition-colors focus:border-white/25 focus:ring-2 focus:ring-white/10;
+  @apply rounded-md border border-white/[0.06] bg-white/[0.04] px-3 py-2 text-xs text-slate-300 outline-none transition-colors;
 }
 
 .current-paragraph-toggle {
@@ -632,7 +632,7 @@
 /* Playback panel (floating audio controls) - moved from src/app.rs     */
 /* ------------------------------------------------------------------ */
 .playback-panel {
-  @apply fixed bottom-5 right-5 z-50 flex items-center gap-4 rounded-md border border-white/10 bg-slate-950/85 p-3 shadow-lg shadow-black/30 backdrop-blur-md animate-slide-up;
+  @apply fixed bottom-5 right-5 z-50 flex items-center gap-4 rounded-md border border-white/10 p-3 shadow-lg shadow-black/30 backdrop-blur-md animate-slide-up;
 }
 
 .playback-icon {
