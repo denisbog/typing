@@ -104,7 +104,15 @@ cargo leptos watch --release
 npx tailwindcss -i ./input.css -o ./public/typing.css
 # RUSTFLAGS="-Zlinker-features=-lld" LEPTOS_OUTPUT_NAME=typing cargo lambda build --no-default-features --features=ssr,lambda --release
 
+cargo clean
+
 npx tailwindcss -i ./input.css -o ./public/typing.css
+# TYPING_BUILD stamps BUILD_NUMBER and the PWA cache name (build.rs ->
+# public/build.json + public/sw.js) so both change on every deployment.
+# Without it, the service worker cache name stays the same and clients keep
+# the old cached build.
+TYPING_BUILD=$(date -u +%s) cargo leptos build --release
+cargo leptos build --release
 LEPTOS_OUTPUT_NAME=typing cargo lambda build --no-default-features --features=ssr,lambda --release
 cargo lambda deploy --include target/site --enable-function-url --binary-name=typing
 

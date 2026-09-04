@@ -23,6 +23,14 @@ then available from any static client at `/build.json` **without loading the
 wasm bundle** — handy for scripts, uptime/health checks, the service worker, or
 checking which build is live.
 
+`build.rs` also generates `public/sw.js` from the `sw.template.js` template and
+bakes the same per-build label into the PWA cache name (`tippen-<label>`).
+Because the cache name changes on every deployment, `sw.js`'s bytes change too,
+which makes browsers install a fresh service worker; its `activate` handler then
+drops the previous build's caches. So the build number and the PWA cache are
+versioned in lockstep — edit the template (`sw.template.js`), not the generated
+`public/sw.js`.
+
 ### copy applicaton on remove server
 ```bash
 scp  -i ~/Downloads/rust.pem target/release/typing ec2-user@ec2-3-65-101-155.eu-central-1.compute.amazonaws.com:/typing/
