@@ -7,7 +7,6 @@ use leptos_router::hooks::use_params;
 use leptos_router::params::Params;
 
 use crate::application_types::Data;
-use crate::local_store;
 use crate::BUTTON_CLASS;
 use crate::BUTTON_PRIMARY_CLASS;
 
@@ -442,7 +441,7 @@ pub fn MatchingPage(data: ReadSignal<Data>) -> impl IntoView {
     let (group_by_paragraph, _set_group_by_paragraph) = {
         let value = use_context::<crate::preferences::PreferencesStore>()
             .map(|s| s.prefs.get_untracked().group_matching_by_paragraph)
-            .unwrap_or_else(local_store::group_matching_by_paragraph);
+            .unwrap_or(false);
         signal(value)
     };
     #[cfg(not(feature = "hydrate"))]

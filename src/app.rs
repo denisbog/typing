@@ -655,6 +655,7 @@ pub fn App() -> impl IntoView {
                                                 class=BUTTON_CLASS
                                                 on:click=move |_event| {
                                                     set_refresh_request.update(|n| *n += 1);
+                                                    preferences.pull();
                                                 }
                                             >
 

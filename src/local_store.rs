@@ -1,16 +1,21 @@
 //! Client-side local persistence (localStorage) for offline caching and
 //! user preferences. Compiled only for the hydrate (wasm/client) target.
 
-use crate::application_types::Data;
+use crate::application_types::{Data, UserPreferences};
 
 const DATA_KEY: &str = "typing.data.cache";
 const SYNC_KEY: &str = "typing.data.sync_ts";
-const VOICE_KEY: &str = "typing.preferred_voice";
 const VOICES_KEY: &str = "typing.known_voices";
 const SEARCH_KEY: &str = "typing.search";
-const FAVORITES_KEY: &str = "typing.favorites";
-const CURRENT_PARAGRAPH_ONLY_KEY: &str = "typing.current_paragraph_only";
-const GROUP_MATCHING_BY_PARAGRAPH_KEY: &str = "typing.group_matching_by_paragraph";
+// The whole set of user preferences is persisted as one JSON blob under this
+// single key (see load_preferences / save_preferences).
+const PREFS_KEY: &str = "typing.preferences";
+// Legacy per-key storage used before preferences were stored as a single blob.
+// Kept only to migrate existing clients' local data on first load.
+const LEGACY_VOICE_KEY: &str = "typing.preferred_voice";
+const LEGACY_FAVORITES_KEY: &str = "typing.favorites";
+const LEGACY_CURRENT_PARAGRAPH_ONLY_KEY: &str = "typing.current_paragraph_only";
+const LEGACY_GROUP_MATCHING_BY_PARAGRAPH_KEY: &str = "typing.group_matching_by_paragraph";
 
 #[cfg(feature = "hydrate")]
 fn set_storage(key: &str, value: &str) {
@@ -93,30 +98,6 @@ pub fn merge_voices(new: &[String]) {
     let _ = &all;
 }
 
-/// The set of favorited article keys (articles marked by the user). Stored
-/// as JSON so it survives navigation and offline reloads.
-pub fn save_favorites(set: &std::collections::HashSet<String>) {
-    #[cfg(feature = "hydrate")]
-    if let Ok(json) = serde_json::to_string(set) {
-        set_storage(FAVORITES_KEY, &json);
-    }
-    #[cfg(not(feature = "hydrate"))]
-    let _ = set;
-}
-
-pub fn favorites() -> std::collections::HashSet<String> {
-    #[cfg(feature = "hydrate")]
-    {
-        return get_storage(FAVORITES_KEY)
-            .and_then(|raw| serde_json::from_str(&raw).ok())
-            .unwrap_or_default();
-    }
-    #[cfg(not(feature = "hydrate"))]
-    {
-        std::collections::HashSet::new()
-    }
-}
-
 /// The last article-search query, persisted so it survives navigation.
 pub fn save_search(query: &str) {
     #[cfg(feature = "hydrate")]
@@ -153,85 +134,51 @@ pub fn now_ms() -> u64 {
     }
 }
 
-/// Preferred global voice (set from the Properties page).
-pub fn save_preferred_voice(voice: &str) {
-    #[cfg(feature = "hydrate")]
-    set_storage(VOICE_KEY, voice);
-    #[cfg(not(feature = "hydrate"))]
-    let _ = voice;
-}
-
-pub fn preferred_voice() -> Option<String> {
-    #[cfg(feature = "hydrate")]
-    {
-        return get_storage(VOICE_KEY).filter(|v| !v.is_empty());
-    }
-    #[cfg(not(feature = "hydrate"))]
-    {
-        None
-    }
-}
-
-/// Whether playback should be limited to the current paragraph (set from the
-/// Properties page).
-pub fn save_current_paragraph_only(value: bool) {
-    #[cfg(feature = "hydrate")]
-    set_storage(CURRENT_PARAGRAPH_ONLY_KEY, if value { "1" } else { "0" });
-    #[cfg(not(feature = "hydrate"))]
-    let _ = value;
-}
-
-pub fn current_paragraph_only() -> bool {
-    #[cfg(feature = "hydrate")]
-    {
-        return get_storage(CURRENT_PARAGRAPH_ONLY_KEY).is_some_and(|v| v == "1");
-    }
-    #[cfg(not(feature = "hydrate"))]
-    {
-        false
-    }
-}
-
-/// Whether the Matching page should group saved pairs per paragraph (instead
-/// of per article), so each exercise is smaller and easier to complete.
-pub fn save_group_matching_by_paragraph(value: bool) {
-    #[cfg(feature = "hydrate")]
-    set_storage(
-        GROUP_MATCHING_BY_PARAGRAPH_KEY,
-        if value { "1" } else { "0" },
-    );
-    #[cfg(not(feature = "hydrate"))]
-    let _ = value;
-}
-
-pub fn group_matching_by_paragraph() -> bool {
-    #[cfg(feature = "hydrate")]
-    {
-        return get_storage(GROUP_MATCHING_BY_PARAGRAPH_KEY).is_some_and(|v| v == "1");
-    }
-    #[cfg(not(feature = "hydrate"))]
-    {
-        false
-    }
-}
-
 /// Load the full set of user preferences from the local (offline) cache.
-pub fn load_preferences() -> crate::application_types::UserPreferences {
-    crate::application_types::UserPreferences {
-        user_id: String::new(),
-        voice: preferred_voice().unwrap_or_default(),
-        current_paragraph_only: current_paragraph_only(),
-        group_matching_by_paragraph: group_matching_by_paragraph(),
-        favorites: favorites(),
+///
+/// Preferences are stored as a single JSON blob. If no blob exists yet (e.g.
+/// an older client), they are migrated from the legacy per-key storage and
+/// written back as a blob so the migration only happens once.
+pub fn load_preferences() -> UserPreferences {
+    #[cfg(feature = "hydrate")]
+    {
+        if let Some(raw) = get_storage(PREFS_KEY) {
+            if let Ok(mut p) = serde_json::from_str::<UserPreferences>(&raw) {
+                // Identity comes from the session, never from the cache.
+                p.user_id = String::new();
+                return p;
+            }
+        }
+        // Legacy migration from the old individual keys.
+        let p = UserPreferences {
+            user_id: String::new(),
+            voice: get_storage(LEGACY_VOICE_KEY).unwrap_or_default(),
+            current_paragraph_only: get_storage(LEGACY_CURRENT_PARAGRAPH_ONLY_KEY)
+                .is_some_and(|v| v == "1"),
+            group_matching_by_paragraph: get_storage(LEGACY_GROUP_MATCHING_BY_PARAGRAPH_KEY)
+                .is_some_and(|v| v == "1"),
+            favorites: get_storage(LEGACY_FAVORITES_KEY)
+                .and_then(|raw| serde_json::from_str(&raw).ok())
+                .unwrap_or_default(),
+        };
+        save_preferences(&p);
+        p
+    }
+    #[cfg(not(feature = "hydrate"))]
+    {
+        UserPreferences::default()
     }
 }
 
-/// Persist the full set of user preferences to the local (offline) cache.
-pub fn save_preferences(preferences: &crate::application_types::UserPreferences) {
-    save_preferred_voice(&preferences.voice);
-    save_current_paragraph_only(preferences.current_paragraph_only);
-    save_group_matching_by_paragraph(preferences.group_matching_by_paragraph);
-    save_favorites(&preferences.favorites);
+/// Persist the full set of user preferences to the local (offline) cache as a
+/// single JSON blob.
+pub fn save_preferences(preferences: &UserPreferences) {
+    #[cfg(feature = "hydrate")]
+    if let Ok(json) = serde_json::to_string(preferences) {
+        set_storage(PREFS_KEY, &json);
+    }
+    #[cfg(not(feature = "hydrate"))]
+    let _ = preferences;
 }
 
 /// Format a unix-ms timestamp as a readable local date/time string.
