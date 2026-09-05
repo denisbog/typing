@@ -215,6 +215,25 @@ pub fn group_matching_by_paragraph() -> bool {
     }
 }
 
+/// Load the full set of user preferences from the local (offline) cache.
+pub fn load_preferences() -> crate::application_types::UserPreferences {
+    crate::application_types::UserPreferences {
+        user_id: String::new(),
+        voice: preferred_voice().unwrap_or_default(),
+        current_paragraph_only: current_paragraph_only(),
+        group_matching_by_paragraph: group_matching_by_paragraph(),
+        favorites: favorites(),
+    }
+}
+
+/// Persist the full set of user preferences to the local (offline) cache.
+pub fn save_preferences(preferences: &crate::application_types::UserPreferences) {
+    save_preferred_voice(&preferences.voice);
+    save_current_paragraph_only(preferences.current_paragraph_only);
+    save_group_matching_by_paragraph(preferences.group_matching_by_paragraph);
+    save_favorites(&preferences.favorites);
+}
+
 /// Format a unix-ms timestamp as a readable local date/time string.
 pub fn format_sync_time(ts: u64) -> String {
     #[cfg(feature = "hydrate")]

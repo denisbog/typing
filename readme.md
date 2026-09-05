@@ -127,6 +127,17 @@ sudo ln -sf /usr/lib64/libcuda.so.1 /usr/lib/libcuda.so.1
 sudo ln -sf /usr/lib64/libcuda.so.1 /usr/lib/libcuda.so
 ```
 
+## adding voice
+
+the tool will pick the items with translation == true and after generating the voice will set translation = voice. you still have to upload the voice data
+
+### default voice
+
+MISTRAL_API_KEY= cargo r --release --package voice-tool --bin voice-tool -- --prefix https://dek5ir2aw39om.cloudfront.net/ --voice-id a8b7df27-1b78-4411-8661-ade46c460b8e
+### additional voice
+MISTRAL_API_KEY= cargo r --release --package voice-tool --bin add_voice -- --voice-name merz --voice-id a8b7df27-1b78-4411-8661-ade46c460b8e
+### upload the content
+aws s3 sync generated s3://listentomeaha/generated
 
 ## delete from command line
 

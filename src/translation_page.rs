@@ -392,7 +392,10 @@ pub fn TranslationPage(
 ) -> impl IntoView {
     let (search, set_search) = signal(crate::local_store::saved_search());
     let search_query = move || search.get().trim().to_lowercase();
-    let (favorites, set_favorites) = signal(crate::local_store::favorites());
+    let prefs = use_context::<crate::preferences::PreferencesStore>()
+        .expect("PreferencesStore not provided")
+        .prefs;
+    let favorites = Memo::new(move |_| prefs.get().favorites.clone());
 
     // Keys used to identify a single article for favorites. created_at doubles
     // as the unique primary key per user in the backend.
@@ -401,14 +404,13 @@ pub fn TranslationPage(
     }
 
     let toggle_favorite = move |key: String| {
-        let mut favs = favorites.get_untracked();
-        if favs.contains(&key) {
-            favs.remove(&key);
-        } else {
-            favs.insert(key);
-        }
-        set_favorites.set(favs);
-        crate::local_store::save_favorites(&favorites.get_untracked());
+        prefs.update(|p| {
+            if p.favorites.contains(&key) {
+                p.favorites.remove(&key);
+            } else {
+                p.favorites.insert(key);
+            }
+        });
     };
 
     let views = move || {

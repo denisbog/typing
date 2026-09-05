@@ -434,12 +434,17 @@ pub fn MatchingPage(data: ReadSignal<Data>) -> impl IntoView {
         .unwrap();
     let (run_id, set_run_id) = signal(0u32);
     let (flash_reset, set_flash_reset) = signal(false);
-    // Grouping preference comes from the Properties page (localStorage). On
-    // the server it is always false, so SSR always renders the article view;
-    // the client hydrate step picks up the real preference reactively.
+    // Grouping preference comes from the Properties page (preferences store,
+    // backed by the server + localStorage). On the server it is always false,
+    // so SSR always renders the article view; the client hydrate step picks up
+    // the real preference reactively.
     #[cfg(feature = "hydrate")]
-    let (group_by_paragraph, _set_group_by_paragraph) =
-        signal(local_store::group_matching_by_paragraph());
+    let (group_by_paragraph, _set_group_by_paragraph) = {
+        let value = use_context::<crate::preferences::PreferencesStore>()
+            .map(|s| s.prefs.get_untracked().group_matching_by_paragraph)
+            .unwrap_or_else(local_store::group_matching_by_paragraph);
+        signal(value)
+    };
     #[cfg(not(feature = "hydrate"))]
     let (group_by_paragraph, _set_group_by_paragraph) = signal(false);
 

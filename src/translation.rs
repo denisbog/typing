@@ -3,7 +3,7 @@ use leptos::{logging, server};
 use server_fn::codec::Json;
 
 use crate::{
-    application_types::{Article, Data},
+    application_types::{Article, Data, UserPreferences},
     persistance::Persistance,
 };
 
@@ -38,6 +38,24 @@ pub async fn store_pairs(article: Article) -> Result<(), ServerFnError> {
     crate::get_db()
         .await
         .update_pairs_for_article(article)
+        .await;
+    Ok(())
+}
+
+#[server(GetPreferences, "/store", input = Json)]
+pub async fn get_preferences(
+    user_id: String,
+) -> Result<Option<UserPreferences>, ServerFnError> {
+    use crate::persistance::Persistance;
+    Ok(crate::get_db().await.get_preferences_for_user(&user_id).await)
+}
+
+#[server(SavePreferences, "/store", input = Json)]
+pub async fn save_preferences(preferences: UserPreferences) -> Result<(), ServerFnError> {
+    use crate::persistance::Persistance;
+    crate::get_db()
+        .await
+        .put_preferences_for_user(preferences)
         .await;
     Ok(())
 }

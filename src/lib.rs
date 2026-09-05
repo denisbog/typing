@@ -22,6 +22,7 @@ pub mod local_store;
 pub mod properties_page;
 pub mod matching_page;
 pub mod rebuild_page;
+pub mod preferences;
 
 pub const BUTTON_CLASS: &str = "btn";
 

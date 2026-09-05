@@ -12,7 +12,7 @@ use voice_tool::Article;
 const API_URL: &str = "https://api.mistral.ai/v1";
 const TTS_MODEL: &str = "voxtral-mini-tts-2603";
 const TRANSCRIPTION_MODEL: &str = "voxtral-mini-2602";
-const VOICE_ID: &str = "gb_oliver_neutral";
+const DEFAULT_VOICE_ID: &str = "gb_oliver_neutral";
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -36,6 +36,9 @@ struct Args {
 
     #[arg(long)]
     api_key: Option<String>,
+
+    #[arg(long, default_value = DEFAULT_VOICE_ID)]
+    voice_id: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -174,6 +177,7 @@ async fn tts_and_transcribe(
     text: &str,
     out_dir: &Path,
     api_key: &str,
+    voice_id: &str,
 ) -> anyhow::Result<()> {
     let speech_res = client
         .post(format!("{API_URL}/audio/speech"))
@@ -182,7 +186,7 @@ async fn tts_and_transcribe(
             "input": text,
             "model": TTS_MODEL,
             "response_format": "mp3",
-            "voice_id": VOICE_ID,
+            "voice_id": voice_id,
         }))
         .send()
         .await?;
@@ -438,7 +442,7 @@ async fn main() -> anyhow::Result<()> {
             fs::write(paragraph_dir.join("text.txt"), &original).await?;
 
             println!("generating {}", paragraph_dir.display());
-            match tts_and_transcribe(&http_client, &original, &paragraph_dir, &api_key).await {
+            match tts_and_transcribe(&http_client, &original, &paragraph_dir, &api_key, &args.voice_id).await {
                 Ok(()) => {
                     paragraph_records.push(ParagraphManifestEntry {
                         paragraph_index: paragraph_number - 1,

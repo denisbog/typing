@@ -5,6 +5,17 @@ pub struct Data {
     pub articles: Vec<Article>,
 }
 
+/// Per-user preferences and favourite articles, persisted to the
+/// `translation_preferences` DynamoDB table (partition key `user_id`).
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UserPreferences {
+    pub user_id: String,
+    pub voice: String,
+    pub current_paragraph_only: bool,
+    pub group_matching_by_paragraph: bool,
+    pub favorites: std::collections::HashSet<String>,
+}
+
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Article {
     pub user_id: String,

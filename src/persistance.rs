@@ -4,9 +4,9 @@ use std::collections::HashMap;
 #[cfg(feature = "ssr")]
 use aws_sdk_dynamodb::{types::AttributeValue, types::AttributeValueUpdate, Client};
 #[cfg(feature = "ssr")]
-use serde_dynamo::from_items;
+use serde_dynamo::{from_item, from_items};
 
-use crate::application_types::Article;
+use crate::application_types::{Article, UserPreferences};
 
 pub trait Persistance {
     fn get_items_for_user(
@@ -19,6 +19,14 @@ pub trait Persistance {
         item: Article,
     ) -> impl std::future::Future<Output = ()> + Send;
     fn delete_item_for_user(&self, item: Article) -> impl std::future::Future<Output = ()> + Send;
+    fn get_preferences_for_user(
+        &self,
+        user_id: &str,
+    ) -> impl std::future::Future<Output = Option<UserPreferences>> + Send;
+    fn put_preferences_for_user(
+        &self,
+        preferences: UserPreferences,
+    ) -> impl std::future::Future<Output = ()> + Send;
 }
 
 #[derive(Debug)]
@@ -115,6 +123,33 @@ impl Persistance for AwsPersistance {
                     .value(temp.get("paragraphs").unwrap().clone())
                     .build(),
             )
+            .send()
+            .await
+            .unwrap();
+    }
+
+    async fn get_preferences_for_user(&self, user_id: &str) -> Option<UserPreferences> {
+        let mut key = HashMap::new();
+        key.insert(
+            "user_id".to_string(),
+            AttributeValue::S(user_id.to_string()),
+        );
+        let response = self
+            .client
+            .get_item()
+            .table_name("translation_preferences")
+            .set_key(Some(key))
+            .send()
+            .await
+            .unwrap();
+        response.item.map(|item| from_item(item).unwrap())
+    }
+
+    async fn put_preferences_for_user(&self, preferences: UserPreferences) {
+        self.client
+            .put_item()
+            .table_name("translation_preferences")
+            .set_item(Some(serde_dynamo::to_item(preferences).unwrap()))
             .send()
             .await
             .unwrap();

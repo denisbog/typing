@@ -1,7 +1,7 @@
 use leptos::prelude::*;
 use leptos_meta::Title;
 
-use crate::local_store;
+use crate::preferences::PreferencesStore;
 use crate::BUTTON_CLASS;
 
 /// Known voice options. Add new voices here as they become available.
@@ -9,11 +9,13 @@ const KNOWN_VOICES: &[&str] = &["merz"];
 
 #[component]
 pub fn PropertiesPage() -> impl IntoView {
-    let (voice, set_voice) = signal(local_store::preferred_voice().unwrap_or_default());
-    let (current_paragraph_only, set_current_paragraph_only) =
-        signal(local_store::current_paragraph_only());
-    let (group_matching_by_paragraph, set_group_matching_by_paragraph) =
-        signal(local_store::group_matching_by_paragraph());
+    let prefs = use_context::<PreferencesStore>()
+        .expect("PreferencesStore not provided")
+        .prefs;
+    let voice = Memo::new(move |_| prefs.get().voice.clone());
+    let current_paragraph_only = Memo::new(move |_| prefs.get().current_paragraph_only);
+    let group_matching_by_paragraph =
+        Memo::new(move |_| prefs.get().group_matching_by_paragraph);
     let (saved, set_saved) = signal(false);
 
     view! {
@@ -51,8 +53,7 @@ pub fn PropertiesPage() -> impl IntoView {
                         on:change=move |event| {
                             let value = event_target_value(&event);
                             let v = if value == "default" { String::new() } else { value };
-                            set_voice.set(v.clone());
-                            local_store::save_preferred_voice(&v);
+                            prefs.update(|p| p.voice = v);
                             set_saved.set(true);
                         }
                     >
@@ -78,8 +79,7 @@ pub fn PropertiesPage() -> impl IntoView {
                             prop:checked=move || current_paragraph_only.get()
                             on:change=move |event| {
                                 let checked = event_target_checked(&event);
-                                set_current_paragraph_only.set(checked);
-                                local_store::save_current_paragraph_only(checked);
+                                prefs.update(|p| p.current_paragraph_only = checked);
                                 set_saved.set(true);
                             }
                         />
@@ -103,8 +103,7 @@ pub fn PropertiesPage() -> impl IntoView {
                             prop:checked=move || group_matching_by_paragraph.get()
                             on:change=move |event| {
                                 let checked = event_target_checked(&event);
-                                set_group_matching_by_paragraph.set(checked);
-                                local_store::save_group_matching_by_paragraph(checked);
+                                prefs.update(|p| p.group_matching_by_paragraph = checked);
                                 set_saved.set(true);
                             }
                         />

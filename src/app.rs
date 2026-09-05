@@ -267,21 +267,56 @@ pub fn App() -> impl IntoView {
     let (audio_article_title, set_audio_article_title) = signal(Option::<String>::None);
     let (audio_article_index, set_audio_article_index) = signal(Option::<usize>::None);
     let (audio_paragraph, set_audio_paragraph) = signal(Option::<usize>::None);
+    // Preferences store: single source of truth for voice, "play only current
+    // paragraph", grouping and favourite articles. Persisted to the server
+    // (`translation_preferences` table) and the local cache.
+    let preferences = crate::preferences::init_preferences(session_id);
+    #[cfg(not(feature = "hydrate"))]
+    let _ = preferences;
     #[cfg(feature = "hydrate")]
-    let (audio_selected_voice, set_audio_selected_voice) =
-        signal(crate::local_store::preferred_voice());
+    let (audio_selected_voice, set_audio_selected_voice) = {
+        let v = preferences.prefs.get_untracked().voice.clone();
+        signal(if v.is_empty() { None } else { Some(v) })
+    };
     #[cfg(not(feature = "hydrate"))]
     let (audio_selected_voice, set_audio_selected_voice) = signal(Option::<String>::None);
     let (audio_speech_cursor, set_audio_speech_cursor) =
         signal(Option::<crate::translation_page::SpeechCursor>::None);
     #[cfg(feature = "hydrate")]
     let (audio_current_paragraph_only, set_audio_current_paragraph_only) =
-        signal(crate::local_store::current_paragraph_only());
+        signal(preferences.prefs.get_untracked().current_paragraph_only);
     #[cfg(not(feature = "hydrate"))]
     let (audio_current_paragraph_only, set_audio_current_paragraph_only) = signal(false);
+    // Keep the playback state and the preferences store in sync. Each effect is
+    // guarded by a value comparison so they converge instead of ping-ponging.
     #[cfg(feature = "hydrate")]
     Effect::new(move |_| {
-        crate::local_store::save_current_paragraph_only(audio_current_paragraph_only.get());
+        let p = preferences.prefs.get();
+        let v = if p.voice.is_empty() { None } else { Some(p.voice.clone()) };
+        if audio_selected_voice.get_untracked() != v {
+            set_audio_selected_voice.set(v);
+        }
+        if audio_current_paragraph_only.get_untracked() != p.current_paragraph_only {
+            set_audio_current_paragraph_only.set(p.current_paragraph_only);
+        }
+    });
+    #[cfg(feature = "hydrate")]
+    Effect::new(move |_| {
+        let v = audio_selected_voice.get();
+        let c = audio_current_paragraph_only.get();
+        let nv = v.clone().unwrap_or_default();
+        // Only write to the store when something actually changed. Without this
+        // guard, an edit that originated in the store (e.g. a Properties page
+        // change already applied to the store) gets written straight back by
+        // this effect, and because RwSignal::update notifies even when the value
+        // is unchanged it would trigger a duplicate server save.
+        let current = preferences.prefs.get_untracked();
+        if current.voice != nv || current.current_paragraph_only != c {
+            preferences.prefs.update(|p| {
+                p.voice = nv;
+                p.current_paragraph_only = c;
+            });
+        }
     });
     #[cfg(feature = "hydrate")]
     let playback = PlaybackState {
