@@ -365,8 +365,6 @@ fn ArticleMatchSection(
         }
     };
 
-    let is_done = move || matched.get().len() == n && n > 0;
-
     view! {
         <section class="match-section">
             <div class="match-section-head">
@@ -412,13 +410,6 @@ fn ArticleMatchSection(
                     <div class="match-col-grid">{right_cards}</div>
                 </div>
             </div>
-
-            <Show when=is_done fallback=|| view! { <div class="hidden"></div> }>
-                <div class="match-done">
-                    <span class="match-done-icon">"✓"</span>
-                    "Every pair in this article is matched."
-                </div>
-            </Show>
         </section>
     }
 }
