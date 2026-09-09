@@ -235,9 +235,9 @@
 }
 
 .typing-area {
-  @apply flex flex-wrap break-words min-w-0 text-slate-500 sm:text-xl lg:text-[1.35rem];
+  @apply flex flex-wrap break-words min-w-0 text-slate-300 sm:text-xl lg:text-[1.35rem];
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 1rem;
+  font-size: 1.25rem;
   line-height: 1.7;
   outline: none;
 }
@@ -262,7 +262,7 @@
 
 /* word state chips */
 .word-word-pair {
-  @apply relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-white/[0.08] text-slate-400;
+  @apply relative flex px-1.5 py-0.5 lg:mt-1 rounded-md bg-white/[0.08] text-slate-300;
 }
 
 .word-highlighted {
@@ -302,11 +302,11 @@
 
 /* typed character states */
 .char-correct-current {
-  @apply text-slate-100 underline decoration-slate-500 underline-offset-4;
+  @apply text-slate-400 underline decoration-slate-500 underline-offset-4;
 }
 
 .char-correct {
-  @apply text-slate-300;
+  @apply text-slate-400;
 }
 
 .char-wrong {
@@ -613,7 +613,9 @@
 }
 
 .caret-char {
-  @apply font-mono text-xl font-extrabold text-slate-300 lg:text-2xl;
+  @apply font-mono text-xl font-extrabold text-yellow-300 lg:text-2xl;
+  font-size: 1.25rem;
+  line-height: 1.7;
 }
 
 .voice-select {
