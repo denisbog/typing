@@ -7,6 +7,10 @@ const DATA_KEY: &str = "typing.data.cache";
 const SYNC_KEY: &str = "typing.data.sync_ts";
 const VOICES_KEY: &str = "typing.known_voices";
 const SEARCH_KEY: &str = "typing.search";
+// Article-list view state: the selected creation-date sort and the active
+// "favorites" / "missing voice" filters.
+const ARTICLE_SORT_KEY: &str = "typing.article_sort";
+const ARTICLE_FILTERS_KEY: &str = "typing.article_filters";
 // The whole set of user preferences is persisted as one JSON blob under this
 // single key (see load_preferences / save_preferences).
 const PREFS_KEY: &str = "typing.preferences";
@@ -117,6 +121,57 @@ pub fn saved_search() -> String {
     }
 }
 
+/// Persist the selected article-list sort ("default" | "newest" | "oldest").
+pub fn save_article_sort(sort: &str) {
+    #[cfg(feature = "hydrate")]
+    set_storage(ARTICLE_SORT_KEY, sort);
+    #[cfg(not(feature = "hydrate"))]
+    let _ = sort;
+}
+
+/// The last article-list sort selection, defaulting to "default".
+pub fn saved_article_sort() -> String {
+    #[cfg(feature = "hydrate")]
+    {
+        return get_storage(ARTICLE_SORT_KEY).unwrap_or_default();
+    }
+    #[cfg(not(feature = "hydrate"))]
+    {
+        String::new()
+    }
+}
+
+/// Persist the active article-list filters as a compact `favorites,missing`
+/// pair of `0`/`1` flags.
+pub fn save_article_filters(only_favorites: bool, only_missing_voice: bool) {
+    #[cfg(feature = "hydrate")]
+    set_storage(
+        ARTICLE_FILTERS_KEY,
+        &format!(
+            "{},{}",
+            only_favorites as u8, only_missing_voice as u8
+        ),
+    );
+    #[cfg(not(feature = "hydrate"))]
+    let _ = (only_favorites, only_missing_voice);
+}
+
+/// The last active article-list filters as `(only_favorites, only_missing_voice)`.
+pub fn saved_article_filters() -> (bool, bool) {
+    #[cfg(feature = "hydrate")]
+    {
+        let raw = get_storage(ARTICLE_FILTERS_KEY).unwrap_or_default();
+        let mut parts = raw.split(',');
+        let favorites = parts.next().is_some_and(|v| v == "1");
+        let missing = parts.next().is_some_and(|v| v == "1");
+        return (favorites, missing);
+    }
+    #[cfg(not(feature = "hydrate"))]
+    {
+        (false, false)
+    }
+}
+
 /// Current time in unix milliseconds.
 pub fn now_ms() -> u64 {
     #[cfg(feature = "hydrate")]
@@ -179,6 +234,26 @@ pub fn save_preferences(preferences: &UserPreferences) {
     }
     #[cfg(not(feature = "hydrate"))]
     let _ = preferences;
+}
+
+/// Format a unix-ms timestamp as a readable local date string (no time).
+/// Returns an empty string for the epoch (0), which is used as a placeholder
+/// for articles that have not been synced to the server yet.
+pub fn format_date(ts: u64) -> String {
+    if ts == 0 {
+        return String::new();
+    }
+    #[cfg(feature = "hydrate")]
+    {
+        return js_sys::Date::new(&wasm_bindgen::JsValue::from_f64(ts as f64))
+            .to_locale_date_string("en-GB", &js_sys::Object::new())
+            .as_string()
+            .unwrap_or_else(|| ts.to_string());
+    }
+    #[cfg(not(feature = "hydrate"))]
+    {
+        ts.to_string()
+    }
 }
 
 /// Format a unix-ms timestamp as a readable local date/time string.

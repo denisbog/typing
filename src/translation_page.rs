@@ -41,6 +41,17 @@ pub struct ArticleParams {
     id: Option<usize>,
 }
 
+/// How the article list is ordered. `Default` keeps the existing
+/// unsaved-first / favourites-first ordering; the other variants order purely
+/// by the article's `created_at` timestamp.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+enum ArticleSort {
+    #[default]
+    Default,
+    Newest,
+    Oldest,
+}
+
 #[derive(Clone)]
 struct EffectPosition {
     x: f64,
@@ -397,6 +408,31 @@ pub fn TranslationPage(
         .prefs;
     let favorites = Memo::new(move |_| prefs.get().favorites.clone());
 
+    // List controls: creation-date sorting plus the "missing voice" and
+    // "favourites" filters. Restored from local storage so the chosen view
+    // survives navigation and reloads.
+    let (sort, set_sort) = signal(match crate::local_store::saved_article_sort().as_str() {
+        "newest" => ArticleSort::Newest,
+        "oldest" => ArticleSort::Oldest,
+        _ => ArticleSort::Default,
+    });
+    let (saved_only_favorites, saved_only_missing_voice) =
+        crate::local_store::saved_article_filters();
+    let (only_favorites, set_only_favorites) = signal(saved_only_favorites);
+    let (only_missing_voice, set_only_missing_voice) = signal(saved_only_missing_voice);
+
+    // Persist the list controls whenever they change.
+    Effect::new(move |_| {
+        crate::local_store::save_article_sort(match sort.get() {
+            ArticleSort::Default => "default",
+            ArticleSort::Newest => "newest",
+            ArticleSort::Oldest => "oldest",
+        });
+    });
+    Effect::new(move |_| {
+        crate::local_store::save_article_filters(only_favorites.get(), only_missing_voice.get());
+    });
+
     // Keys used to identify a single article for favorites. created_at doubles
     // as the unique primary key per user in the backend.
     fn favorite_key(article: &crate::application_types::Article) -> String {
@@ -413,10 +449,17 @@ pub fn TranslationPage(
         });
     };
 
-    let views = move || {
+    // Articles after search + filters, ordered by the selected sort. Kept as a
+    // memo so the rendered grid and the "no matches" state always agree.
+    let visible = Memo::new(move |_| {
         let query = search_query();
+        let favs = favorites.get();
+        let only_favs = only_favorites.get();
+        let only_missing = only_missing_voice.get();
+        let sort_mode = sort.get();
+
         // Keep the original article index (used for routes / save / delete)
-        // but only render cards that match the search query.
+        // but only render cards that pass the search and filters.
         let mut indexed: Vec<(usize, crate::application_types::Article)> = data
             .get()
             .articles
@@ -425,22 +468,70 @@ pub fn TranslationPage(
             .enumerate()
             .collect();
         indexed.retain(|(_, item)| {
-            if query.is_empty() {
-                return true;
+            if !query.is_empty()
+                && !item.title.to_lowercase().contains(&query)
+                && !item.paragraphs.iter().any(|paragraph| {
+                    paragraph.original.to_lowercase().contains(&query)
+                        || paragraph
+                            .translation
+                            .as_ref()
+                            .is_some_and(|t| t.to_lowercase().contains(&query))
+                })
+            {
+                return false;
             }
-            if item.title.to_lowercase().contains(&query) {
-                return true;
+            if only_missing && item.audio_directory.is_some() {
+                return false;
             }
-            item.paragraphs.iter().any(|paragraph| {
-                paragraph.original.to_lowercase().contains(&query)
-                    || paragraph
-                        .translation
-                        .as_ref()
-                        .is_some_and(|t| t.to_lowercase().contains(&query))
-            })
+            if only_favs && !favs.contains(&favorite_key(item)) {
+                return false;
+            }
+            true
         });
+
+        match sort_mode {
+            ArticleSort::Newest => {
+                indexed.sort_by(|a, b| b.1.created_at.cmp(&a.1.created_at));
+            }
+            ArticleSort::Oldest => {
+                indexed.sort_by(|a, b| a.1.created_at.cmp(&b.1.created_at));
+            }
+            ArticleSort::Default => {
+                // Snapshot of each article's pairs as last persisted on the
+                // server, keyed by created_at (the article's unique key).
+                let saved_pairs_by_key: std::collections::HashMap<
+                    String,
+                    Vec<(Vec<usize>, Vec<usize>)>,
+                > = saved
+                    .get()
+                    .articles
+                    .iter()
+                    .map(|article| (article.created_at.to_string(), article_pairs(article)))
+                    .collect();
+                // Articles with unsaved pairs first, then favorites, then the
+                // rest — stable within each group.
+                indexed.sort_by_key(|(idx, item)| {
+                    let local_pairs = article_pairs(item);
+                    let has_unsaved = match saved_pairs_by_key.get(&item.created_at.to_string()) {
+                        Some(saved_pairs) => local_pairs.iter().any(|lp| !saved_pairs.contains(lp)),
+                        // Article unknown to the server: every pair counts.
+                        None => !local_pairs.is_empty(),
+                    };
+                    let is_fav = favs.contains(&favorite_key(item));
+                    (
+                        if has_unsaved { 0u8 } else { 1u8 },
+                        if is_fav { 0u8 } else { 1u8 },
+                        *idx,
+                    )
+                });
+            }
+        }
+        indexed
+    });
+
+    let views = move || {
         // Snapshot of each article's pairs as last persisted on the server,
-        // keyed by created_at (the article's unique primary key).
+        // keyed by created_at, to show the per-card "unsaved" count.
         let saved_pairs_by_key: std::collections::HashMap<String, Vec<(Vec<usize>, Vec<usize>)>> =
             saved
                 .get()
@@ -448,8 +539,9 @@ pub fn TranslationPage(
                 .iter()
                 .map(|article| (article.created_at.to_string(), article_pairs(article)))
                 .collect();
+        let items = visible.get();
         // Number of pairs in the live article that are not yet on the server.
-        let unsaved_by_index: std::collections::HashMap<usize, usize> = indexed
+        let unsaved_by_index: std::collections::HashMap<usize, usize> = items
             .iter()
             .map(|(idx, item)| {
                 let local_pairs = article_pairs(item);
@@ -464,19 +556,7 @@ pub fn TranslationPage(
                 (*idx, unsaved)
             })
             .collect();
-        // Articles with unsaved pairs first, then favorites, then the rest —
-        // stable within each group so routes/actions don't reorder unexpectedly.
-        let favs = favorites.get();
-        indexed.sort_by_key(|(idx, item)| {
-            let is_unsaved = unsaved_by_index.get(idx).copied().unwrap_or(0) > 0;
-            let is_fav = favs.contains(&favorite_key(item));
-            (
-                if is_unsaved { 0u8 } else { 1u8 },
-                if is_fav { 0u8 } else { 1u8 },
-                *idx,
-            )
-        });
-        indexed
+        items
             .into_iter()
             .map(move |(index, item)| {
                 let (saving, set_saving) = signal(false);
@@ -528,6 +608,20 @@ pub fn TranslationPage(
                                     <span class="article-meta">
                                         {format!("{} paragraphs", paragraph_count)}
                                     </span>
+                                    {item
+                                        .created_at
+                                        .gt(&0)
+                                        .then(|| {
+                                            view! {
+                                                <span class="dot-sep"></span>
+                                                <span
+                                                    class="article-meta"
+                                                    title="Article creation date"
+                                                >
+                                                    {crate::local_store::format_date(item.created_at)}
+                                                </span>
+                                            }
+                                        })}
                                     {item
                                         .audio_directory
                                         .as_ref()
@@ -788,35 +882,75 @@ pub fn TranslationPage(
 
             </div>
 
-            <Show
-                when=move || {
-                    let query = search_query();
-                    query.is_empty()
-                        || data
-                            .get()
-                            .articles
-                            .iter()
-                            .any(|item| {
-                                item.title.to_lowercase().contains(&query)
-                                    || item
-                                        .paragraphs
-                                        .iter()
-                                        .any(|paragraph| {
-                                            paragraph.original.to_lowercase().contains(&query)
-                                                || paragraph
-                                                    .translation
-                                                    .as_ref()
-                                                    .is_some_and(|t| { t.to_lowercase().contains(&query) })
-                                        })
-                            })
-                }
+            <div class="article-controls">
+                <div class="article-filter-chips" role="group" aria-label="Filter articles">
+                    <button
+                        type="button"
+                        class=move || {
+                            if only_favorites.get() {
+                                "article-chip article-chip--fav is-active"
+                            } else {
+                                "article-chip article-chip--fav"
+                            }
+                        }
+                        aria-pressed=move || only_favorites.get().to_string()
+                        title="Show only articles marked as favorite"
+                        on:click=move |_| set_only_favorites.update(|v| *v = !*v)
+                    >
+                        <span class="article-chip-icon">"★"</span>
+                        "Favorites"
+                    </button>
+                    <button
+                        type="button"
+                        class=move || {
+                            if only_missing_voice.get() {
+                                "article-chip article-chip--voice is-active"
+                            } else {
+                                "article-chip article-chip--voice"
+                            }
+                        }
+                        aria-pressed=move || only_missing_voice.get().to_string()
+                        title="Show only articles that have no audio"
+                        on:click=move |_| set_only_missing_voice.update(|v| *v = !*v)
+                    >
+                        <span class="article-chip-icon">"🔇"</span>
+                        "Missing voice"
+                    </button>
+                </div>
+                <label class="article-sort">
+                    <span class="article-sort-label">"Sort"</span>
+                    <select
+                        class="article-sort-select"
+                        aria-label="Sort articles by creation date"
+                        prop:value=move || match sort.get() {
+                            ArticleSort::Default => "default",
+                            ArticleSort::Newest => "newest",
+                            ArticleSort::Oldest => "oldest",
+                        }
+                        on:change=move |event| {
+                            set_sort
+                                .set(match event_target_value(&event).as_str() {
+                                    "newest" => ArticleSort::Newest,
+                                    "oldest" => ArticleSort::Oldest,
+                                    _ => ArticleSort::Default,
+                                });
+                        }
+                    >
+                        <option value="default">"Default order"</option>
+                        <option value="newest">"Newest first"</option>
+                        <option value="oldest">"Oldest first"</option>
+                    </select>
+                </label>
+            </div>
 
+            <Show
+                when=move || !visible.get().is_empty()
                 fallback=move || {
                     view! {
                         <div class="library-empty glass-panel">
-                            <h3 class="library-empty-title">"No articles match your search"</h3>
+                            <h3 class="library-empty-title">"No articles match your filters"</h3>
                             <p class="library-empty-sub">
-                                "Try a different keyword, or clear the search to see everything."
+                                "Try a different keyword, or clear the search and filters to see everything."
                             </p>
                         </div>
                     }

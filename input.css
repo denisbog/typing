@@ -421,6 +421,46 @@
   @apply flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full text-sm text-slate-400 transition-colors hover:bg-white/10 hover:text-slate-100;
 }
 
+.article-controls {
+  @apply mb-5 flex flex-wrap items-center justify-between gap-3;
+}
+
+.article-filter-chips {
+  @apply flex flex-wrap items-center gap-2;
+}
+
+.article-chip {
+  @apply inline-flex cursor-pointer select-none items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-400 transition-colors hover:border-white/20 hover:bg-white/[0.07] hover:text-slate-200;
+}
+
+.article-chip.is-active {
+  @apply border-slate-300/30 bg-slate-200/10 text-slate-100;
+}
+
+.article-chip--fav.is-active {
+  @apply border-amber-300/40 bg-amber-400/15 text-amber-300;
+}
+
+.article-chip--voice.is-active {
+  @apply border-rose-300/40 bg-rose-400/15 text-rose-200;
+}
+
+.article-chip-icon {
+  @apply text-xs leading-none;
+}
+
+.article-sort {
+  @apply inline-flex items-center gap-2;
+}
+
+.article-sort-label {
+  @apply font-mono text-[9px] font-bold uppercase tracking-widest text-slate-500;
+}
+
+.article-sort-select {
+  @apply cursor-pointer rounded-md border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-300 outline-none transition-colors hover:border-white/20 focus:border-white/20;
+}
+
 .article-link {
   @apply flex flex-1 flex-col outline-none;
 }
