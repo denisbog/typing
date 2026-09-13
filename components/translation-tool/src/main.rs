@@ -63,6 +63,23 @@ pub fn device(cpu: bool) -> Result<Device> {
     }
 }
 
+/// Load a converted Marian tokenizer, failing with an actionable message when
+/// the file is missing (instead of a bare `No such file or directory`).
+fn load_tokenizer(path: &str) -> anyhow::Result<Tokenizer> {
+    let path = std::path::PathBuf::from(path);
+    if !path.is_file() {
+        anyhow::bail!(
+            "tokenizer file `{}` not found.\n\
+             These `tokenizer-marian-base-*.json` files are generated from the\n\
+             Helsinki-NLP/opus-mt-de-en sentencepiece models with candle's marian-mt\n\
+             `convert_slow_tokenizer.py`, and are looked up relative to the current\n\
+             directory. Pass explicit paths with --tokenizer/--tokenizer-dec.",
+            path.display()
+        );
+    }
+    Tokenizer::from_file(&path).map_err(E::msg)
+}
+
 pub struct Translator {
     device: Device,
     config: marian::Config,
@@ -78,11 +95,8 @@ impl Translator {
 
         let config = opus_mt_de_en();
 
-        let tokenizer =
-            Tokenizer::from_file(std::path::PathBuf::from(args.tokenizer)).map_err(E::msg)?;
-
-        let tokenizer_dec =
-            Tokenizer::from_file(std::path::PathBuf::from(args.tokenizer_dec)).map_err(E::msg)?;
+        let tokenizer = load_tokenizer(&args.tokenizer)?;
+        let tokenizer_dec = load_tokenizer(&args.tokenizer_dec)?;
 
         let device = device(args.cpu)?;
         let vb = {
