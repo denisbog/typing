@@ -4,6 +4,10 @@
 use crate::application_types::{Data, UserPreferences};
 
 const DATA_KEY: &str = "typing.data.cache";
+// Snapshot of the library as last known to be stored on the server. Kept apart
+// from DATA_KEY (the live working copy) so pair edits that have not been saved
+// to the server yet are still recognised as unsaved after reopening the app.
+const SAVED_DATA_KEY: &str = "typing.data.saved";
 const SYNC_KEY: &str = "typing.data.sync_ts";
 const VOICES_KEY: &str = "typing.known_voices";
 const SEARCH_KEY: &str = "typing.search";
@@ -51,6 +55,21 @@ pub fn cache_data(data: &Data) {
 #[cfg(feature = "hydrate")]
 pub fn cached_data() -> Option<Data> {
     let raw = get_storage(DATA_KEY)?;
+    serde_json::from_str(&raw).ok()
+}
+
+/// Persist the library as last known to be stored on the server.
+#[cfg(feature = "hydrate")]
+pub fn cache_saved_data(data: &Data) {
+    if let Ok(json) = serde_json::to_string(data) {
+        set_storage(SAVED_DATA_KEY, &json);
+    }
+}
+
+/// Load the locally cached "stored on server" snapshot, if any.
+#[cfg(feature = "hydrate")]
+pub fn cached_saved_data() -> Option<Data> {
+    let raw = get_storage(SAVED_DATA_KEY)?;
     serde_json::from_str(&raw).ok()
 }
 

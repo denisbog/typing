@@ -164,6 +164,42 @@ fn initial_skip(has_cache: bool, refresh_requested: u32) -> bool {
     has_cache && refresh_requested == 0
 }
 
+/// Preserve locally-edited word pairs that have not been stored on the server
+/// yet when a fresh server snapshot arrives. For every paragraph whose local
+/// pairs differ from the last server-known snapshot, the local (unsaved) pairs
+/// win, so an explicit refresh cannot silently discard work in progress.
+fn merge_unsaved_pairs(server: Data, local: &Data, saved: &Data) -> Data {
+    let local_by_key: std::collections::HashMap<u64, &Article> =
+        local.articles.iter().map(|a| (a.created_at, a)).collect();
+    let saved_by_key: std::collections::HashMap<u64, &Article> =
+        saved.articles.iter().map(|a| (a.created_at, a)).collect();
+
+    Data {
+        articles: server
+            .articles
+            .into_iter()
+            .map(|mut article| {
+                let Some(local_article) = local_by_key.get(&article.created_at) else {
+                    return article;
+                };
+                let saved_article = saved_by_key.get(&article.created_at);
+                for (index, paragraph) in article.paragraphs.iter_mut().enumerate() {
+                    let Some(local_paragraph) = local_article.paragraphs.get(index) else {
+                        continue;
+                    };
+                    let saved_pairs = saved_article
+                        .and_then(|a| a.paragraphs.get(index))
+                        .and_then(|p| p.pairs.as_ref());
+                    if local_paragraph.pairs.as_ref() != saved_pairs {
+                        paragraph.pairs = local_paragraph.pairs.clone();
+                    }
+                }
+                article
+            })
+            .collect(),
+    }
+}
+
 /// Outcome of a server data-loading attempt. The resource returns one of these
 /// and a single consumer `Effect` owns all the side effects (applying data,
 /// clearing the session, navigation), keeping the fetcher a pure data producer.
@@ -219,7 +255,20 @@ pub fn App() -> impl IntoView {
     // Mirror of the library as last known to the server (a fresh fetch or a
     // completed "Save pairs" round-trip). It is used to tell which articles
     // have pairs created/edited locally but not yet persisted to the server.
-    let (saved_data, set_saved_data) = signal(cached.clone().unwrap_or_default());
+    // The snapshot is cached separately from the working copy so unsaved pair
+    // edits survive a reload without being mistaken for saved ones.
+    #[cfg(feature = "hydrate")]
+    let cached_saved = crate::local_store::cached_saved_data();
+    #[cfg(not(feature = "hydrate"))]
+    let cached_saved = None;
+    let (saved_data, set_saved_data) = signal(
+        cached_saved
+            .clone()
+            // Migration: clients that predate the separate snapshot start from
+            // the working cache, matching the previous behaviour.
+            .or_else(|| cached.clone())
+            .unwrap_or_default(),
+    );
     let (last_sync, set_last_sync) = signal(crate::local_store::cached_last_sync());
     let (from_cache, set_from_cache) = signal(cached.is_some());
     // Becomes true as soon as we have something to render: immediately when the
@@ -259,6 +308,16 @@ pub fn App() -> impl IntoView {
         } else {
             log!("dafault data will not be stored");
         };
+    });
+
+    // Persist the server-known snapshot as well, so the "unsaved" state can be
+    // reconstructed after reopening the app and the edits can be saved later.
+    #[cfg(feature = "hydrate")]
+    Effect::new(move |_| {
+        let data = saved_data.get();
+        if !data.articles.is_empty() {
+            crate::local_store::cache_saved_data(&data);
+        }
     });
 
     let (input_popup, set_input_popup) = signal(false);
@@ -395,13 +454,20 @@ pub fn App() -> impl IntoView {
             // A fresh server fetch actually happened → apply and persist it.
             Some(Applied(data)) => {
                 let now = crate::local_store::now_ms();
-                set_translation_post.set(data.clone());
+                // Keep any pair edits that are not on the server yet instead of
+                // letting the fresh snapshot overwrite them.
+                let merged = merge_unsaved_pairs(
+                    data.clone(),
+                    &translation_post.get_untracked(),
+                    &saved_data.get_untracked(),
+                );
+                set_translation_post.set(merged.clone());
                 set_saved_data.set(data.clone());
                 set_last_sync.set(Some(now));
                 set_from_cache.set(false);
                 set_data_ready.set(true);
                 #[cfg(feature = "hydrate")]
-                crate::local_store::cache_data_with_sync(&data, now);
+                crate::local_store::cache_data_with_sync(&merged, now);
                 set_refreshing.set(false);
             }
             // The server rejected the session → drop it and re-login.

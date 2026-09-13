@@ -394,6 +394,26 @@ fn article_pairs(article: &crate::application_types::Article) -> Vec<(Vec<usize>
         .collect()
 }
 
+/// Write an article's in-progress pair map into the shared library. Called both
+/// when leaving the article page and continuously while editing, so the local
+/// cache always holds the latest (possibly unsaved) pairs.
+fn write_pairs_into_data(state: &mut Data, article_id: usize, pairs: &TypePairs) {
+    if let Some(article) = state.articles.get_mut(article_id) {
+        for (key, value) in pairs.iter() {
+            let converted: Vec<Pair> = value
+                .iter()
+                .map(|item| Pair {
+                    original: item.original.iter().copied().collect(),
+                    translation: item.translation.iter().copied().collect(),
+                })
+                .collect();
+            if let Some(paragraph) = article.paragraphs.get_mut(*key) {
+                paragraph.pairs = Some(converted);
+            }
+        }
+    }
+}
+
 #[component]
 pub fn TranslationPage(
     data: ReadSignal<Data>,
@@ -1113,25 +1133,8 @@ pub fn ArticlePage(
     let location = use_location();
     let on_back = move |pairs: ReadSignal<TypePairs>| {
         log!("pairs updated");
-        set_data.update(|state| {
-            if let Some(article) = state.articles.get_mut(article_id) {
-                pairs.get().into_iter().for_each(|(key, value)| {
-                    log!("key: {}", key);
-                    let pairs = value
-                        .into_iter()
-                        .map(|item| {
-                            let original: Vec<usize> = item.original.into_iter().collect();
-                            let translation: Vec<usize> = item.translation.into_iter().collect();
-                            Pair {
-                                original,
-                                translation,
-                            }
-                        })
-                        .collect();
-                    article.paragraphs[key].pairs = Some(pairs);
-                });
-            }
-        });
+        let pairs = pairs.get();
+        set_data.update(|state| write_pairs_into_data(state, article_id, &pairs));
     };
 
     AnimationContext::provide();
@@ -1203,7 +1206,7 @@ pub fn ArticlePage(
             let temp = animated_value.read();
             format!("left: {}px; top:{}px", temp.x, temp.y)
         };
-        if let Some(article) = data.get().articles.get(article_id) {
+        if let Some(article) = data.get_untracked().articles.get(article_id) {
             let mut article_pairs = TypePairs::new();
             article
                 .clone()
@@ -1230,11 +1233,21 @@ pub fn ArticlePage(
 
             let (pairs, set_pairs) = signal(article_pairs);
 
+            // Mirror every in-progress pair edit into the shared library (and
+            // therefore the local cache) as it happens. Without this, edits
+            // were only written when navigating back, so closing the app while
+            // on the article page could lose them before they reached the
+            // server.
+            Effect::new(move |_| {
+                let current = pairs.get();
+                set_data.update(|state| write_pairs_into_data(state, article_id, &current));
+            });
+
             // Server-known pairs for this article, per paragraph, as
             // (original, translation) word-index sets. Used to tell which pairs
             // created here are brand-new and not yet saved to the server.
             let saved_article_pairs: Vec<Vec<(BTreeSet<usize>, BTreeSet<usize>)>> = saved
-                .get()
+                .get_untracked()
                 .articles
                 .iter()
                 .find(|item| item.created_at == article.created_at)
