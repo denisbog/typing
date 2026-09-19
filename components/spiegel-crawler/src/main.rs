@@ -81,10 +81,18 @@ async fn main() -> Result<()> {
 
     let config = aws_config::load_from_env().await;
     let dynamo_client = aws_sdk_dynamodb::Client::new(&config);
+    // Bump the user's library version once for the whole crawl run. Every
+    // article inserted by this run shares that same new version, so the UI sees
+    // a single revision for the batch.
+    let version = library_version::bump_version_for_user(&dynamo_client, &args.user_id).await;
     articles
-        .map(|item| {
+        .map(|mut item| {
             let dynamo_client = dynamo_client.clone();
             async move {
+                item.insert(
+                    "version".to_string(),
+                    AttributeValue::N(version.to_string()),
+                );
                 dynamo_client
                     .put_item()
                     .table_name("translation")

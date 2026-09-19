@@ -15,6 +15,10 @@ const SEARCH_KEY: &str = "typing.search";
 // "favorites" / "missing voice" filters.
 const ARTICLE_SORT_KEY: &str = "typing.article_sort";
 const ARTICLE_FILTERS_KEY: &str = "typing.article_filters";
+// Library-version boundary of the most recent server sync. Articles whose
+// `version` is greater were changed in that sync (or since), powering the
+// "updated since previous sync" filter.
+const LAST_SYNC_VERSION_KEY: &str = "typing.data.sync_version";
 // The whole set of user preferences is persisted as one JSON blob under this
 // single key (see load_preferences / save_preferences).
 const PREFS_KEY: &str = "typing.preferences";
@@ -160,34 +164,68 @@ pub fn saved_article_sort() -> String {
     }
 }
 
-/// Persist the active article-list filters as a compact `favorites,missing`
-/// pair of `0`/`1` flags.
-pub fn save_article_filters(only_favorites: bool, only_missing_voice: bool) {
+/// Persist the active article-list filters as a compact
+/// `favorites,missing,recent,pairs` tuple of `0`/`1` flags.
+pub fn save_article_filters(
+    only_favorites: bool,
+    only_missing_voice: bool,
+    only_recent: bool,
+    only_with_pairs: bool,
+) {
     #[cfg(feature = "hydrate")]
     set_storage(
         ARTICLE_FILTERS_KEY,
         &format!(
-            "{},{}",
-            only_favorites as u8, only_missing_voice as u8
+            "{},{},{},{}",
+            only_favorites as u8,
+            only_missing_voice as u8,
+            only_recent as u8,
+            only_with_pairs as u8
         ),
     );
     #[cfg(not(feature = "hydrate"))]
-    let _ = (only_favorites, only_missing_voice);
+    let _ = (only_favorites, only_missing_voice, only_recent, only_with_pairs);
 }
 
-/// The last active article-list filters as `(only_favorites, only_missing_voice)`.
-pub fn saved_article_filters() -> (bool, bool) {
+/// The last active article-list filters as
+/// `(only_favorites, only_missing_voice, only_recent, only_with_pairs)`. Older
+/// clients stored fewer values; missing flags default to `false`.
+pub fn saved_article_filters() -> (bool, bool, bool, bool) {
     #[cfg(feature = "hydrate")]
     {
         let raw = get_storage(ARTICLE_FILTERS_KEY).unwrap_or_default();
         let mut parts = raw.split(',');
         let favorites = parts.next().is_some_and(|v| v == "1");
         let missing = parts.next().is_some_and(|v| v == "1");
-        return (favorites, missing);
+        let recent = parts.next().is_some_and(|v| v == "1");
+        let pairs = parts.next().is_some_and(|v| v == "1");
+        return (favorites, missing, recent, pairs);
     }
     #[cfg(not(feature = "hydrate"))]
     {
-        (false, false)
+        (false, false, false, false)
+    }
+}
+
+/// Persist the library-version boundary of the most recent sync.
+pub fn save_last_sync_version(version: u64) {
+    #[cfg(feature = "hydrate")]
+    set_storage(LAST_SYNC_VERSION_KEY, &version.to_string());
+    #[cfg(not(feature = "hydrate"))]
+    let _ = version;
+}
+
+/// The library-version boundary of the most recent sync (`0` when none yet).
+pub fn cached_last_sync_version() -> u64 {
+    #[cfg(feature = "hydrate")]
+    {
+        return get_storage(LAST_SYNC_VERSION_KEY)
+            .and_then(|raw| raw.parse::<u64>().ok())
+            .unwrap_or(0);
+    }
+    #[cfg(not(feature = "hydrate"))]
+    {
+        0
     }
 }
 
@@ -234,6 +272,7 @@ pub fn load_preferences() -> UserPreferences {
             favorites: get_storage(LEGACY_FAVORITES_KEY)
                 .and_then(|raw| serde_json::from_str(&raw).ok())
                 .unwrap_or_default(),
+            version: 0,
         };
         save_preferences(&p);
         p

@@ -8,12 +8,19 @@ pub struct Data {
 /// Per-user preferences and favourite articles, persisted to the
 /// `translation_preferences` DynamoDB table (partition key `user_id`).
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct UserPreferences {
     pub user_id: String,
     pub voice: String,
     pub current_paragraph_only: bool,
     pub group_matching_by_paragraph: bool,
     pub favorites: std::collections::HashSet<String>,
+    /// Monotonic version of the user's article library. Every write to an
+    /// article (add/edit/delete, including the crawler and translation tool)
+    /// increments this counter, and the same value is stamped onto the
+    /// article. The UI compares this with its cached copy before fetching the
+    /// full library from the server.
+    pub version: u64,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
@@ -24,6 +31,10 @@ pub struct Article {
     pub title: String,
     pub audio_directory: Option<String>,
     pub paragraphs: Vec<Paragraph>,
+    /// Library version at which this article was last written. Mirrors
+    /// [`UserPreferences::version`] at write time.
+    #[serde(default)]
+    pub version: u64,
 }
 
 impl Article {
@@ -45,6 +56,7 @@ impl Article {
             title,
             audio_directory: None,
             paragraphs,
+            version: 0,
         }
     }
     pub fn from_str(user_id: String, original: Vec<String>) -> Self {
@@ -65,6 +77,7 @@ impl Article {
             title,
             audio_directory: None,
             paragraphs,
+            version: 0,
         }
     }
 }

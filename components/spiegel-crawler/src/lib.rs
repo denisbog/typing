@@ -6,6 +6,9 @@ pub struct Article {
     pub translated: String,
     pub title: String,
     pub paragraphs: Vec<Paragraph>,
+    /// Library version this article was written at. Stamped by the crawler
+    /// after incrementing the user's version counter.
+    pub version: u64,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
@@ -36,6 +39,7 @@ impl Article {
             translated: "false".to_string(),
             title: format!("{title} || {subtitle}"),
             paragraphs,
+            version: 0,
         }
     }
 }

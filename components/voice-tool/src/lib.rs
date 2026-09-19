@@ -8,6 +8,10 @@ pub struct Article {
     pub title: String,
     pub paragraphs: Vec<Paragraph>,
     pub audio_directory: Option<String>,
+    /// Library version at which this article was last written. Stamped by the
+    /// voice tool after incrementing the user's version counter.
+    #[serde(default)]
+    pub version: u64,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]

@@ -2,6 +2,9 @@ use anyhow::Error as E;
 use candle_transformers::models::marian;
 use clap::Parser;
 
+use std::collections::HashMap;
+
+use aws_sdk_dynamodb::types::{AttributeValue, AttributeValueUpdate};
 use candle_core::{DType, Tensor};
 use candle_nn::VarBuilder;
 use futures::StreamExt;
@@ -165,13 +168,10 @@ impl Translator {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    use std::{collections::HashMap, sync::Arc};
+    use std::sync::Arc;
 
-    use aws_sdk_dynamodb::types::{AttributeValue, AttributeValueUpdate};
     use serde_dynamo::from_items;
     use tokio::sync::Mutex;
-
-    use clap::Parser;
 
     let args = Args::parse();
     let translator = Arc::new(Mutex::new(Translator::init(args)?));
@@ -190,6 +190,26 @@ async fn main() -> anyhow::Result<()> {
         .unwrap();
 
     let items: Vec<Article> = from_items(response.items.unwrap()).unwrap();
+
+    // Bump each user's library version once for the whole run, so every article
+    // updated by this run shares the same new version for that user.
+    let mut versions: HashMap<String, u64> = HashMap::new();
+    for item in &items {
+        if !versions.contains_key(&item.user_id) {
+            let version = library_version::bump_version_for_user(&client, &item.user_id).await;
+            versions.insert(item.user_id.clone(), version);
+        }
+    }
+
+    // Stamp the shared version onto every article before translating so the
+    // store step below just persists it.
+    let items: Vec<Article> = items
+        .into_iter()
+        .map(|mut item| {
+            item.version = versions.get(&item.user_id).copied().unwrap_or(0);
+            item
+        })
+        .collect();
 
     futures::stream::iter(items)
         .map(|mut item| async {
@@ -219,6 +239,8 @@ async fn main() -> anyhow::Result<()> {
         })
         .map(|item| async {
             let item = item.await;
+            // Version already bumped once per user for this run.
+            let version = item.version;
             let mut key = HashMap::new();
             key.insert(
                 "user_id".to_string(),
@@ -246,6 +268,12 @@ async fn main() -> anyhow::Result<()> {
                     "paragraphs",
                     AttributeValueUpdate::builder()
                         .value(temp.get("paragraphs").unwrap().clone())
+                        .build(),
+                )
+                .attribute_updates(
+                    "version",
+                    AttributeValueUpdate::builder()
+                        .value(AttributeValue::N(version.to_string()))
                         .build(),
                 )
                 .send()

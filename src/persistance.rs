@@ -9,16 +9,29 @@ use serde_dynamo::{from_item, from_items};
 use crate::application_types::{Article, UserPreferences};
 
 pub trait Persistance {
+    /// Articles owned by `user_id`. When `since_version` is non-zero only
+    /// articles whose `version` is greater are returned (the delta since the
+    /// client's snapshot), including soft-deleted ones so the client can drop
+    /// them. A `since_version` of `0` returns the full live library.
     fn get_items_for_user(
         &self,
         user_id: &str,
+        since_version: u64,
     ) -> impl std::future::Future<Output = Vec<Article>> + Send;
-    fn put_item_for_user(&self, item: Article) -> impl std::future::Future<Output = ()> + Send;
+    /// Store a new/updated article and return the new library version stamped
+    /// onto it.
+    fn put_item_for_user(&self, item: Article) -> impl std::future::Future<Output = u64> + Send;
+    /// Persist an article's paragraph pairs and return the new library version.
     fn update_pairs_for_article(
         &self,
         item: Article,
-    ) -> impl std::future::Future<Output = ()> + Send;
-    fn delete_item_for_user(&self, item: Article) -> impl std::future::Future<Output = ()> + Send;
+    ) -> impl std::future::Future<Output = u64> + Send;
+    /// Soft-delete an article and return the new library version.
+    fn delete_item_for_user(&self, item: Article) -> impl std::future::Future<Output = u64> + Send;
+    /// Atomically increment the user's library version and return the new value.
+    fn bump_version_for_user(&self, user_id: &str) -> impl std::future::Future<Output = u64> + Send;
+    /// Current library version for the user (`0` when never set).
+    fn get_version_for_user(&self, user_id: &str) -> impl std::future::Future<Output = u64> + Send;
     fn get_preferences_for_user(
         &self,
         user_id: &str,
@@ -47,34 +60,48 @@ impl AwsPersistance {
 
 #[cfg(feature = "ssr")]
 impl Persistance for AwsPersistance {
-    async fn get_items_for_user(&self, user_id: &str) -> Vec<Article> {
-        let mut response = self
-            .client
-            .query()
-            .table_name("translation")
-            .key_condition_expression("user_id = :user_id")
-            .expression_attribute_values(":user_id", AttributeValue::S(user_id.to_string()))
-            .send()
-            .await
-            .unwrap();
-        let mut items: Vec<Article> = from_items(response.items.unwrap()).unwrap();
-        while response.last_evaluated_key.is_some() {
-            response = self
+    async fn get_items_for_user(&self, user_id: &str, since_version: u64) -> Vec<Article> {
+        let mut items: Vec<Article> = Vec::new();
+        let mut exclusive_start_key = None;
+        loop {
+            let mut request = self
                 .client
                 .query()
                 .table_name("translation")
                 .key_condition_expression("user_id = :user_id")
-                .expression_attribute_values(":user_id", AttributeValue::S(user_id.to_string()))
-                .set_exclusive_start_key(response.last_evaluated_key)
-                .send()
-                .await
-                .unwrap();
-            items.extend(from_items(response.items.unwrap()).unwrap());
+                .expression_attribute_values(":user_id", AttributeValue::S(user_id.to_string()));
+            // Incremental syncs only need articles changed since the version the
+            // client already holds. Soft-deleted rows are included here (their
+            // version was bumped by the delete) so the client can remove them;
+            // full syncs filter them out below.
+            if since_version > 0 {
+                request = request
+                    .filter_expression("#v > :since")
+                    .expression_attribute_names("#v", "version")
+                    .expression_attribute_values(":since", AttributeValue::N(since_version.to_string()));
+            }
+            if let Some(key) = exclusive_start_key.take() {
+                request = request.set_exclusive_start_key(Some(key));
+            }
+            let response = request.send().await.unwrap();
+            if let Some(page) = response.items {
+                items.extend(from_items(page).unwrap());
+            }
+            match response.last_evaluated_key {
+                Some(key) => exclusive_start_key = Some(key),
+                None => break,
+            }
         }
-        items.into_iter().filter(|item| item.translated != "deleted").collect()
+        if since_version == 0 {
+            items.retain(|item| item.translated != "deleted");
+        }
+        items
     }
 
-    async fn put_item_for_user(&self, item: Article) {
+    async fn put_item_for_user(&self, item: Article) -> u64 {
+        let version = self.bump_version_for_user(&item.user_id).await;
+        let mut item = item;
+        item.version = version;
         self.client
             .put_item()
             .table_name("translation")
@@ -82,9 +109,11 @@ impl Persistance for AwsPersistance {
             .send()
             .await
             .unwrap();
+        version
     }
 
-    async fn delete_item_for_user(&self, item: Article) {
+    async fn delete_item_for_user(&self, item: Article) -> u64 {
+        let version = self.bump_version_for_user(&item.user_id).await;
         let mut key = HashMap::new();
         key.insert("user_id".to_string(), AttributeValue::S(item.user_id));
         key.insert(
@@ -95,14 +124,20 @@ impl Persistance for AwsPersistance {
             .update_item()
             .table_name("translation")
             .set_key(Some(key))
-            .update_expression("SET translated = :deleted")
+            .update_expression("SET translated = :deleted, #v = :version")
+            .expression_attribute_names("#v", "version")
             .expression_attribute_values(":deleted", AttributeValue::S("deleted".to_string()))
+            .expression_attribute_values(":version", AttributeValue::N(version.to_string()))
             .send()
             .await
             .unwrap();
+        version
     }
 
-    async fn update_pairs_for_article(&self, item: Article) {
+    async fn update_pairs_for_article(&self, item: Article) -> u64 {
+        let version = self.bump_version_for_user(&item.user_id).await;
+        let mut item = item;
+        item.version = version;
         let mut key = HashMap::new();
         key.insert(
             "user_id".to_string(),
@@ -123,9 +158,28 @@ impl Persistance for AwsPersistance {
                     .value(temp.get("paragraphs").unwrap().clone())
                     .build(),
             )
+            .attribute_updates(
+                "version",
+                AttributeValueUpdate::builder()
+                    .value(AttributeValue::N(version.to_string()))
+                    .build(),
+            )
             .send()
             .await
             .unwrap();
+        version
+    }
+
+    /// Increment (and create if absent) the per-user `version` attribute in the
+    /// `translation_preferences` table, returning the resulting value. Shared
+    /// with the crawler / translation tool / voice tool via the
+    /// `library-version` crate so all writers use the same atomic update.
+    async fn bump_version_for_user(&self, user_id: &str) -> u64 {
+        library_version::bump_version_for_user(&self.client, user_id).await
+    }
+
+    async fn get_version_for_user(&self, user_id: &str) -> u64 {
+        library_version::current_version_for_user(&self.client, user_id).await
     }
 
     async fn get_preferences_for_user(&self, user_id: &str) -> Option<UserPreferences> {
@@ -139,17 +193,49 @@ impl Persistance for AwsPersistance {
             .get_item()
             .table_name("translation_preferences")
             .set_key(Some(key))
+            // The library version is used to decide whether cached data is
+            // stale, so it must not be served from a stale replica.
+            .consistent_read(true)
             .send()
             .await
             .unwrap();
         response.item.map(|item| from_item(item).unwrap())
     }
 
+    /// Save the user's editable preferences without touching the library
+    /// `version`: the version is server-owned (bumped by article writes), so a
+    /// stale client copy must never overwrite it. Only the attributes the
+    /// client actually controls are written.
     async fn put_preferences_for_user(&self, preferences: UserPreferences) {
+        let mut key = HashMap::new();
+        key.insert(
+            "user_id".to_string(),
+            AttributeValue::S(preferences.user_id.clone()),
+        );
+        let item: HashMap<String, AttributeValue> =
+            serde_dynamo::to_item(preferences).unwrap();
         self.client
-            .put_item()
+            .update_item()
             .table_name("translation_preferences")
-            .set_item(Some(serde_dynamo::to_item(preferences).unwrap()))
+            .set_key(Some(key))
+            .update_expression(
+                "SET voice = :voice, current_paragraph_only = :current_paragraph_only, \
+                 group_matching_by_paragraph = :group_matching_by_paragraph, \
+                 favorites = :favorites",
+            )
+            .expression_attribute_values(":voice", item.get("voice").cloned().unwrap())
+            .expression_attribute_values(
+                ":current_paragraph_only",
+                item.get("current_paragraph_only").cloned().unwrap(),
+            )
+            .expression_attribute_values(
+                ":group_matching_by_paragraph",
+                item.get("group_matching_by_paragraph").cloned().unwrap(),
+            )
+            .expression_attribute_values(
+                ":favorites",
+                item.get("favorites").cloned().unwrap(),
+            )
             .send()
             .await
             .unwrap();
@@ -176,7 +262,9 @@ mod tests {
             created_at: 0,
             translated: "false".to_string(),
             title: "test".to_string(),
+            audio_directory: None,
             paragraphs: vec![Paragraph::default()],
+            version: 0,
         };
 
         let persistance = AwsPersistance::init().await;

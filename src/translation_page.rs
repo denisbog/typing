@@ -427,6 +427,17 @@ fn article_pairs(article: &crate::application_types::Article) -> Vec<(Vec<usize>
         .collect()
 }
 
+/// Number of word pairs across an article's paragraphs. Matches the count shown
+/// on the article card, so the "with pairs" filter and the badge agree.
+fn article_pair_count(article: &crate::application_types::Article) -> usize {
+    article
+        .paragraphs
+        .iter()
+        .filter_map(|paragraph| paragraph.pairs.as_ref())
+        .map(Vec::len)
+        .sum()
+}
+
 /// Write an article's in-progress pair map into the shared library. Called both
 /// when leaving the article page and continuously while editing, so the local
 /// cache always holds the latest (possibly unsaved) pairs.
@@ -453,6 +464,9 @@ pub fn TranslationPage(
     set_data: WriteSignal<Data>,
     saved: ReadSignal<Data>,
     set_saved: WriteSignal<Data>,
+    /// Library-version boundary of the previous sync: articles newer than this
+    /// were updated in (or after) the last server sync.
+    last_sync_version: ReadSignal<u64>,
 ) -> impl IntoView {
     let (search, set_search) = signal(crate::local_store::saved_search());
     let search_query = move || search.get().trim().to_lowercase();
@@ -469,10 +483,12 @@ pub fn TranslationPage(
         "oldest" => ArticleSort::Oldest,
         _ => ArticleSort::Default,
     });
-    let (saved_only_favorites, saved_only_missing_voice) =
+    let (saved_only_favorites, saved_only_missing_voice, saved_only_recent, saved_only_pairs) =
         crate::local_store::saved_article_filters();
     let (only_favorites, set_only_favorites) = signal(saved_only_favorites);
     let (only_missing_voice, set_only_missing_voice) = signal(saved_only_missing_voice);
+    let (only_recent, set_only_recent) = signal(saved_only_recent);
+    let (only_with_pairs, set_only_with_pairs) = signal(saved_only_pairs);
 
     // 1-based index of the currently displayed page of the article grid.
     let (page, set_page) = signal(1usize);
@@ -486,7 +502,12 @@ pub fn TranslationPage(
         });
     });
     Effect::new(move |_| {
-        crate::local_store::save_article_filters(only_favorites.get(), only_missing_voice.get());
+        crate::local_store::save_article_filters(
+            only_favorites.get(),
+            only_missing_voice.get(),
+            only_recent.get(),
+            only_with_pairs.get(),
+        );
     });
 
     // Keys used to identify a single article for favorites. created_at doubles
@@ -512,6 +533,9 @@ pub fn TranslationPage(
         let favs = favorites.get();
         let only_favs = only_favorites.get();
         let only_missing = only_missing_voice.get();
+        let only_recent = only_recent.get();
+        let only_pairs = only_with_pairs.get();
+        let last_sync = last_sync_version.get();
         let sort_mode = sort.get();
 
         // Keep the original article index (used for routes / save / delete)
@@ -540,6 +564,15 @@ pub fn TranslationPage(
                 return false;
             }
             if only_favs && !favs.contains(&favorite_key(item)) {
+                return false;
+            }
+            // "Updated since the previous sync": the article's version is past
+            // the boundary the last sync started from.
+            if only_recent && item.version <= last_sync {
+                return false;
+            }
+            // "With pairs": at least one saved/edited word pair.
+            if only_pairs && article_pair_count(item) == 0 {
                 return false;
             }
             true
@@ -598,6 +631,8 @@ pub fn TranslationPage(
         search_query();
         only_favorites.get();
         only_missing_voice.get();
+        only_recent.get();
+        only_with_pairs.get();
         sort.get();
         set_page.set(1);
     });
@@ -670,12 +705,7 @@ pub fn TranslationPage(
                     .iter()
                     .filter(|paragraph| paragraph.translation.is_some())
                     .count();
-                let pair_count = item
-                    .paragraphs
-                    .iter()
-                    .filter_map(|paragraph| paragraph.pairs.as_ref())
-                    .map(Vec::len)
-                    .sum::<usize>();
+                let pair_count = article_pair_count(&item);
                 let unsaved_count = unsaved_by_index.get(&index).copied().unwrap_or(0);
                 let has_unsaved = unsaved_count > 0;
                 let progress = if paragraph_count == 0 {
@@ -735,6 +765,27 @@ pub fn TranslationPage(
                                                     title="This article has audio"
                                                 >
                                                     "🔊"
+                                                </span>
+                                            }
+                                        })}
+
+                                    {item
+                                        .version
+                                        .gt(&0)
+                                        .then(|| {
+                                            let item_version = item.version;
+                                            view! {
+                                                <span
+                                                    class=move || {
+                                                        if item_version > last_sync_version.get() {
+                                                            "article-version-badge is-new"
+                                                        } else {
+                                                            "article-version-badge"
+                                                        }
+                                                    }
+                                                    title="Library version this article was last updated at"
+                                                >
+                                                    {format!("v{}", item_version)}
                                                 </span>
                                             }
                                         })}
@@ -853,15 +904,39 @@ pub fn TranslationPage(
                                                 .get(index)
                                                 .unwrap()
                                                 .clone();
-                                            let _ = store_pairs(article_to_store.clone()).await;
+                                            let stored_version = store_pairs(article_to_store.clone())
+                                                .await
+                                                .ok();
+                                            if let Some(version) = stored_version {
+                                                prefs.update(|p| p.version = version);
+                                                // Reflect the version the server stamped
+                                                // on the article so the card badge and
+                                                // the "recently updated" filter stay
+                                                // accurate without another sync.
+                                                set_data.update(|state| {
+                                                    if let Some(existing) = state
+                                                        .articles
+                                                        .iter_mut()
+                                                        .find(|article| {
+                                                            article.created_at == article_to_store.created_at
+                                                        })
+                                                    {
+                                                        existing.version = version;
+                                                    }
+                                                });
+                                            }
+                                            let mut stored_article = article_to_store.clone();
+                                            if let Some(version) = stored_version {
+                                                stored_article.version = version;
+                                            }
                                             set_saved
                                                 .update(|snapshot| {
                                                     snapshot
                                                         .articles
                                                         .retain(|article| {
-                                                            article.created_at != article_to_store.created_at
+                                                            article.created_at != stored_article.created_at
                                                         });
-                                                    snapshot.articles.push(article_to_store.clone());
+                                                    snapshot.articles.push(stored_article.clone());
                                                 });
                                             set_saving.set(false);
                                         });
@@ -901,7 +976,11 @@ pub fn TranslationPage(
                                             .clone();
                                         set_deleting.set(true);
                                         spawn_local(async move {
-                                            let _ = delete_article(article_to_remove).await;
+                                            let _ = delete_article(article_to_remove)
+                                                .await
+                                                .map(|version| {
+                                                    prefs.update(|p| p.version = version)
+                                                });
                                             set_deleting.set(false);
                                             set_data
                                                 .update(|item| {
@@ -1018,6 +1097,43 @@ pub fn TranslationPage(
                     >
                         <span class="article-chip-icon">"🔇"</span>
                         "Missing voice"
+                    </button>
+                    <button
+                        type="button"
+                        class=move || {
+                            if only_recent.get() {
+                                "article-chip article-chip--recent is-active"
+                            } else {
+                                "article-chip article-chip--recent"
+                            }
+                        }
+                        aria-pressed=move || only_recent.get().to_string()
+                        title=move || {
+                            format!(
+                                "Show only articles updated after version {}",
+                                last_sync_version.get(),
+                            )
+                        }
+                        on:click=move |_| set_only_recent.update(|v| *v = !*v)
+                    >
+                        <span class="article-chip-icon">"⟳"</span>
+                        "Updated since sync"
+                    </button>
+                    <button
+                        type="button"
+                        class=move || {
+                            if only_with_pairs.get() {
+                                "article-chip article-chip--pairs is-active"
+                            } else {
+                                "article-chip article-chip--pairs"
+                            }
+                        }
+                        aria-pressed=move || only_with_pairs.get().to_string()
+                        title="Show only articles that have word pairs"
+                        on:click=move |_| set_only_with_pairs.update(|v| *v = !*v)
+                    >
+                        <span class="article-chip-icon">"⧉"</span>
+                        "With pairs"
                     </button>
                 </div>
                 <label class="article-sort">

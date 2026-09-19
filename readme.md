@@ -112,17 +112,28 @@ npx tailwindcss -i ./input.css -o ./public/typing.css
 # Without it, the service worker cache name stays the same and clients keep
 # the old cached build.
 TYPING_BUILD=$(date -u +%s) cargo leptos build --release
+npx tailwindcss -i ./input.css -o ./public/typing.css
 cargo leptos build --release
 LEPTOS_OUTPUT_NAME=typing cargo lambda build --no-default-features --features=ssr,lambda --release
 cargo lambda deploy --include target/site --enable-function-url --binary-name=typing
 
 ## translation
+
+The tool needs the converted Marian tokenizers (`tokenizer-marian-base-de.json`,
+`tokenizer-marian-base-en.json`) in the directory it is run from. They are
+generated with candle's marian-mt `convert_slow_tokenizer.py` from the
+Helsinki-NLP/opus-mt-de-en sentencepiece models.
+
+When the CUDA toolkit emits a newer PTX ISA than the driver supports
+(`CUDA_ERROR_UNSUPPORTED_PTX_VERSION`), use the wrapper in
+`tools/nvcc-ptx-compat` (install it to `~/.local/bin/nvcc`) or install a
+matching CUDA 13.0 toolkit. See `tools/nvcc-ptx-compat/README.md`.
+
 ```bash
 NVCC_CCBIN=gcc-14 PATH=$PATH:/usr/local/cuda/bin cargo r --release --package translation-tool
-NVCC_CCBIN=gcc-14 PATH=$PATH:/usr/local/cuda/bin cargo r --release --package spiegel-crawler --bin spiegel-crawler -- --userInfo  <userInfo> --accessInfo <accessInfo> --userId <userId>
-NVCC_CCBIN=gcc-14 PATH=$PATH:/usr/local/cuda-12/bin cargo r --release --package translation-tool
+NVCC_CCBIN=gcc-14 PATH=$PATH:/usr/local/cuda/bin cargo r --release --package spiegel-crawler --bin spiegel-crawler -- --userInfo <userInfo> --accessInfo <accessInfo> --userId <userId>
 sudo dkms install --force nvidia/580.105.08 -k $(uname -r)
-PATH=$PATH:/usr/local/cuda/bin cargo r --release --package translation-tool
+NVCC_CCBIN=gcc-14 PATH=$PATH:/usr/local/cuda-13.3/bin cargo r --release --package translation-tool
 sudo ln -sf /usr/lib64/libcuda.so.1 /usr/lib/libcuda.so.1
 sudo ln -sf /usr/lib64/libcuda.so.1 /usr/lib/libcuda.so
 ```
@@ -156,4 +167,21 @@ id.json
     "N": "1764090714075"
   }
 }
+```
+
+
+### version update
+
+minimize the network traffic
+
+used
+
+```
+implement concurrency/version check on the ui before fetching the data from the server. use an integer value what will be incrimentend whenever the articles data will change, this number will be persistend of the user preferences. when ever the article will be updated the persistent version will be increased store and the same version will be presistend on the article itself. alight this change for the crawler and translation tool.
+```
+
+planned
+
+```
+implement concurrency/version check on the ui before fetching the data from the server. use an integer value what will be incrimentend whenever the articles data will change, this number will be persistend of the user preferences. when ever the article will be updated the persistent version will be increased store and the same version will be presistend on the article itself. before persisting the change the application should check the latest version from the user prefesences and in case it's bigger that means that newer data on the server is available ask the user to refresh the data first and try to perist the change again. when fetching the data we check the version from the user preferences it this was not changed we already have the latest data and no article fetch is required. if newer data is available we only fetch articles with version number bigger than our current version update the articles by matching creation data that shound uniquely identify the artilce. the crawler should incrementent the number for the user preferences and use it when saving new articles. after done saving is update it for user preferences also. for the translation tool we build a map for next version number per user and while translating the article we set it on the article after we complete saving all we persist the new version numbers updated also on the user preferences.
 ```

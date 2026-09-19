@@ -1,4 +1,5 @@
 use anyhow::Context;
+use aws_sdk_dynamodb::types::{AttributeValue, AttributeValueUpdate};
 use base64::Engine;
 use clap::Parser;
 use reqwest::multipart::{Form, Part};
@@ -285,14 +286,16 @@ async fn update_article_status(
     article: &Article,
     audio_directory: &str,
 ) -> anyhow::Result<()> {
-    use aws_sdk_dynamodb::types::{AttributeValue, AttributeValueUpdate};
-
     let mut key = HashMap::new();
     key.insert("user_id".to_string(), AttributeValue::S(article.user_id.clone()));
     key.insert(
         "created_at".to_string(),
         AttributeValue::N(article.created_at.to_string()),
     );
+
+    // Adding audio mutates the article, so bump the user's library version and
+    // stamp the article, keeping the UI's version check accurate.
+    let version = library_version::bump_version_for_user(client, &article.user_id).await;
 
     client
         .update_item()
@@ -308,6 +311,12 @@ async fn update_article_status(
             "audio_directory",
             AttributeValueUpdate::builder()
                 .value(AttributeValue::S(audio_directory.to_string()))
+                .build(),
+        )
+        .attribute_updates(
+            "version",
+            AttributeValueUpdate::builder()
+                .value(AttributeValue::N(version.to_string()))
                 .build(),
         )
         .send()

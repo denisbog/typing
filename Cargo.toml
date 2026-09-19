@@ -54,6 +54,7 @@ serde_dynamo = {version="4.3.0", features = ["aws-sdk-dynamodb+1"], optional=tru
 leptos-use = "0.16.3"
 wasm-timer = "0.2.5"
 leptos_animation = {version = "0.5.2", path="../leptos_animation"}
+library-version = { path = "components/library-version", optional = true }
 [features]
 
 hydrate = [
@@ -79,6 +80,7 @@ ssr = [
     "dep:aws-sdk-dynamodb",
     "dep:aws-config",
     "dep:serde_dynamo",
+    "dep:library-version",
     "leptos-use/ssr",
     "leptos-use/axum"
 ]

@@ -16,7 +16,7 @@ use crate::translation_page::TranslationPage;
 use crate::ORIGIN;
 use crate::{
     application_types::{Article, Data},
-    translation::{get_data, store_article},
+    translation::{get_data, get_version, store_article},
     translation_page::ArticlePage,
     BUTTON_CLASS, BUTTON_PRIMARY_CLASS,
 };
@@ -200,6 +200,74 @@ fn merge_unsaved_pairs(server: Data, local: &Data, saved: &Data) -> Data {
     }
 }
 
+/// Replace an existing article (matched by `created_at`, the user-scoped
+/// primary key) or append it when it is new.
+fn upsert_article(data: &mut Data, article: Article) {
+    match data
+        .articles
+        .iter_mut()
+        .find(|item| item.created_at == article.created_at)
+    {
+        Some(existing) => *existing = article,
+        None => data.articles.push(article),
+    }
+}
+
+/// Apply an incremental server delta on top of the local snapshot.
+///
+/// `delta` only contains articles written after the client's version, so every
+/// entry is either an update, an insertion, or a soft-delete (`translated ==
+/// "deleted"`). Updated articles replace the local copy while keeping any
+/// locally-edited pairs that are not on the server yet; the returned `Data`
+/// pair is `(working copy, server-known snapshot)`.
+fn apply_article_delta(delta: Data, local: &Data, saved: &Data) -> (Data, Data) {
+    let mut working = local.clone();
+    let mut saved_snapshot = saved.clone();
+
+    for article in delta.articles {
+        if article.translated == "deleted" {
+            working
+                .articles
+                .retain(|item| item.created_at != article.created_at);
+            saved_snapshot
+                .articles
+                .retain(|item| item.created_at != article.created_at);
+            continue;
+        }
+
+        // Keep local, not-yet-saved pairs when the incoming server copy would
+        // otherwise overwrite them.
+        let mut merged = article.clone();
+        if let Some(local_article) = working
+            .articles
+            .iter()
+            .find(|item| item.created_at == article.created_at)
+        {
+            let saved_article = saved_snapshot
+                .articles
+                .iter()
+                .find(|item| item.created_at == article.created_at);
+            for (index, paragraph) in merged.paragraphs.iter_mut().enumerate() {
+                let Some(local_paragraph) = local_article.paragraphs.get(index) else {
+                    continue;
+                };
+                let saved_pairs = saved_article
+                    .and_then(|a| a.paragraphs.get(index))
+                    .and_then(|p| p.pairs.as_ref());
+                if local_paragraph.pairs.as_ref() != saved_pairs {
+                    paragraph.pairs = local_paragraph.pairs.clone();
+                }
+            }
+        }
+
+        upsert_article(&mut working, merged);
+        // The server-known snapshot mirrors the payload verbatim.
+        upsert_article(&mut saved_snapshot, article);
+    }
+
+    (working, saved_snapshot)
+}
+
 /// Outcome of a server data-loading attempt. The resource returns one of these
 /// and a single consumer `Effect` owns all the side effects (applying data,
 /// clearing the session, navigation), keeping the fetcher a pure data producer.
@@ -207,8 +275,11 @@ fn merge_unsaved_pairs(server: Data, local: &Data, saved: &Data) -> Data {
 enum LoadOutcome {
     /// Nothing to do: showing the cached snapshot, or an OAuth callback in flight.
     Noop,
-    /// Fresh server data arrived and should be rendered + persisted.
-    Applied(Data),
+    /// Fresh server data arrived and should be rendered + persisted, together
+    /// with the library version the snapshot corresponds to and the version the
+    /// request was made from (`0` = full library, otherwise an incremental
+    /// delta).
+    Applied(Data, u64, u64),
     /// A session is required before anything can be loaded.
     AuthRequired,
     /// The server rejected the stored session; it must be dropped and re-logged-in.
@@ -250,7 +321,7 @@ pub fn App() -> impl IntoView {
     #[cfg(feature = "hydrate")]
     let cached = crate::local_store::cached_data();
     #[cfg(not(feature = "hydrate"))]
-    let cached = None;
+    let cached: Option<Data> = None;
     let (translation_post, set_translation_post) = signal(cached.clone().unwrap_or_default());
     // Mirror of the library as last known to the server (a fresh fetch or a
     // completed "Save pairs" round-trip). It is used to tell which articles
@@ -270,6 +341,10 @@ pub fn App() -> impl IntoView {
             .unwrap_or_default(),
     );
     let (last_sync, set_last_sync) = signal(crate::local_store::cached_last_sync());
+    // Library-version boundary of the most recent sync. Articles newer than
+    // this are surfaced by the "updated since previous sync" filter.
+    let (last_sync_version, set_last_sync_version) =
+        signal(crate::local_store::cached_last_sync_version());
     let (from_cache, set_from_cache) = signal(cached.is_some());
     // Becomes true as soon as we have something to render: immediately when the
     // cache is present, otherwise once the server returns.
@@ -318,6 +393,13 @@ pub fn App() -> impl IntoView {
         if !data.articles.is_empty() {
             crate::local_store::cache_saved_data(&data);
         }
+    });
+
+    // Persist the version boundary of the last sync so the "recently updated"
+    // filter keeps working across reloads.
+    #[cfg(feature = "hydrate")]
+    Effect::new(move |_| {
+        crate::local_store::save_last_sync_version(last_sync_version.get());
     });
 
     let (input_popup, set_input_popup) = signal(false);
@@ -431,10 +513,37 @@ pub fn App() -> impl IntoView {
             }
             log!("reading data from the server");
             set_refreshing.set(true);
-            match get_data(session).await {
-                Ok(data) => {
+            // Concurrency/version check: probe just the library version before
+            // downloading the article list. If the server version is still the
+            // one our cached snapshot was fetched at, no article has changed
+            // and the fetch can be skipped. A probe failure falls through to the
+            // full fetch so a transient error can never hide server-side
+            // changes.
+            let local_data = translation_post.get_untracked();
+            let local_version = preferences.prefs.get_untracked().version;
+            // A usable snapshot must already be rendered, belong to this user
+            // (a cache left over from another account must be replaced, not
+            // merged into) and be non-empty when it claims a non-zero version.
+            let has_snapshot = data_ready.get_untracked()
+                && local_data
+                    .articles
+                    .iter()
+                    .all(|article| article.user_id == session)
+                && (local_version == 0 || !local_data.articles.is_empty());
+            if let Ok(server_version) = get_version(session.clone()).await {
+                if has_snapshot && server_version == local_version {
+                    log!("library version unchanged; keeping cached data");
+                    set_refreshing.set(false);
+                    return LoadOutcome::Noop;
+                }
+            }
+            // Ask for only what changed since the snapshot we hold. Without a
+            // snapshot we need the whole library (`0`).
+            let since_version = if has_snapshot { local_version } else { 0 };
+            match get_data(session, since_version).await {
+                Ok((data, version)) => {
                     log!("got results");
-                    LoadOutcome::Applied(data)
+                    LoadOutcome::Applied(data, version, since_version)
                 }
                 Err(_) => {
                     // The server rejected the token (expired/revoked) → the
@@ -452,22 +561,36 @@ pub fn App() -> impl IntoView {
         use LoadOutcome::*;
         match resource.get() {
             // A fresh server fetch actually happened → apply and persist it.
-            Some(Applied(data)) => {
+            Some(Applied(delta, version, since_version)) => {
                 let now = crate::local_store::now_ms();
-                // Keep any pair edits that are not on the server yet instead of
-                // letting the fresh snapshot overwrite them.
-                let merged = merge_unsaved_pairs(
-                    data.clone(),
-                    &translation_post.get_untracked(),
-                    &saved_data.get_untracked(),
-                );
-                set_translation_post.set(merged.clone());
-                set_saved_data.set(data.clone());
+                let local = translation_post.get_untracked();
+                let saved = saved_data.get_untracked();
+                // A full fetch (`since_version == 0`) replaces the local library
+                // while keeping unsaved pairs; an incremental fetch merges only
+                // the changed articles (and removals) on top of it.
+                let (working, saved_snapshot) = if since_version == 0 {
+                    (
+                        merge_unsaved_pairs(delta.clone(), &local, &saved),
+                        delta,
+                    )
+                } else {
+                    apply_article_delta(delta, &local, &saved)
+                };
+                set_translation_post.set(working.clone());
+                set_saved_data.set(saved_snapshot);
                 set_last_sync.set(Some(now));
+                // Everything fetched from this boundary on is "new since the
+                // previous sync"; remember it for the list filter.
+                set_last_sync_version.set(since_version);
                 set_from_cache.set(false);
                 set_data_ready.set(true);
+                // Remember the library version this snapshot was fetched at so
+                // the next refresh can skip the download when nothing changed.
+                if preferences.prefs.get_untracked().version != version {
+                    preferences.prefs.update(|p| p.version = version);
+                }
                 #[cfg(feature = "hydrate")]
-                crate::local_store::cache_data_with_sync(&merged, now);
+                crate::local_store::cache_data_with_sync(&working, now);
                 set_refreshing.set(false);
             }
             // The server rejected the session → drop it and re-login.
@@ -559,7 +682,11 @@ pub fn App() -> impl IntoView {
                                                     .update(|data| {
                                                         data.articles.push(article.clone());
                                                     });
-                                                let _ = store_article(article).await;
+                                                if let Ok(version) = store_article(article).await {
+                                                    preferences
+                                                        .prefs
+                                                        .update(|p| p.version = version);
+                                                }
                                                 set_adding.set(false);
                                                 set_input_popup.set(false);
                                             });
@@ -884,6 +1011,7 @@ pub fn App() -> impl IntoView {
                                                                     set_data=set_translation_post
                                                                     saved=saved_data
                                                                     set_saved=set_saved_data
+                                                                    last_sync_version=last_sync_version
                                                                 />
                                                                 <PlaybackPanel playback=playback/>
                                                                 <div>{input_popup_component(set_translation_post)}</div>
@@ -903,6 +1031,7 @@ pub fn App() -> impl IntoView {
                                                                     set_data=set_translation_post
                                                                     saved=saved_data
                                                                     set_saved=set_saved_data
+                                                                    last_sync_version=last_sync_version
                                                                 />
                                                                 <div>{input_popup_component(set_translation_post)}</div>
                                                             },
