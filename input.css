@@ -565,6 +565,39 @@
   @apply mt-2 max-w-sm text-sm leading-relaxed text-slate-500;
 }
 
+/* Pagination for the article library grid. */
+.article-pagination {
+  @apply mt-6 flex flex-wrap items-center justify-center gap-2;
+}
+
+.pagination-btn {
+  @apply inline-flex cursor-pointer select-none items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-400 transition-colors hover:border-white/20 hover:bg-white/[0.07] hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-40;
+}
+
+.pagination-btn-label {
+  @apply hidden sm:inline;
+}
+
+.pagination-pages {
+  @apply flex items-center gap-1;
+}
+
+.pagination-page {
+  @apply flex h-8 min-w-8 cursor-pointer items-center justify-center rounded-md border border-transparent px-2 font-mono text-[11px] font-semibold text-slate-400 transition-colors hover:border-white/15 hover:bg-white/[0.06] hover:text-slate-100;
+}
+
+.pagination-page.is-active {
+  @apply border-slate-300/30 bg-slate-200/10 text-slate-100;
+}
+
+.pagination-ellipsis {
+  @apply flex h-8 min-w-8 items-center justify-center font-mono text-[11px] text-slate-600;
+}
+
+.pagination-info {
+  @apply mt-3 text-center font-mono text-[9px] uppercase tracking-widest text-slate-600;
+}
+
 /* ------------------------------------------------------------------ */
 /* Article page - moved from src/translation_page.rs                    */
 /* ------------------------------------------------------------------ */

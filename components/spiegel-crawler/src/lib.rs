@@ -116,11 +116,33 @@ pub fn extract_article(
 }
 
 fn clean(s: String) -> String {
-    s.chars()
-        .map(|c| if c == '–' { '-' } else { c })
-        .map(|c| if c == '»' || c == '«' { '\"' } else { c })
-        .filter(|c| {
-            c.is_alphabetic() || c.is_numeric() || c.is_whitespace() || c.is_ascii_punctuation()
-        })
-        .collect()
+    let mut cleaned = String::with_capacity(s.len());
+    // Tracks whether the previous kept character was whitespace, so a run of
+    // any whitespace (spaces, tabs, newlines…) collapses to a single space.
+    let mut previous_was_whitespace = false;
+    for c in s.chars() {
+        let c = match c {
+            '–' => '-',
+            '»' | '«' => '\"',
+            _ => c,
+        };
+        if !(c.is_alphabetic()
+            || c.is_numeric()
+            || c.is_whitespace()
+            || c.is_ascii_punctuation())
+        {
+            continue;
+        }
+        if c.is_whitespace() {
+            if previous_was_whitespace {
+                continue;
+            }
+            cleaned.push(' ');
+            previous_was_whitespace = true;
+        } else {
+            cleaned.push(c);
+            previous_was_whitespace = false;
+        }
+    }
+    cleaned
 }

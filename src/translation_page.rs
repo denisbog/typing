@@ -52,6 +52,39 @@ enum ArticleSort {
     Oldest,
 }
 
+/// How many article cards are shown per page in the library grid.
+const ARTICLES_PER_PAGE: usize = 6;
+
+/// Page numbers to render for the pagination control. `None` marks an
+/// ellipsis gap (`…`) between distant page numbers, so the control stays a
+/// fixed, readable width even with hundreds of articles.
+fn pagination_slots(current: usize, total: usize) -> Vec<Option<usize>> {
+    /// Page numbers shown on either side of the current page.
+    const WINDOW: usize = 1;
+    // Few enough pages that the whole range fits comfortably.
+    if total <= 7 {
+        return (1..=total).map(Some).collect();
+    }
+
+    let start = current.saturating_sub(WINDOW).max(1);
+    let end = (current + WINDOW).min(total);
+    let mut slots = Vec::new();
+    if start > 1 {
+        slots.push(Some(1));
+        if start > 2 {
+            slots.push(None);
+        }
+    }
+    slots.extend((start..=end).map(Some));
+    if end < total {
+        if end + 1 < total {
+            slots.push(None);
+        }
+        slots.push(Some(total));
+    }
+    slots
+}
+
 #[derive(Clone)]
 struct EffectPosition {
     x: f64,
@@ -441,6 +474,9 @@ pub fn TranslationPage(
     let (only_favorites, set_only_favorites) = signal(saved_only_favorites);
     let (only_missing_voice, set_only_missing_voice) = signal(saved_only_missing_voice);
 
+    // 1-based index of the currently displayed page of the article grid.
+    let (page, set_page) = signal(1usize);
+
     // Persist the list controls whenever they change.
     Effect::new(move |_| {
         crate::local_store::save_article_sort(match sort.get() {
@@ -549,6 +585,42 @@ pub fn TranslationPage(
         indexed
     });
 
+    // Total number of pages for the current search/filter/sort selection.
+    let total_pages = Memo::new(move |_| {
+        let count = visible.get().len();
+        ((count + ARTICLES_PER_PAGE - 1) / ARTICLES_PER_PAGE).max(1)
+    });
+
+    // Narrowing the list (new query, filter or sort) starts from page 1 so the
+    // user always lands on the first batch of results. Data-only changes (e.g.
+    // deleting an article) deliberately do not reset the page.
+    Effect::new(move |_| {
+        search_query();
+        only_favorites.get();
+        only_missing_voice.get();
+        sort.get();
+        set_page.set(1);
+    });
+
+    // Keep the page in range when the list shrinks (deletion, filter, search)
+    // so we never render an empty grid with valid articles on an earlier page.
+    Effect::new(move |_| {
+        let last = total_pages.get();
+        if page.get() > last {
+            set_page.set(last);
+        }
+    });
+
+    // Jump to a page and bring the top of the list back into view so the new
+    // batch starts at the same place the previous one did.
+    let list_top = NodeRef::<Div>::new();
+    let go_to_page = move |target: usize| {
+        set_page.set(target.max(1));
+        if let Some(element) = list_top.get() {
+            element.scroll_into_view();
+        }
+    };
+
     let views = move || {
         // Snapshot of each article's pairs as last persisted on the server,
         // keyed by created_at, to show the per-card "unsaved" count.
@@ -560,6 +632,17 @@ pub fn TranslationPage(
                 .map(|article| (article.created_at.to_string(), article_pairs(article)))
                 .collect();
         let items = visible.get();
+        // Slice the ordered list down to the current page. The `index` in each
+        // pair is still the article's position in the full library, so routes,
+        // saving and deletion keep working unchanged.
+        let page_count = total_pages.get();
+        let current_page = page.get().clamp(1, page_count);
+        let page_start = (current_page - 1) * ARTICLES_PER_PAGE;
+        let items: Vec<(usize, crate::application_types::Article)> = items
+            .into_iter()
+            .skip(page_start)
+            .take(ARTICLES_PER_PAGE)
+            .collect();
         // Number of pairs in the live article that are not yet on the server.
         let unsaved_by_index: std::collections::HashMap<usize, usize> = items
             .iter()
@@ -865,7 +948,7 @@ pub fn TranslationPage(
             }
         >
 
-            <div class="article-search">
+            <div class="article-search" node_ref=list_top>
                 <span class="article-search-icon">"🔍"</span>
                 <input
                     type="search"
@@ -978,6 +1061,85 @@ pub fn TranslationPage(
             >
 
                 <div class="library-grid">{views}</div>
+
+                <Show when=move || { total_pages.get() > 1 }>
+                    <>
+                        <nav class="article-pagination" aria-label="Article list pages">
+                            <button
+                                type="button"
+                                class="pagination-btn"
+                                disabled=move || { page.get() <= 1 }
+                                on:click=move |_| go_to_page(page.get().saturating_sub(1))
+                            >
+                                <span aria-hidden="true">"←"</span>
+                                <span class="pagination-btn-label">"Prev"</span>
+                            </button>
+
+                            <div class="pagination-pages">
+                                {move || {
+                                    let total = total_pages.get();
+                                    let current = page.get().clamp(1, total);
+                                    pagination_slots(current, total)
+                                        .into_iter()
+                                        .map(|slot| match slot {
+                                            Some(number) => {
+                                                view! {
+                                                    <button
+                                                        type="button"
+                                                        class=move || {
+                                                            if page.get() == number {
+                                                                "pagination-page is-active"
+                                                            } else {
+                                                                "pagination-page"
+                                                            }
+                                                        }
+                                                        aria-label=format!("Page {number}")
+                                                        aria-current=move || {
+                                                            (page.get() == number).then_some("page")
+                                                        }
+                                                        on:click=move |_| go_to_page(number)
+                                                    >
+                                                        {number}
+                                                    </button>
+                                                }
+                                                    .into_any()
+                                            }
+                                            None => {
+                                                view! {
+                                                    <span class="pagination-ellipsis">"…"</span>
+                                                }
+                                                    .into_any()
+                                            }
+                                        })
+                                        .collect_view()
+                                }}
+                            </div>
+
+                            <button
+                                type="button"
+                                class="pagination-btn"
+                                disabled=move || { page.get() >= total_pages.get() }
+                                on:click=move |_| {
+                                    go_to_page((page.get() + 1).min(total_pages.get()))
+                                }
+                            >
+                                <span class="pagination-btn-label">"Next"</span>
+                                <span aria-hidden="true">"→"</span>
+                            </button>
+                        </nav>
+
+                        <p class="pagination-info" aria-live="polite">
+                            {move || {
+                                let total_items = visible.get().len();
+                                let total = total_pages.get();
+                                let current = page.get().clamp(1, total);
+                                let first = (current - 1) * ARTICLES_PER_PAGE + 1;
+                                let last = (first + ARTICLES_PER_PAGE - 1).min(total_items);
+                                format!("Showing {first}–{last} of {total_items} articles")
+                            }}
+                        </p>
+                    </>
+                </Show>
             </Show>
         </Show>
     }
