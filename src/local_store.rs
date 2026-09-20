@@ -15,6 +15,11 @@ const SEARCH_KEY: &str = "typing.search";
 // "favorites" / "missing voice" filters.
 const ARTICLE_SORT_KEY: &str = "typing.article_sort";
 const ARTICLE_FILTERS_KEY: &str = "typing.article_filters";
+// The article-list page currently being displayed (1-based) and the article
+// most recently opened from the list (keyed by its stable `created_at`). Used
+// to restore the exact view and re-focus the card the user came from.
+const ARTICLE_PAGE_KEY: &str = "typing.article_page";
+const OPENED_ARTICLE_KEY: &str = "typing.opened_article";
 // Library-version boundary of the most recent server sync. Articles whose
 // `version` is greater were changed in that sync (or since), powering the
 // "updated since previous sync" filter.
@@ -204,6 +209,60 @@ pub fn saved_article_filters() -> (bool, bool, bool, bool) {
     #[cfg(not(feature = "hydrate"))]
     {
         (false, false, false, false)
+    }
+}
+
+/// Persist the currently displayed article-list page (1-based).
+pub fn save_article_page(page: usize) {
+    #[cfg(feature = "hydrate")]
+    set_storage(ARTICLE_PAGE_KEY, &page.to_string());
+    #[cfg(not(feature = "hydrate"))]
+    let _ = page;
+}
+
+/// The last displayed article-list page (`1` when none/not valid yet).
+pub fn saved_article_page() -> usize {
+    #[cfg(feature = "hydrate")]
+    {
+        return get_storage(ARTICLE_PAGE_KEY)
+            .and_then(|raw| raw.parse::<usize>().ok())
+            .filter(|page| *page > 0)
+            .unwrap_or(1);
+    }
+    #[cfg(not(feature = "hydrate"))]
+    {
+        1
+    }
+}
+
+/// Remember the article most recently opened from the library, identified by
+/// its `created_at` (the article's stable, unique id). Passing `None` clears
+/// it once the article has been brought back into focus.
+pub fn save_opened_article(created_at: Option<u64>) {
+    #[cfg(feature = "hydrate")]
+    match created_at {
+        Some(value) => set_storage(OPENED_ARTICLE_KEY, &value.to_string()),
+        None => {
+            if let Some(storage) = web_sys::window().and_then(|w| w.local_storage().ok().flatten())
+            {
+                let _ = storage.remove_item(OPENED_ARTICLE_KEY);
+            }
+        }
+    }
+    #[cfg(not(feature = "hydrate"))]
+    let _ = created_at;
+}
+
+/// The `created_at` of the article most recently opened from the library, if
+/// any.
+pub fn saved_opened_article() -> Option<u64> {
+    #[cfg(feature = "hydrate")]
+    {
+        return get_storage(OPENED_ARTICLE_KEY).and_then(|raw| raw.parse::<u64>().ok());
+    }
+    #[cfg(not(feature = "hydrate"))]
+    {
+        None
     }
 }
 

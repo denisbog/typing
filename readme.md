@@ -116,8 +116,17 @@ npx tailwindcss -i ./input.css -o ./public/typing.css
 cargo leptos build --release
 LEPTOS_OUTPUT_NAME=typing cargo lambda build --no-default-features --features=ssr,lambda --release
 cargo lambda deploy --include target/site --enable-function-url --binary-name=typing
+```
 
 ## translation
+
+Project-local .cargo/config.toml in this repo:
+
+ ```toml
+   [env]
+   NVCC_CCBIN = "gcc-14"
+   NVCC_PREPEND_FLAGS = "-U_GNU_SOURCE -D_DEFAULT_SOURCE"
+ ```
 
 The tool needs the converted Marian tokenizers (`tokenizer-marian-base-de.json`,
 `tokenizer-marian-base-en.json`) in the directory it is run from. They are
@@ -133,7 +142,7 @@ matching CUDA 13.0 toolkit. See `tools/nvcc-ptx-compat/README.md`.
 NVCC_CCBIN=gcc-14 PATH=$PATH:/usr/local/cuda/bin cargo r --release --package translation-tool
 NVCC_CCBIN=gcc-14 PATH=$PATH:/usr/local/cuda/bin cargo r --release --package spiegel-crawler --bin spiegel-crawler -- --userInfo <userInfo> --accessInfo <accessInfo> --userId <userId>
 sudo dkms install --force nvidia/580.105.08 -k $(uname -r)
-NVCC_CCBIN=gcc-14 PATH=$PATH:/usr/local/cuda-13.3/bin cargo r --release --package translation-tool
+NVCC_CCBIN=gcc-14 NVCC_PREPEND_FLAGS = "-U_GNU_SOURCE -D_DEFAULT_SOURCE" PATH=$PATH:/usr/local/cuda-13.0/bin cargo r --release --package translation-tool
 sudo ln -sf /usr/lib64/libcuda.so.1 /usr/lib/libcuda.so.1
 sudo ln -sf /usr/lib64/libcuda.so.1 /usr/lib/libcuda.so
 ```

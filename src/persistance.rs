@@ -64,21 +64,26 @@ impl Persistance for AwsPersistance {
         let mut items: Vec<Article> = Vec::new();
         let mut exclusive_start_key = None;
         loop {
+            // Query the `version` secondary index (partition `user_id`, sort
+            // `version`) instead of the base table, so the version bound is part
+            // of the key condition rather than a filter evaluated over every
+            // article the user owns.
             let mut request = self
                 .client
                 .query()
-                .table_name("translation")
-                .key_condition_expression("user_id = :user_id")
-                .expression_attribute_values(":user_id", AttributeValue::S(user_id.to_string()));
+                .table_name("translation");
+            request = request.expression_attribute_values(":user_id", AttributeValue::S(user_id.to_string()));
             // Incremental syncs only need articles changed since the version the
             // client already holds. Soft-deleted rows are included here (their
             // version was bumped by the delete) so the client can remove them;
             // full syncs filter them out below.
             if since_version > 0 {
-                request = request
-                    .filter_expression("#v > :since")
+                request = request.index_name("user_id-version-index")
+                    .key_condition_expression("user_id = :user_id AND #v > :since")
                     .expression_attribute_names("#v", "version")
                     .expression_attribute_values(":since", AttributeValue::N(since_version.to_string()));
+            } else {
+                request = request.key_condition_expression("user_id = :user_id");
             }
             if let Some(key) = exclusive_start_key.take() {
                 request = request.set_exclusive_start_key(Some(key));

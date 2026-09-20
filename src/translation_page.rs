@@ -490,8 +490,16 @@ pub fn TranslationPage(
     let (only_recent, set_only_recent) = signal(saved_only_recent);
     let (only_with_pairs, set_only_with_pairs) = signal(saved_only_pairs);
 
-    // 1-based index of the currently displayed page of the article grid.
-    let (page, set_page) = signal(1usize);
+    // 1-based index of the currently displayed page of the article grid,
+    // restored from local storage so returning from an article lands back on
+    // the same page it was opened from.
+    let (page, set_page) = signal(crate::local_store::saved_article_page().max(1));
+
+    // The article the user last opened from this list (identified by its
+    // `created_at`). When present, returning to the library scrolls that card
+    // back into view.
+    #[cfg_attr(not(feature = "hydrate"), allow(unused_variables))]
+    let opened_article = crate::local_store::saved_opened_article();
 
     // Persist the list controls whenever they change.
     Effect::new(move |_| {
@@ -508,6 +516,10 @@ pub fn TranslationPage(
             only_recent.get(),
             only_with_pairs.get(),
         );
+    });
+    // Persist the current page so returning from an article restores it.
+    Effect::new(move |_| {
+        crate::local_store::save_article_page(page.get());
     });
 
     // Keys used to identify a single article for favorites. created_at doubles
@@ -626,7 +638,10 @@ pub fn TranslationPage(
 
     // Narrowing the list (new query, filter or sort) starts from page 1 so the
     // user always lands on the first batch of results. Data-only changes (e.g.
-    // deleting an article) deliberately do not reset the page.
+    // deleting an article) deliberately do not reset the page. The first run
+    // is skipped so the page restored from local storage survives the initial
+    // mount when returning from an article.
+    let mut controls_initialized = false;
     Effect::new(move |_| {
         search_query();
         only_favorites.get();
@@ -634,6 +649,10 @@ pub fn TranslationPage(
         only_recent.get();
         only_with_pairs.get();
         sort.get();
+        if !controls_initialized {
+            controls_initialized = true;
+            return;
+        }
         set_page.set(1);
     });
 
@@ -645,6 +664,44 @@ pub fn TranslationPage(
             set_page.set(last);
         }
     });
+
+    // When the user returns from an article they opened from this list, jump
+    // to the page that now contains its card and scroll that card back into
+    // view. The stored key is cleared once applied so unrelated visits (e.g. a
+    // fresh reload after browsing elsewhere) do not keep re-focusing it.
+    #[cfg(feature = "hydrate")]
+    if let Some(opened_key) = opened_article {
+        let mut focus_applied = false;
+        Effect::new(move |_| {
+            if focus_applied {
+                return;
+            }
+            focus_applied = true;
+            let items = visible.get();
+            let Some(position) = items
+                .iter()
+                .position(|(_, article)| article.created_at == opened_key)
+            else {
+                // The article no longer exists (deleted or filtered out).
+                crate::local_store::save_opened_article(None);
+                return;
+            };
+            let target_page = position / ARTICLES_PER_PAGE + 1;
+            set_page.set(target_page);
+            crate::local_store::save_opened_article(None);
+            let element_id = format!("article-card-{}", items[position].0);
+            // Give the grid a tick to render the target page before scrolling.
+            spawn_local(async move {
+                let _ = wasm_timer::Delay::new(Duration::from_millis(0)).await;
+                if let Some(element) = web_sys::window()
+                    .and_then(|window| window.document())
+                    .and_then(|document| document.get_element_by_id(&element_id))
+                {
+                    element.scroll_into_view();
+                }
+            });
+        });
+    }
 
     // Jump to a page and bring the top of the list back into view so the new
     // batch starts at the same place the previous one did.
@@ -713,6 +770,7 @@ pub fn TranslationPage(
                 } else {
                     translated_count * 100 / paragraph_count
                 };
+                let item_created_at = item.created_at;
                 let fav_key = favorite_key(&item);
                 let class_fav_key = fav_key.clone();
                 let title_fav_key = fav_key.clone();
@@ -726,11 +784,17 @@ pub fn TranslationPage(
                     .unwrap_or_else(|| (title.to_string(), None));
 
                 view! {
-                    <article class="article-list-card article-card group">
+                    <article
+                        class="article-list-card article-card group"
+                        id=format!("article-card-{}", index)
+                    >
                         <a
                             class="article-link"
                             href=format!("/article/{}", index)
-                            on:click=move |_| window().scroll_to_with_x_and_y(0.0, 0.0)
+                            on:click=move |_| {
+                                crate::local_store::save_opened_article(Some(item_created_at));
+                                window().scroll_to_with_x_and_y(0.0, 0.0);
+                            }
                         >
                             <div class="article-link-head">
                                 <div class="article-link-badges">
@@ -841,6 +905,11 @@ pub fn TranslationPage(
                                     class=BUTTON_CLASS
                                     href=format!("/article/{}/match", index)
                                     title="Match this article’s saved pairs"
+                                    on:click=move |_| {
+                                        crate::local_store::save_opened_article(
+                                            Some(item_created_at),
+                                        );
+                                    }
                                 >
                                     <span class="btn-icon">"⧉"</span>
                                     <span class="btn-label">"Match"</span>
@@ -849,6 +918,11 @@ pub fn TranslationPage(
                                     class=BUTTON_CLASS
                                     href=format!("/article/{}/rebuild", index)
                                     title="Rebuild this article’s original text"
+                                    on:click=move |_| {
+                                        crate::local_store::save_opened_article(
+                                            Some(item_created_at),
+                                        );
+                                    }
                                 >
                                     <span class="btn-icon">"↶"</span>
                                     <span class="btn-label">"Rebuild"</span>
