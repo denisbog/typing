@@ -55,6 +55,7 @@ leptos-use = "0.16.3"
 wasm-timer = "0.2.5"
 leptos_animation = {version = "0.5.2", path="../leptos_animation"}
 library-version = { path = "components/library-version", optional = true }
+article-model = { path = "components/article-model" }
 [features]
 
 hydrate = [

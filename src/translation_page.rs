@@ -6,7 +6,11 @@ use crate::application_types::Pair;
 use crate::components::Association;
 use crate::translation::delete_article;
 use crate::translation::store_pairs;
-use crate::{application_types::{Data}, components::{Sentance, TypingSpeedPanel}, BUTTON_DANGER_CLASS};
+use crate::{
+    application_types::Data,
+    components::{ArticleImage, Sentance, TypingSpeedPanel},
+    BUTTON_DANGER_CLASS,
+};
 use crate::TypePairs;
 use crate::BUTTON_CLASS;
 use leptos::either::Either;
@@ -141,21 +145,12 @@ struct SpeechCue {
     end: f64,
 }
 
-#[cfg(feature = "hydrate")]
-fn trim_trailing_slash(value: &str) -> String {
-    value.trim_end_matches('/').to_string()
-}
-
-#[cfg(feature = "hydrate")]
-fn paragraph_base_url(base: &str, paragraph_index: usize, voice: Option<&str>) -> String {
-    match voice {
-        Some(voice) => format!(
-            "{}/paragraph-{paragraph_index:03}/{}",
-            trim_trailing_slash(base),
-            voice
-        ),
-        None => format!("{}/paragraph-{paragraph_index:03}", trim_trailing_slash(base)),
-    }
+fn join_url(base: &str, path: &str) -> String {
+    format!(
+        "{}/{}",
+        base.trim_end_matches('/'),
+        path.trim_start_matches('/')
+    )
 }
 
 #[cfg(feature = "hydrate")]
@@ -167,35 +162,7 @@ async fn fetch_text(url: &str) -> Result<String, JsValue> {
     text.as_string().ok_or_else(|| JsValue::from_str("missing response text"))
 }
 
-#[cfg(feature = "hydrate")]
-async fn url_exists(url: &str) -> Result<bool, JsValue> {
-    let window = web_sys::window().ok_or_else(|| JsValue::from_str("window unavailable"))?;
-    let mut init = web_sys::RequestInit::new();
-    init.method("HEAD");
-    init.mode(web_sys::RequestMode::Cors);
-    let request = web_sys::Request::new_with_str_and_init(url, &init)?;
-    let response = JsFuture::from(window.fetch_with_request(&request)).await?;
-    let response: web_sys::Response = response.dyn_into()?;
-    Ok(response.ok())
-}
 
-#[cfg(feature = "hydrate")]
-async fn fetch_available_voices(base_directory: &str) -> Result<Vec<String>, JsValue> {
-    let metadata_url = format!("{}/metadata.json", trim_trailing_slash(base_directory));
-    let metadata_text = fetch_text(&metadata_url).await?;
-    let metadata: Value = serde_json::from_str(&metadata_text).unwrap_or(Value::Null);
-    Ok(metadata
-        .get("voices")
-        .and_then(Value::as_array)
-        .map(|voices| {
-            voices
-                .iter()
-                .filter_map(Value::as_str)
-                .map(str::to_string)
-                .collect::<Vec<String>>()
-        })
-        .unwrap_or_default())
-}
 
 #[cfg(feature = "hydrate")]
 fn push_speech_cue(cues: &mut Vec<SpeechCue>, word_index: usize, start: f64, end: f64) {
@@ -300,59 +267,102 @@ fn active_speech_cursor(cues: &[SpeechCue], current_time: f64, paragraph: usize)
 }
 
 #[cfg(feature = "hydrate")]
+#[cfg(feature = "hydrate")]
+fn stop_playback(playback: PlaybackState) {
+    playback.set_speech_cursor.set(None);
+    playback.set_is_playing.set(false);
+    playback.set_article_title.set(None);
+    playback.set_article_index.set(None);
+    playback.set_paragraph.set(None);
+    if let Some(current) = playback.audio.get_value() {
+        current.pause().ok();
+    }
+    playback.audio.set_value(None);
+}
+
+#[cfg(feature = "hydrate")]
 async fn start_paragraph_audio(
     article: Article,
     article_index: usize,
     base_directory: String,
     paragraph_index: usize,
     playback: PlaybackState,
-    voice: Option<String>,
+    _voice: Option<String>,
 ) -> Result<(), JsValue> {
-    if paragraph_index >= article.paragraphs.len() {
-        playback.set_speech_cursor.set(None);
-        playback.set_is_playing.set(false);
+    let Some(paragraph) = article.paragraphs.get(paragraph_index).cloned() else {
+        stop_playback(playback);
         return Ok(());
-    }
-    let paragraph_url = paragraph_base_url(&base_directory, paragraph_index + 1, voice.as_deref());
-    let audio_url = format!("{}/output.mp3", paragraph_url);
-    if !url_exists(&audio_url).await.unwrap_or(false) {
+    };
+    let Some(audio_file) = article.audio.clone() else {
+        stop_playback(playback);
+        return Ok(());
+    };
+    // A paragraph without timing (e.g. an image-only or manually added one)
+    // carries no audio of its own: fall through to the next one.
+    let Some(start) = paragraph.start else {
         let next_paragraph = paragraph_index + 1;
         if !playback.current_paragraph_only.get_untracked()
             && next_paragraph < article.paragraphs.len()
         {
-            let article = article.clone();
-            let base = base_directory.clone();
-            let playback = playback;
-            let voice = voice.clone();
+            // Spawn rather than recurse: an `async fn` cannot await itself.
             spawn_local(async move {
-                let _ = start_paragraph_audio(article, article_index, base, next_paragraph, playback, voice).await;
+                let _ = start_paragraph_audio(
+                    article,
+                    article_index,
+                    base_directory,
+                    next_paragraph,
+                    playback,
+                    _voice,
+                )
+                .await;
             });
-        } else {
-            playback.set_speech_cursor.set(None);
-            playback.set_is_playing.set(false);
-            playback.set_article_title.set(None);
-            playback.set_article_index.set(None);
-            playback.set_paragraph.set(None);
+            return Ok(());
         }
+        stop_playback(playback);
         return Ok(());
-    }
-    let transcription_url = format!("{}/transcription.json", paragraph_url);
-    let transcription_text = fetch_text(&transcription_url).await?;
-    let transcription_json: Value = serde_json::from_str(&transcription_text).unwrap_or(Value::Null);
-    let cues = build_speech_cues(transcription_json);
+    };
+
+    let audio_url = join_url(&base_directory, &audio_file);
+    // The whole article shares one audio file, so the word-level transcription
+    // is fetched once per paragraph and sliced down to this paragraph's words.
+    let transcription_url = join_url(&base_directory, "transcribe/transcription.json");
+    let cues = match fetch_text(&transcription_url).await {
+        Ok(text) => serde_json::from_str::<Value>(&text)
+            .map(build_speech_cues)
+            .unwrap_or_default(),
+        Err(_) => Vec::new(),
+    };
+    let end = paragraph.end;
+
+    // Select the article-wide word cues that overlap this paragraph's
+    // [start, end] span. Matching by time (rather than by a stored word offset)
+    // keeps the highlight aligned even when the recognizer's word count differs
+    // slightly from the article's.
+    let word_count = paragraph.original.split_whitespace().count();
+    let paragraph_cues: Vec<SpeechCue> = cues
+        .iter()
+        .filter(|cue| cue.end > start && end.map_or(true, |end| cue.start < end))
+        .take(word_count)
+        .enumerate()
+        .map(|(offset, cue)| SpeechCue {
+            word_index: offset,
+            start: cue.start,
+            end: cue.end,
+        })
+        .collect();
     playback
         .cue_starts
-        .set_value(cues.iter().map(|cue| cue.start).collect());
+        .set_value(paragraph_cues.iter().map(|cue| cue.start).collect());
 
     if let Some(previous) = playback.audio.get_value() {
         let _ = previous.pause();
-        // previous.set_src("");
     }
     playback.audio.set_value(None);
 
     let audio = HtmlAudioElement::new()?;
     audio.set_preload("auto");
     audio.set_src(&audio_url);
+    audio.set_current_time(start);
     playback.audio.set_value(Some(audio.clone()));
     playback.set_is_playing.set(true);
     playback.set_article_title.set(Some(article.title.clone()));
@@ -360,55 +370,63 @@ async fn start_paragraph_audio(
     playback.set_paragraph.set(Some(paragraph_index));
 
     let paragraph_for_cursor = paragraph_index;
-    let cues_for_timeupdate = cues.clone();
+    let cues_for_timeupdate = paragraph_cues.clone();
     let audio_for_timeupdate = audio.clone();
     let playback_for_timeupdate = playback;
+    // `timeupdate` fires many times per second; make sure the paragraph end is
+    // only acted on once.
+    let advanced = std::rc::Rc::new(std::cell::Cell::new(false));
+    let advanced_for_timeupdate = advanced.clone();
+    let article_for_update = article.clone();
+    let base_for_update = base_directory.clone();
     let ontimeupdate = Closure::wrap(Box::new(move || {
-        let cursor = active_speech_cursor(
-            &cues_for_timeupdate,
-            audio_for_timeupdate.current_time(),
-            paragraph_for_cursor,
-        );
+        let current = audio_for_timeupdate.current_time();
+        let cursor = active_speech_cursor(&cues_for_timeupdate, current, paragraph_for_cursor);
         playback_for_timeupdate.set_speech_cursor.set(cursor);
+
+        if let Some(end) = end {
+            if current >= end && !advanced_for_timeupdate.get() {
+                advanced_for_timeupdate.set(true);
+                audio_for_timeupdate.pause().ok();
+                playback_for_timeupdate.set_speech_cursor.set(None);
+                playback_for_timeupdate.set_is_playing.set(false);
+                let next_paragraph = paragraph_for_cursor + 1;
+                if !playback_for_timeupdate.current_paragraph_only.get_untracked()
+                    && next_paragraph < article_for_update.paragraphs.len()
+                {
+                    let article = article_for_update.clone();
+                    let base = base_for_update.clone();
+                    let playback = playback_for_timeupdate;
+                    spawn_local(async move {
+                        let _ = start_paragraph_audio(
+                            article,
+                            article_index,
+                            base,
+                            next_paragraph,
+                            playback,
+                            None,
+                        )
+                        .await;
+                    });
+                } else if !playback_for_timeupdate.current_paragraph_only.get_untracked() {
+                    stop_playback(playback_for_timeupdate);
+                }
+            }
+        }
     }) as Box<dyn FnMut()>);
     audio.set_ontimeupdate(Some(ontimeupdate.as_ref().unchecked_ref()));
     ontimeupdate.forget();
 
-    let article_for_end = article.clone();
-    let base_for_end = base_directory.clone();
+    // The article is a single audio file: `ended` only fires after the last
+    // paragraph, which just means playback is over.
     let playback_for_end = playback;
     let onended = Closure::wrap(Box::new(move || {
-        playback_for_end.set_speech_cursor.set(None);
-        playback_for_end.set_is_playing.set(false);
-        let next_paragraph = paragraph_index + 1;
-        if !playback_for_end.current_paragraph_only.get_untracked()
-            && next_paragraph < article_for_end.paragraphs.len()
-        {
-            let article = article_for_end.clone();
-            let base = base_for_end.clone();
-            let playback = playback_for_end;
-            let voice = voice.clone();
-            spawn_local(async move {
-                let _ = start_paragraph_audio(article, article_index, base, next_paragraph, playback, voice).await;
-            });
-        } else if !playback_for_end.current_paragraph_only.get_untracked() {
-            playback_for_end.set_article_title.set(None);
-            playback_for_end.set_article_index.set(None);
-            playback_for_end.set_paragraph.set(None);
-            if let Some(current) = playback_for_end.audio.get_value() {
-                current.pause().ok();
-                // current.set_src("");
-            }
-            playback_for_end.audio.set_value(None);
-        }
+        stop_playback(playback_for_end);
     }) as Box<dyn FnMut()>);
     audio.set_onended(Some(onended.as_ref().unchecked_ref()));
     onended.forget();
-// audio.play().unwrap();
+
     if JsFuture::from(audio.play()?).await.is_err() {
-        // playback.set_is_playing.set(false);
-        // playback.set_paragraph.set(None);
-        // playback.set_speech_cursor.set(None);
         return Err(JsValue::from_str("audio playback failed"));
     }
     Ok(())
@@ -572,7 +590,7 @@ pub fn TranslationPage(
             {
                 return false;
             }
-            if only_missing && item.audio_directory.is_some() {
+            if only_missing && item.audio.is_some() {
                 return false;
             }
             if only_favs && !favs.contains(&favorite_key(item)) {
@@ -775,13 +793,20 @@ pub fn TranslationPage(
                 let class_fav_key = fav_key.clone();
                 let title_fav_key = fav_key.clone();
                 let click_fav_key = fav_key.clone();
-                let title = item.title.trim();
-                let (headline, summary) = title
+                let title = item.title.trim().to_string();
+                // New records keep the lead in `description`; older ones
+                // embedded it in the title as "headline || lead".
+                let (headline, embedded_summary) = title
                     .split_once("||")
                     .map(|(headline, summary)| {
                         (headline.trim().to_string(), Some(summary.trim().to_string()))
                     })
-                    .unwrap_or_else(|| (title.to_string(), None));
+                    .unwrap_or_else(|| (title.clone(), None));
+                let summary = if item.description.trim().is_empty() {
+                    embedded_summary
+                } else {
+                    Some(item.description.trim().to_string())
+                };
 
                 view! {
                     <article
@@ -820,7 +845,7 @@ pub fn TranslationPage(
                                             }
                                         })}
                                     {item
-                                        .audio_directory
+                                        .audio
                                         .as_ref()
                                         .map(|_| {
                                             view! {
@@ -1388,6 +1413,17 @@ fn LazyParagraph(
         UseIntersectionObserverOptions::default().root_margin(PARAGRAPH_LOAD_MARGIN),
     );
 
+    let is_heading = paragraph.kind == crate::application_types::ParagraphKind::Head;
+    let placeholder_section_class = if is_heading {
+        "sentence-section parent sentence-section--heading"
+    } else {
+        "sentence-section parent"
+    };
+    let placeholder_index_label = if is_heading {
+        "Heading".to_string()
+    } else {
+        format!("Paragraph {:02}", index + 1)
+    };
     let paragraph_for_placeholder = paragraph.clone();
     view! {
         <div node_ref=sentinel>
@@ -1396,12 +1432,12 @@ fn LazyParagraph(
                     Either::Left(children())
                 } else {
                     let placeholder = view! {
-                        <section class="sentence-section parent" id=index + 1>
+                        <section class=placeholder_section_class id=index + 1>
                             <div class="sentence-card article-card">
                                 <div class="sentence-header">
                                     <div class="sentence-header-left">
                                         <span class="badge-index">
-                                            {format!("Paragraph {:02}", index + 1)}
+                                            {placeholder_index_label.clone()}
                                         </span>
                                         <span class="dot-sep"></span>
                                         <span class="badge-count">
@@ -1656,34 +1692,13 @@ pub fn ArticlePage(
                     }
                 })
                 .collect_view();
-            let has_audio_directory = article.audio_directory.is_some();
-            let audio_directory = article.audio_directory.clone().unwrap_or_default();
+            let has_audio = article.data_directory.is_some() && article.audio.is_some();
+            let audio_directory = article.data_directory.clone().unwrap_or_default();
             let audio_directory_for_audio = audio_directory.clone();
             let audio_directory_for_current = audio_directory.clone();
-            let audio_directory_for_voice_change = audio_directory.clone();
             let article_for_current = article.clone();
-            let article_for_voice = article.clone();
             #[cfg(feature = "hydrate")]
-            let (available_voices, set_available_voices) = signal(Vec::<String>::new());
-            #[cfg(feature = "hydrate")]
-            if has_audio_directory {
-                let audio_directory_for_voices = audio_directory.clone();
-                spawn_local(async move {
-                    if let Ok(voices) = fetch_available_voices(&audio_directory_for_voices).await {
-                        // Fall back to "default" when the globally preferred voice
-                        // is not available for this particular article.
-                        if let Some(pref) = playback.selected_voice.get_untracked().as_deref() {
-                            if !voices.iter().any(|v| v == pref) {
-                                playback.set_selected_voice.set(None);
-                            }
-                        }
-                        crate::local_store::merge_voices(&voices);
-                        set_available_voices.set(voices);
-                    }
-                });
-            }
-            #[cfg(feature = "hydrate")]
-            let on_audio_click = if has_audio_directory {
+            let on_audio_click = if has_audio {
                 let article_for_audio = article.clone();
                 Some(UnsyncCallback::new(move |paragraph_index: usize| {
                     let active_article = playback.article_index.get();
@@ -1724,7 +1739,7 @@ pub fn ArticlePage(
             #[cfg(not(feature = "hydrate"))]
             let on_audio_click: Option<UnsyncCallback<usize>> = None;
             #[cfg(feature = "hydrate")]
-            let on_replay_word = if has_audio_directory {
+            let on_replay_word = if has_audio {
                 Some(UnsyncCallback::new(move |(paragraph_index, word_index): (usize, usize)| {
                     if playback.article_index.get_untracked() != Some(article_id)
                         || playback.paragraph.get_untracked() != Some(paragraph_index)
@@ -1751,7 +1766,7 @@ pub fn ArticlePage(
             #[cfg(not(feature = "hydrate"))]
             let on_replay_word: Option<UnsyncCallback<(usize, usize)>> = None;
             #[cfg(feature = "hydrate")]
-            let on_current_paragraph = if has_audio_directory {
+            let on_current_paragraph = if has_audio {
                 Some(UnsyncCallback::new(move |paragraph_index: usize| {
                     if !playback.current_paragraph_only.get_untracked() {
                         return;
@@ -1787,12 +1802,35 @@ pub fn ArticlePage(
             };
             #[cfg(not(feature = "hydrate"))]
             let on_current_paragraph: Option<UnsyncCallback<usize>> = None;
-            let paragraphs = article
-                .paragraphs
-                .clone()
+            // The article body is an ordered list of blocks: text paragraphs
+            // (body or heading) and images. Image blocks render as figures;
+            // text blocks reuse the interactive `Sentance` component, so word
+            // pairing keeps working exactly as before.
+            // Records written by the newer importer carry explicit blocks;
+            // older records only have paragraphs, so synthesise one block per
+            // paragraph to keep them rendering.
+            let blocks = if article.blocks.is_empty() {
+                article
+                    .paragraphs
+                    .iter()
+                    .enumerate()
+                    .map(|(index, _)| crate::application_types::Block::paragraph(index))
+                    .collect::<Vec<_>>()
+            } else {
+                article.blocks.clone()
+            };
+            let content = blocks
                 .into_iter()
-                .enumerate()
-                .map(|(index, item)| {
+                .map(|block| {
+                    if let Some(image) = block.image.clone() {
+                        let src = match article.data_directory.as_deref() {
+                            Some(base) if !image.src.is_empty() => join_url(base, &image.src),
+                            _ => image.src.clone(),
+                        };
+                        return view! { <ArticleImage image=image src=src/> }.into_any();
+                    }
+                    let index = block.paragraph.unwrap_or(0);
+                    let item = article.paragraphs.get(index).cloned().unwrap_or_default();
                     // Owned per-iteration copies: the `LazyParagraph` children
                     // closure is `move` and reusable, so it can't borrow from
                     // this `FnMut` closure's by-reference captures.
@@ -1809,12 +1847,11 @@ pub fn ArticlePage(
                                 set_pairs
                                 div_ref
                                 speech_cursor
-                                audio_directory=if has_audio_directory {
+                                audio_directory=if has_audio {
                                     Some(audio_directory.clone())
                                 } else {
                                     None
                                 }
-
                                 on_audio_click=on_audio_click.clone()
                                 on_replay_word=on_replay_word.clone()
                                 on_current_paragraph=on_current_paragraph.clone()
@@ -1838,99 +1875,12 @@ pub fn ArticlePage(
                             />
                         </LazyParagraph>
                     }
+                        .into_any()
                 })
                 .collect_view();
 
-            #[cfg(feature = "hydrate")]
-            let voice_dropdown = if has_audio_directory {
-                view! {
-                    <select
-                        class="voice-select"
-                        prop:value=move || {
-                            playback.selected_voice.get().unwrap_or_else(|| "default".to_string())
-                        }
-
-                        on:change=move |event| {
-                            let value = event_target_value(&event);
-                            let voice = if value == "default" { None } else { Some(value) };
-                            playback.set_selected_voice.set(voice.clone());
-                            if has_audio_directory
-                                && playback.article_index.get() == Some(article_id)
-                                && playback.paragraph.get().is_some()
-                            {
-                                let paragraph_index = playback.paragraph.get().unwrap();
-                                if let Some(audio) = playback.audio.get_value() {
-                                    audio.pause().ok();
-                                }
-                                playback.set_is_playing.set(false);
-                                playback.set_speech_cursor.set(None);
-                                let article = article_for_voice.clone();
-                                let directory = audio_directory_for_voice_change.clone();
-                                let playback = playback;
-                                spawn_local(async move {
-                                    let _ = start_paragraph_audio(
-                                            article,
-                                            article_id,
-                                            directory,
-                                            paragraph_index,
-                                            playback,
-                                            voice,
-                                        )
-                                        .await;
-                                });
-                            }
-                        }
-                    >
-
-                        <option value="default">"default"</option>
-                        {move || {
-                            available_voices
-                                .get()
-                                .into_iter()
-                                .map(|voice| {
-                                    let value = voice.clone();
-                                    if playback
-                                        .selected_voice
-                                        .get()
-                                        .unwrap_or_else(|| "default".to_string()) == voice
-                                    {
-                                        view! {
-                                            // workaround for the selection issue, options are being
-                                            // rendered after the select value is set, we need to force the
-                                            // selction maker on the selected item
-                                            <option value=value selected>
-                                                {voice}
-                                            </option>
-                                        }
-                                            .into_any()
-                                    } else {
-                                        view! {
-                                            // workaround for the selection issue, options are being
-                                            // rendered after the select value is set, we need to force the
-                                            // selction maker on the selected item
-
-                                            // workaround for the selection issue, options are being
-                                            // rendered after the select value is set, we need to force the
-                                            // selction maker on the selected item
-
-                                            // workaround for the selection issue, options are being
-                                            // rendered after the select value is set, we need to force the
-                                            // selction maker on the selected item
-                                            <option value=value>{voice}</option>
-                                        }
-                                            .into_any()
-                                    }
-                                })
-                                .collect_view()
-                        }}
-
-                    </select>
-                }
-                .into_any()
-            } else {
-                view! { <div class="hidden"></div> }.into_any()
-            };
-            #[cfg(not(feature = "hydrate"))]
+            // Articles imported from the crawler/transcribe pipeline carry a
+            // single narration track, so the old per-voice selector is gone.
             let voice_dropdown = view! { <div class="hidden"></div> }.into_any();
             #[cfg(feature = "hydrate")]
             let current_paragraph_toggle = view! {
@@ -1951,6 +1901,14 @@ pub fn ArticlePage(
             #[cfg(not(feature = "hydrate"))]
             let current_paragraph_toggle = view! { <div class="hidden"></div> }.into_any();
 
+            // Subtitle shown above the headline: the kicker when present,
+            // otherwise the section.
+            let kicker = if article.subtitle.trim().is_empty() {
+                article.section.clone()
+            } else {
+                article.subtitle.clone()
+            };
+            let byline = article.authors.join(", ");
             Either::Left(view! {
                 <header class="page-header">
                     <div class="page-header-inner">
@@ -1959,7 +1917,7 @@ pub fn ArticlePage(
                             <span class="back-link-label">"Library"</span>
                         </a>
                         <div class="page-title-wrap">
-                            <div class="page-title-eyebrow">"Now practicing"</div>
+                            <div class="page-title-eyebrow">{kicker.clone()}</div>
                             <div class="page-title">{article.title.clone()}</div>
                         </div>
                         <div class="page-count">
@@ -1968,7 +1926,21 @@ pub fn ArticlePage(
                         </div>
                     </div>
                 </header>
-                {paragraphs}
+                <section class="article-hero">
+                    <div class="article-hero-inner">
+                        <div class="article-hero-kicker">{kicker}</div>
+                        <h1 class="article-hero-title">{article.title.clone()}</h1>
+                        {(!article.description.is_empty())
+                            .then(|| {
+                                view! {
+                                    <p class="article-hero-lead">{article.description.clone()}</p>
+                                }
+                            })}
+                        {(!byline.is_empty())
+                            .then(|| view! { <p class="article-hero-byline">{byline.clone()}</p> })}
+                    </div>
+                </section>
+                {content}
                 <TypingSpeedPanel
                     typing_speed_paragraph
                     typing_speed_samples

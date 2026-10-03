@@ -16,42 +16,6 @@ npx tailwindcss -i ./input.css -o ./public/typing.css --watch
 leptosfmt src/
 ```
 
-### run translation server
-
-using `https://huggingface.co/docs/transformers/model_doc/marian`
-
-#### dependencies
-
-AWS EC2
-
-use 16GB of storage (after the installation uses 7.8GB of store, during the installation up to 12GB)
-
-use t2.medium to install and t2.small to run
-
-```python
-sudo yum install python pip
-mkdir tmp
-TMPDIR=/home/ec2-user/tmp pip install torch flask transformers sentencepiece sacremoses --no-cache-dir
-```
-
-### start translation server
-
-```python
-python translate_server.py
-```
-
-### translate articles
-
-```bash
-time cargo r --bin translate --release --features=translation
-```
-
-### translate with rust ML
-
-```bash
-time PATH=$PATH:/usr/local/cuda-12.5/bin/ cargo run --release --features translation --bin translation-tool --  --tokenizer tokenizer-marian-base-de.json --tokenizer-dec tokenizer-marian-base-en.json
-time NVCC_CCBIN=gcc-13 PATH=$PATH:/usr/local/cuda/bin cargo run --release --features translation --bin translation-tool
-```
 
 ### nvim init.lua config
 
@@ -118,46 +82,35 @@ LEPTOS_OUTPUT_NAME=typing cargo lambda build --no-default-features --features=ss
 cargo lambda deploy --include target/site --enable-function-url --binary-name=typing
 ```
 
-## translation
+## article pipeline
 
-Project-local .cargo/config.toml in this repo:
+Articles are downloaded and translated outside this repository:
 
- ```toml
-   [env]
-   NVCC_CCBIN = "gcc-14"
-   NVCC_PREPEND_FLAGS = "-U_GNU_SOURCE -D_DEFAULT_SOURCE"
- ```
+* `~/llm/crawler` downloads each SPIEGEL article — text, images and the
+  narration audio — into one folder per article: `article.json`, `images/`,
+  `audio/`.
+* `~/llm/transcribe` force-aligns the article text to the audio and translates
+  it, writing `transcribe/transcript.json` (sentence timings),
+  `transcribe/translation.json` (the English sentences) and
+  `transcribe/transcription.json` (word-level timings).
 
-The tool needs the converted Marian tokenizers (`tokenizer-marian-base-de.json`,
-`tokenizer-marian-base-en.json`) in the directory it is run from. They are
-generated with candle's marian-mt `convert_slow_tokenizer.py` from the
-Helsinki-NLP/opus-mt-de-en sentencepiece models.
-
-When the CUDA toolkit emits a newer PTX ISA than the driver supports
-(`CUDA_ERROR_UNSUPPORTED_PTX_VERSION`), use the wrapper in
-`tools/nvcc-ptx-compat` (install it to `~/.local/bin/nvcc`) or install a
-matching CUDA 13.0 toolkit. See `tools/nvcc-ptx-compat/README.md`.
+The media is uploaded to the cloud store (S3/CloudFront) by hand. The
+`article-import` tool reads the article folders and creates the DynamoDB record
+the web app serves, aligning paragraphs and headings with the translated
+sentences and their audio timings:
 
 ```bash
-NVCC_CCBIN=gcc-14 PATH=$PATH:/usr/local/cuda/bin cargo r --release --package translation-tool
-NVCC_CCBIN=gcc-14 PATH=$PATH:/usr/local/cuda/bin cargo r --release --package spiegel-crawler --bin spiegel-crawler -- --userInfo <userInfo> --accessInfo <accessInfo> --userId <userId>
-sudo dkms install --force nvidia/580.105.08 -k $(uname -r)
-NVCC_CCBIN=gcc-14 NVCC_PREPEND_FLAGS = "-U_GNU_SOURCE -D_DEFAULT_SOURCE" PATH=$PATH:/usr/local/cuda-13.0/bin cargo r --release --package translation-tool
-sudo ln -sf /usr/lib64/libcuda.so.1 /usr/lib/libcuda.so.1
-sudo ln -sf /usr/lib64/libcuda.so.1 /usr/lib/libcuda.so
+cargo run --release --package article-import -- \
+    --user-id <uuid> \
+    --prefix https://<distribution>.cloudfront.net/articles \
+    --root ~/llm/crawler/articles-ihre-artikel-new
 ```
 
-## adding voice
+`--dir <article-folder>` imports a single article (repeatable), `--dry-run`
+prints what would be imported without writing, and `--dump-json` prints the
+record. One run bumps the user's library version once and stamps every article
+with it, so the app's incremental sync sees a single revision.
 
-the tool will pick the items with translation == true and after generating the voice will set translation = voice. you still have to upload the voice data
-
-### default voice
-
-MISTRAL_API_KEY= cargo r --release --package voice-tool --bin voice-tool -- --prefix https://dek5ir2aw39om.cloudfront.net/ --voice-id a8b7df27-1b78-4411-8661-ade46c460b8e
-### additional voice
-MISTRAL_API_KEY= cargo r --release --package voice-tool --bin add_voice -- --voice-name merz --voice-id a8b7df27-1b78-4411-8661-ade46c460b8e
-### upload the content
-aws s3 sync generated s3://listentomeaha/generated
 
 ## delete from command line
 

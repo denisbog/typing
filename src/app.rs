@@ -95,7 +95,7 @@ fn PlaybackPanel(playback: PlaybackState) -> impl IntoView {
                                 playback
                                     .selected_voice
                                     .get()
-                                    .unwrap_or_else(|| "Default voice".to_string())
+                                    .unwrap_or_else(|| "Narration".to_string())
                             }}
 
                         </span>

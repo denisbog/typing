@@ -267,9 +267,8 @@ mod tests {
             created_at: 0,
             translated: "false".to_string(),
             title: "test".to_string(),
-            audio_directory: None,
             paragraphs: vec![Paragraph::default()],
-            version: 0,
+            ..Article::default()
         };
 
         let persistance = AwsPersistance::init().await;

@@ -2,8 +2,8 @@
 //!
 //! The counter lives in the `translation_preferences` DynamoDB table (partition
 //! key `user_id`) and is incremented atomically by every component that mutates
-//! an article: the web app, the Spiegel crawler, the translation tool and the
-//! voice tool. The web UI also reads it to decide whether its cached article
+//! an article: the web app and the `article-import` tool. The web UI also reads
+//! it to decide whether its cached article
 //! list is still current, and passes it back when fetching so the server only
 //! returns articles changed since then.
 //!

@@ -619,17 +619,28 @@ pub fn Sentance(
             "sentence-card article-card"
         }
     };
+    let is_heading = paragraph.kind == crate::application_types::ParagraphKind::Head;
+    let section_class = if is_heading {
+        "sentence-section parent sentence-section--heading"
+    } else {
+        "sentence-section parent"
+    };
+    let index_label = if is_heading {
+        "Heading".to_string()
+    } else {
+        format!("Paragraph {:02}", index + 1)
+    };
 
     view! {
         <section
-            class="sentence-section parent"
+            class=section_class
             id=index + 1
         >
             <div class=class>
                 <div class="sentence-header">
                     <div class="sentence-header-left">
                         <span class="badge-index">
-                            {format!("Paragraph {:02}", index + 1)}
+                            {index_label.clone()}
                         </span>
                         <span class="dot-sep"></span>
                         <span class="badge-count">
@@ -1227,6 +1238,40 @@ pub fn Sentance(
             }
 
         </section>
+    }
+}
+
+/// A figure inside the article body: the image plus its caption and credit.
+#[component]
+pub fn ArticleImage(image: crate::application_types::Image, src: String) -> impl IntoView {
+    let has_caption = !image.caption.trim().is_empty();
+    let has_credit = !image.credit.trim().is_empty();
+    let alt = if image.alt.trim().is_empty() {
+        image.caption.clone()
+    } else {
+        image.alt.clone()
+    };
+    let caption = image.caption.clone();
+    let credit = image.credit.clone();
+    view! {
+        <figure class="article-figure">
+            <img class="article-figure-image" src=src alt=alt loading="lazy"/>
+            {(has_caption || has_credit)
+                .then(|| {
+                    view! {
+                        <figcaption class="article-figure-caption">
+                            {has_caption
+                                .then(|| {
+                                    view! { <span class="article-figure-text">{caption.clone()}</span> }
+                                })}
+                            {has_credit
+                                .then(|| {
+                                    view! { <span class="article-figure-credit">{credit.clone()}</span> }
+                                })}
+                        </figcaption>
+                    }
+                })}
+        </figure>
     }
 }
 

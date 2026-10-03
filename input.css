@@ -1419,3 +1419,58 @@
     margin-bottom: 0.5rem;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Article hero and body figures (crawler + transcribe pipeline)       */
+/* ------------------------------------------------------------------ */
+.article-hero {
+  @apply w-full border-b border-white/[0.06] bg-[#070a10];
+}
+
+.article-hero-inner {
+  @apply mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10;
+}
+
+.article-hero-kicker {
+  @apply font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500;
+}
+
+.article-hero-title {
+  @apply mt-3 text-2xl font-semibold leading-tight text-slate-100 sm:text-3xl;
+}
+
+.article-hero-lead {
+  @apply mt-4 text-base leading-relaxed text-slate-400 sm:text-lg;
+}
+
+.article-hero-byline {
+  @apply mt-4 font-mono text-[11px] uppercase tracking-widest text-slate-600;
+}
+
+.article-figure {
+  @apply flex w-full snap-start flex-col items-center px-2 py-6 sm:px-6;
+}
+
+.article-figure-image {
+  @apply w-full max-w-5xl rounded-lg border border-white/[0.08] object-cover;
+}
+
+.article-figure-caption {
+  @apply mt-3 flex w-full max-w-3xl flex-col gap-1;
+}
+
+.article-figure-text {
+  @apply text-sm leading-relaxed text-slate-400;
+}
+
+.article-figure-credit {
+  @apply font-mono text-[10px] uppercase tracking-widest text-slate-600;
+}
+
+.sentence-section--heading {
+  @apply min-h-0 py-6;
+}
+
+.sentence-section--heading .sentence-card {
+  @apply border-l-2 border-white/20;
+}

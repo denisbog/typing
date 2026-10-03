@@ -4,15 +4,12 @@ use leptos_meta::Title;
 use crate::preferences::PreferencesStore;
 use crate::BUTTON_CLASS;
 
-/// Known voice options. Add new voices here as they become available.
-const KNOWN_VOICES: &[&str] = &["merz"];
 
 #[component]
 pub fn PropertiesPage() -> impl IntoView {
     let prefs = use_context::<PreferencesStore>()
         .expect("PreferencesStore not provided")
         .prefs;
-    let voice = Memo::new(move |_| prefs.get().voice.clone());
     let current_paragraph_only = Memo::new(move |_| prefs.get().current_paragraph_only);
     let group_matching_by_paragraph =
         Memo::new(move |_| prefs.get().group_matching_by_paragraph);
@@ -32,45 +29,9 @@ pub fn PropertiesPage() -> impl IntoView {
                         "Sound preferences"
                     </h1>
                     <p class="props-sub">
-                        "Choose the voice used when reading articles aloud. If the preferred
-                        voice is not available for an article, it falls back to "default ".
-                        If the article has no audio, the voice selector is disabled."
+                        "Control how articles are read aloud while you type. The narration audio
+                        comes with each imported article."
                     </p>
-
-                    <label
-                        for="preferred-voice"
-                        class="props-label"
-                    >
-                        "Preferred voice"
-                    </label>
-                    <select
-                        id="preferred-voice"
-                        class="props-select"
-                        prop:value=move || {
-                            if voice.get().is_empty() { "default".to_string() } else { voice.get() }
-                        }
-
-                        on:change=move |event| {
-                            let value = event_target_value(&event);
-                            let v = if value == "default" { String::new() } else { value };
-                            prefs.update(|p| p.voice = v);
-                            set_saved.set(true);
-                        }
-                    >
-
-                        <option value="default">"default"</option>
-                        {KNOWN_VOICES
-                            .iter()
-                            .map(|v| {
-                                let value = v.to_string();
-                                view! { <option value=value>{*v}</option> }
-                            })
-                            .collect_view()}
-                    </select>
-                    <p class="props-hint">
-                        "Available: default, " {KNOWN_VOICES.join(", ")}
-                    </p>
-
                     <div class="props-toggle-row">
                         <input
                             id="current-paragraph-only"
