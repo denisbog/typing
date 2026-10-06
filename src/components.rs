@@ -1253,8 +1253,19 @@ pub fn ArticleImage(image: crate::application_types::Image, src: String) -> impl
     };
     let caption = image.caption.clone();
     let credit = image.credit.clone();
+    // Figures share the paragraph typing areas' tab stop (tabindex=1) so that
+    // tabbing between paragraphs lands on images too instead of skipping them.
+    // On mobile the typing areas drop out of the tab order, so the figure does
+    // the same to avoid a stray focus ring when tapping an image.
+    let is_mobile = leptos_use::use_media_query("(max-width: 1024px)");
+    let tabindex = move || if is_mobile.get() { -1 } else { 1 };
+    let label = if alt.trim().is_empty() {
+        "Article image".to_string()
+    } else {
+        alt.clone()
+    };
     view! {
-        <figure class="article-figure">
+        <figure class="article-figure" tabindex=tabindex aria-label=label>
             <img class="article-figure-image" src=src alt=alt loading="lazy"/>
             {(has_caption || has_credit)
                 .then(|| {

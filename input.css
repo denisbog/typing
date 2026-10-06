@@ -1451,8 +1451,31 @@
   @apply flex w-full snap-start flex-col items-center px-2 py-6 sm:px-6;
 }
 
+/* Figures are tab stops (see ArticleImage) so keyboard users land on them
+   while jumping between paragraphs. Show the focus ring on the image itself
+   rather than around the full-width figure padding. */
+.article-figure:focus {
+  outline: none;
+}
+
+.article-figure:focus-visible .article-figure-image {
+  border-color: rgba(255, 255, 255, 0.35);
+  outline: 2px solid rgba(148, 163, 184, 0.55);
+  outline-offset: 3px;
+}
+
 .article-figure-image {
-  @apply w-full max-w-5xl rounded-lg border border-white/[0.08] object-cover;
+  @apply rounded-lg border border-white/[0.08];
+  /* Scale the whole image down to fit the viewport instead of filling the
+     column: `width/height: auto` keeps the aspect ratio while the max
+     constraints cap both axes, so tall/portrait images don't run off the
+     screen and force a scroll before the next paragraph. */
+  height: auto;
+  width: auto;
+  max-width: min(100%, 64rem);
+  max-height: calc(100vh - 6rem);
+  max-height: calc(100svh - 6rem);
+  object-fit: contain;
 }
 
 .article-figure-caption {
